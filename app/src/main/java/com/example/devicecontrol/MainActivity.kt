@@ -73,6 +73,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -102,7 +104,7 @@ private const val ACTION_OPEN_DEVICE_SHORTCUT = "com.example.devicecontrol.OPEN_
 private const val EXTRA_GOODS_ID = "goods_id"
 private const val EXTRA_DEVICE_ID = "device_id"
 private const val EXTRA_GOODS_NAME = "goods_name"
-private const val PROJECT_URL = "https://github.com/wzs0512/qiekj-android"
+private const val PROJECT_URL = "https://github.com/Inonvation/qiekj-android"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -336,6 +338,7 @@ private fun PointsTaskScreen(
     val context = LocalContext.current
     val listState = rememberLazyListState()
     var logExpanded by remember { mutableStateOf(true) }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(state.pointsLogs.size) {
         if (state.pointsLogs.isNotEmpty() && logExpanded) {
@@ -476,7 +479,7 @@ private fun PointsTaskScreen(
             ) {
                 if (state.pointsTaskPaused) {
                     Button(
-                        onClick = { vm.resumePointsTask() },
+                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.resumePointsTask() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.resume, contentColor = AppColors.white),
@@ -485,7 +488,7 @@ private fun PointsTaskScreen(
                     }
                 } else {
                     Button(
-                        onClick = { vm.pausePointsTask() },
+                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.pausePointsTask() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AppColors.pause, contentColor = AppColors.white),
@@ -513,6 +516,7 @@ private fun PointsTaskScreen(
         } else {
             Button(
                 onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     val ua = android.webkit.WebSettings.getDefaultUserAgent(context)
                     vm.startPointsTask(ua)
                 },
@@ -706,25 +710,35 @@ private fun MeScreen(
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    when {
-                        state.loadingBalance -> LoadingText("正在查询资产")
-                        state.balance != null -> {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(state.balance.ticketText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(state.balance.pointsText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            }
-                            Spacer(Modifier.height(6.dp))
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("积分抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(state.balance.integralAmount ?: "-", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    // Stable height container to prevent card jumping
+                    val balance = state.balance
+                    if (state.loadingBalance && balance == null) {
+                        Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("正在查询...", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
-                        else -> EmptyText("暂无资产信息")
+                    } else if (balance != null) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(balance.ticketText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(balance.pointsText, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("积分抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(balance.integralAmount ?: "-", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
+                            Text("暂无资产信息", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }

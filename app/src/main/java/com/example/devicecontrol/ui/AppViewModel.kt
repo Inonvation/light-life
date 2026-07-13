@@ -249,21 +249,23 @@ class AppViewModel(
             }
         }.onSuccess {
             appendPointLog("任务流程结束")
-            // 计算本次获得积分并保存到统计
-            val before = state.value.balance?.integralAmount?.filter { it.isDigit() || it == '.' }?.toDoubleOrNull() ?: 0.0
-            val afterPoints = state.value.pointsLogs.let { logs ->
-                logs.find { it.contains("当前积分") }?.let { line ->
-                    line.filter { it.isDigit() || it == '.' }?.toDoubleOrNull()
-                } ?: 0.0
+            // 从日志中解析本次获得积分并保存到统计
+            val gainedPoints = state.value.pointsLogs.let { logs ->
+                logs.findLast { it.contains("今日积分") }
+                    ?.replaceAfter("今日积分：", "")
+                    ?.substringAfter("今日积分：")
+                    ?.filter { it.isDigit() || it == '.' }
+                    ?.toDoubleOrNull()
+                    ?: 0.0
+            }.toInt()
+            if (gainedPoints > 0) {
+                pointsStatsStore?.addSession(gainedPoints, "0.00")
             }
-            if (afterPoints > 0) {
-                pointsStatsStore?.addSession(afterPoints.toInt(), "0.00")
-                pointsStatsStore?.let {
-                    _state.update { s -> s.copy(
-                        totalPointsEarned = it.getTotalEarned(),
-                        totalPointsDeducted = it.getTotalDeductedAmount(),
-                    )}
-                }
+            pointsStatsStore?.let {
+                _state.update { s -> s.copy(
+                    totalPointsEarned = it.getTotalEarned(),
+                    totalPointsDeducted = it.getTotalDeductedAmount(),
+                )}
             }
         }.onFailure {
             appendPointLog("任务失败：${it.message ?: "未知错误"}")
@@ -301,6 +303,7 @@ class AppViewModel(
                 totalPointsDeducted = it.getTotalDeductedAmount(),
             )}
         }
+        refreshTodayWater()
     }
 
     fun updateThemeMode(mode: ThemeMode) {
