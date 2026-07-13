@@ -3,7 +3,7 @@ name: 构建并发布 Release
 on:
   push:
     tags:
-      - "v*"  # 推送 v0.0.x 格式的 tag 时触发
+      - "v*"
 
 jobs:
   build:
@@ -35,7 +35,7 @@ jobs:
       - name: 赋予 gradlew 执行权限
         run: chmod +x gradlew
 
-      - name: 生成 debug.keystore
+      - name: 生成 debug 签名
         run: |
           keytool -genkey -v -keystore app/debug.keystore \
             -alias androiddebugkey -keyalg RSA -keysize 2048 \
@@ -43,14 +43,13 @@ jobs:
             -storepass android -keypass android \
             -dname "CN=Android Debug, O=Android, C=US"
 
-      - name: 构建 Release APK
+      - name: 构建 APK
         run: ./gradlew :app:assembleDebug -PbuildVersionName="${{ github.ref_name }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 上传 APK 到 Release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           files: app/build/outputs/apk/debug/*.apk
           name: ${{ github.ref_name }}
           body: |
