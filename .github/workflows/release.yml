@@ -45,27 +45,16 @@ jobs:
           # 重命名 APK：ShouDiao-v{版本号}.apk
           cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/ShouDiao-v${VERSION}.apk"
 
-      - name: 生成更新日志
-        run: |
-          PREV_TAG=$(git tag --sort=-creatordate | grep -E '^v[0-9]' | sed -n '2p' || echo "")
-          cat > release_body.md << EOM
-          ### 瘦刁生活 ${{ github.ref_name }}
-          
-          EOM
-          if [ -z "$PREV_TAG" ]; then
-            echo "首次发布" >> release_body.md
-          else
-            git log --oneline --no-decorate "${PREV_TAG}.." -- . ':!archive' ':!.github' 2>/dev/null | head -30 >> release_body.md
-          fi
-          echo "" >> release_body.md
-          echo "> 如果安装提示签名不一致，请先卸载旧版。" >> release_body.md
-
       - name: 上传 APK 到 Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: app/build/outputs/apk/debug/ShouDiao-v*.apk
           name: ${{ github.ref_name }}
-          body_path: release_body.md
+          body: |
+            ### 瘦刁生活 ${{ github.ref_name }}
+            
+            Release 发布后可在 GitHub 页面编辑更新内容。
+          generate_release_notes: true
           make_latest: true
           fail_on_unmatched_files: false
