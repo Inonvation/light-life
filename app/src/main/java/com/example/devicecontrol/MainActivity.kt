@@ -640,7 +640,14 @@ private fun MeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
-            PageTitle("我的", if (state.hasToken) "已登录" else "未登录")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PageTitle("我的", if (state.hasToken) "已登录" else "未登录")
+                if (state.hasToken) {
+                    IconButton(onClick = { vm.showLogoutConfirm() }) {
+                        Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "退出登录")
+                    }
+                }
+            }
             Row {
                 IconButton(onClick = { vm.showCurrentToken() }) {
                     Icon(Icons.Outlined.Code, contentDescription = "查看 Token")
