@@ -17,6 +17,15 @@
 - 已配置在 `signingConfigs.fixedDebug`
 - 首次安装需先卸载旧版（签名不同）
 
+## 发布流程
+- 推送 tag 即可触发 GitHub Actions 自动构建并创建 Release：
+  ```bash
+  git tag v0.0.x
+  git push --tags
+  ```
+- 工作流定义在 `.github/workflows/release.yml`
+- 也可手动发布：`scripts/build.bat` 构建后，用 `gh release create` 上传
+
 ## 代码规范
 - 不要在 Compose 函数外使用 `remember`
 - 所有 UI 间距/颜色优先使用 `AppStyles.kt` 中的常量

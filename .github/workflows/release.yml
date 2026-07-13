@@ -1,0 +1,61 @@
+name: 构建并发布 Release
+
+on:
+  push:
+    tags:
+      - "v*"  # 推送 v0.0.x 格式的 tag 时触发
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: 设置 Gradle 缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles("**/*.gradle*", "**/gradle-wrapper.properties") }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: 赋予 gradlew 执行权限
+        run: chmod +x gradlew
+
+      - name: 生成 debug.keystore
+        run: |
+          keytool -genkey -v -keystore app/debug.keystore \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Android Debug, O=Android, C=US"
+
+      - name: 构建 Release APK
+        run: ./gradlew :app:assembleDebug -PbuildVersionName="${{ github.ref_name }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 上传 APK 到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/*.apk
+          name: ${{ github.ref_name }}
+          body: |
+            ### 瘦刁生活 ${{ github.ref_name }}
+            
+            自动构建的 Debug APK。
+            
+            > 首次安装请先卸载旧版（签名不同）。
+          make_latest: true
+          fail_on_unmatched_files: false
