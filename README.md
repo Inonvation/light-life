@@ -70,6 +70,8 @@ scripts\build.bat
 archive/app-debug-v{x.y.z}.apk
 ```
 
+> 推送 v* 格式的 tag 即可自动触发 GitHub Actions 构建 Release。
+
 ## 致谢
 
 - [3ryng1um/qiekj](https://github.com/3ryng1um/qiekj) — Python 刷分脚本与接口流程参考

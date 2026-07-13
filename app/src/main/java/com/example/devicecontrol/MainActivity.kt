@@ -785,6 +785,15 @@ private fun MeScreen(
             ) {
                 Text("历史订单")
             }
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { vm.logout() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+            ) {
+                Text("退出登录")
+            }
             Spacer(Modifier.height(16.dp))
         }
 

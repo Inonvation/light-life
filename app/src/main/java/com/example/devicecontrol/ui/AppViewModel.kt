@@ -296,6 +296,21 @@ class AppViewModel(
         _state.update { it.copy(pointsLogs = emptyList()) }
     }
 
+    fun logout() {
+        repository.clearToken()
+        _state.update { it.copy(
+            hasToken = false,
+            phone = "",
+            code = "",
+            devices = emptyList(),
+            balance = null,
+            todayWaterCount = 0,
+            todayWaterAmount = "0.00",
+            totalPointsEarned = 0,
+            totalPointsDeducted = "0.00",
+        )}
+    }
+
     fun refreshPointsStats() {
         pointsStatsStore?.let {
             _state.update { s -> s.copy(

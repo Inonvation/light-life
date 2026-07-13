@@ -1,5 +1,9 @@
 # 瘦刁生活 - Agent 指南
 
+## 首要原则
+- **在你执行任何发布、构建、提交、推送等操作前，必须先向用户阐述方案，等待用户明确同意后再执行**
+- 不要自作主张做任何用户没有要求的事情
+
 ## 构建
 - `scripts/build.bat`（Windows）— 自动管理版本号，构建并归档 APK
 - `scripts/build.ps1`（Windows PowerShell）— 同上
@@ -9,22 +13,8 @@
 ## 版本管理
 - 版本号在 `app/build.gradle.kts` 的 `defaultConfig` 中
 - `versionCode`: 每次发布 +1（整数）
-- `versionName`: 语义化版本，如 "0.0.11"
+- `versionName`: 语义化版本，如 "0.0.13"
 - 构建脚本 `build.bat` 自动从版本文件读取并递增 patch
-
-## 签名
-- 使用项目内的 `app/debug.keystore`（自定义固定 debug 签名）
-- 已配置在 `signingConfigs.fixedDebug`
-- 首次安装需先卸载旧版（签名不同）
-
-## 发布流程
-- 推送 tag 即可触发 GitHub Actions 自动构建并创建 Release：
-  ```bash
-  git tag v0.0.x
-  git push --tags
-  ```
-- 工作流定义在 `.github/workflows/release.yml`
-- 也可手动发布：`scripts/build.bat` 构建后，用 `gh release create` 上传
 
 ## 发布新版本
 当用户要求"发布新版本"时，AI 应自动执行以下步骤：
@@ -36,11 +26,17 @@
 6. 告知用户 GitHub Actions 正在自动构建中（可在 Actions 页面查看进度）
 - 注意：无需手动调用 `gh release create`，GitHub Actions 工作流会自动处理 Release 创建和 APK 上传
 
+## 签名
+- 使用项目内的 `app/debug.keystore`（自定义固定 debug 签名）
+- 已配置在 `signingConfigs.fixedDebug`
+- 首次安装需先卸载旧版（签名不同）
+
 ## 代码规范
 - 不要在 Compose 函数外使用 `remember`
 - 所有 UI 间距/颜色优先使用 `AppStyles.kt` 中的常量
-- Card 布局统一使用 `CardShapes.cardCorner` 和 `CardShapes.cardElevation`
+- Card 布局统一使用 `CardShapes.cardCorner`
 - 修改 Kotlin 文件后优先用 Node.js（`fs.writeFileSync`）而非 PowerShell 写入，避免中文乱码
+- 所有涉及颜色、间距的改动尽量走 `AppStyles.kt` 统一管理
 
 ## 注意事项
 - Token 随手机号重新登录而变化，App 自动保存最新 Token

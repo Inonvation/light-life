@@ -41,6 +41,7 @@ class AppRepository(
     }
 
     fun localToken(): String? = tokenStore.readToken()
+    fun clearToken() = tokenStore.clear()
 
     fun orderHistory(): List<OrderHistoryItem> = orderHistoryStore.list()
 
