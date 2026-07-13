@@ -26,6 +26,16 @@
 - 工作流定义在 `.github/workflows/release.yml`
 - 也可手动发布：`scripts/build.bat` 构建后，用 `gh release create` 上传
 
+## 发布新版本
+当用户要求"发布新版本"时，AI 应自动执行以下步骤：
+1. 读取当前版本号（`app/build.gradle.kts` 中 `defaultConfig.versionName` 的默认值）
+2. 按用户指定的版本号更新 `versionName` 默认值
+3. 更新 `archive/` 中对应版本的 APK（运行 `archiveDebugApk` 任务构建）
+4. 提交并推送代码：`git add -A && git commit -m "Bump version to x.y.z" && git push`
+5. 打 tag 并推送：`git tag vx.y.z && git push --tags`
+6. 告知用户 GitHub Actions 正在自动构建中（可在 Actions 页面查看进度）
+- 注意：无需手动调用 `gh release create`，GitHub Actions 工作流会自动处理 Release 创建和 APK 上传
+
 ## 代码规范
 - 不要在 Compose 函数外使用 `remember`
 - 所有 UI 间距/颜色优先使用 `AppStyles.kt` 中的常量
