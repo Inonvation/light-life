@@ -93,6 +93,10 @@ import com.example.devicecontrol.ui.DeviceTab
 import com.example.devicecontrol.ui.theme.DeviceControlTheme
 import com.example.devicecontrol.ui.theme.ThemeMode
 import com.example.devicecontrol.ui.theme.ThemePreferences
+import com.example.devicecontrol.ui.theme.Spacings
+import com.example.devicecontrol.ui.theme.CardShapes
+import com.example.devicecontrol.ui.theme.AppColors
+import com.example.devicecontrol.ui.theme.LogColors
 
 private const val ACTION_OPEN_DEVICE_SHORTCUT = "com.example.devicecontrol.OPEN_DEVICE_SHORTCUT"
 private const val EXTRA_GOODS_ID = "goods_id"
@@ -289,7 +293,7 @@ private fun OrderDetailDialog(
                 DetailLine("花费小票", detail.ticketCost)
                 DetailLine("积分抵扣", detail.integralCost)
                 if (detail.otherPromotions.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(Spacings.sm))
                     Text("其他优惠", style = MaterialTheme.typography.titleSmall)
                     Spacer(Modifier.height(6.dp))
                     detail.otherPromotions.forEach { promotion ->
@@ -346,12 +350,12 @@ private fun PointsTaskScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         PageTitle("积分任务", "自动化刷积分")
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(Spacings.xl))
 
                 // Progress bar area
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = CardShapes.cardCorner,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
@@ -374,7 +378,7 @@ private fun PointsTaskScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(Spacings.sm))
                     LinearProgressIndicator(
                         progress = { (progress.step.toFloat() / progress.total.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f) },
                         modifier = Modifier
@@ -390,7 +394,7 @@ private fun PointsTaskScreen(
                 }
             }
         }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Spacings.md))
         // Log area with folding
         Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             Row(
@@ -408,7 +412,7 @@ private fun PointsTaskScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                color = Color(0xFF101418),
+                color = LogColors.background,
                 shape = RoundedCornerShape(8.dp),
             ) {
                 if (logExpanded) {
@@ -475,10 +479,7 @@ private fun PointsTaskScreen(
                         onClick = { vm.resumePointsTask() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF4CAF50),
-                                contentColor = Color.White,
-                            ),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.resume, contentColor = AppColors.white),
                     ) {
                         Text("继续")
                     }
@@ -487,10 +488,7 @@ private fun PointsTaskScreen(
                         onClick = { vm.pausePointsTask() },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFE6A817),
-                                contentColor = Color.White,
-                            ),
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.pause, contentColor = AppColors.white),
                     ) {
                         Text("暂停")
                     }
@@ -499,10 +497,7 @@ private fun PointsTaskScreen(
                     onClick = { vm.stopPointsTask() },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD32F2F),
-                            contentColor = Color.White,
-                        ),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.stop, contentColor = AppColors.white),
                 ) {
                     Text("结束")
                 }
@@ -510,10 +505,7 @@ private fun PointsTaskScreen(
                     onClick = { vm.clearPointsLogs() },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF455A64),
-                            contentColor = Color.White,
-                        ),
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.clear, contentColor = AppColors.white),
                 ) {
                     Text("清除日志")
                 }
@@ -527,10 +519,7 @@ private fun PointsTaskScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.runningPointsTask,
                 shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF222222),
-                        contentColor = Color.White,
-                    ),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.start, contentColor = AppColors.white),
             ) {
                 Text(if (state.runningPointsTask) "任务执行中" else "开始执行自动化任务")
             }
@@ -554,7 +543,7 @@ private fun ControlScreen(
         // Today's water stats card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = CardShapes.cardCorner,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {
@@ -632,7 +621,7 @@ private fun MeScreen(
                 }
             }
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(Spacings.xxl))
 
         // Login form - only show when NOT logged in
         if (!state.hasToken) {
@@ -684,7 +673,7 @@ private fun MeScreen(
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(Spacings.lg))
         }
 
         // Asset section - always visible when logged in
@@ -788,7 +777,7 @@ private fun MeScreen(
         // Theme settings card - always visible
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = CardShapes.cardCorner,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         ) {

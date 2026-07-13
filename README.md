@@ -60,8 +60,14 @@
 ## 构建
 
 ```bash
-./gradlew assembleDebug
-# APK: app/build/outputs/apk/debug/app-debug.apk
+# 使用构建脚本（自动管理版本号）
+scripts\build.bat
+
+# 或直接构建
+./gradlew :app:archiveDebugApk -PbuildVersionName="x.y.z"
+
+# APK 归档至
+archive/app-debug-v{x.y.z}.apk
 ```
 
 ## 致谢
