@@ -35,16 +35,14 @@ jobs:
       - name: 赋予 gradlew 执行权限
         run: chmod +x gradlew
 
-      - name: 生成 debug 签名
-        run: |
-          keytool -genkey -v -keystore app/debug.keystore \
-            -alias androiddebugkey -keyalg RSA -keysize 2048 \
-            -validity 10000 \
-            -storepass android -keypass android \
-            -dname "CN=Android Debug, O=Android, C=US"
-
       - name: 构建 APK
-        run: ./gradlew :app:assembleDebug -PbuildVersionName="${{ github.ref_name }}"
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          # 去掉 tag 的 v 前缀作为版本号
+          VERSION="${TAG#v}"
+          echo "Building version: $VERSION"
+          ./gradlew :app:assembleDebug -PbuildVersionName="$VERSION"
 
       - name: 上传 APK 到 Release
         uses: softprops/action-gh-release@v2
@@ -57,6 +55,6 @@ jobs:
             
             自动构建的 Debug APK。
             
-            > 首次安装请先卸载旧版（签名不同）。
+            > 如果安装提示签名不一致，请先卸载旧版。
           make_latest: true
           fail_on_unmatched_files: false
