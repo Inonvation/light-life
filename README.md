@@ -7,16 +7,6 @@
 
 ---
 
-## 与原版的区别
-
-| | 原版胖乖生活 | 瘦刁生活 |
-|---|---|---|
-| 广告 | 多广告 | 无广告 |
-| 体积 | 臃肿 | 约 19 MB |
-| 启动速度 | 慢 | 秒级启动 |
-| 积分任务 | 需手动 | 一键自动化 |
-| 开源 | 否 | 是 |
-
 ## 特性
 
 - **无广告** — 纯净体验
@@ -56,11 +46,6 @@
 
 在「我的」页面底部选择「跟随系统」「浅色」或「深色」，设置自动保存。
 
-## 截图预览
-
-| 首页 | 积分任务 | 我的 |
-|---|---|---|
-| 设备列表 + 喝水统计 | 自动化任务 + 进度条 | 资产 + 积分统计 + 主题 |
 
 ## 项目结构
 
@@ -91,23 +76,6 @@ src/main/java/com/example/devicecontrol/
 - **不要将个人 Token、抓包文件、签名密钥上传到公开仓库**
 - `app/debug.keystore` 是本地生成的调试签名，**请勿删除**，否则存量安装需卸载重装
 
-## 构建与发布
-
-```bash
-# 本地构建（自动管理版本号）
-scripts\build.bat
-
-# 或直接构建 + 归档
-./gradlew :app:archiveDebugApk -PbuildVersionName="x.y.z"
-
-# APK 归档至 archive/ 目录
-archive/app-debug-v{x.y.z}.apk
-
-# 发布新版本（推送 tag 自动触发 GitHub Actions）
-git tag vx.y.z && git push --tags
-```
-
-> 推送 v* 格式的 tag 后，GitHub Actions 会自动构建 APK 并创建 Release。
 
 ## 免责声明
 
@@ -122,6 +90,8 @@ git tag vx.y.z && git push --tags
 - 如因使用本项目造成任何损失，均由使用者自行承担
 
 如果您不同意上述条款，请立即停止使用并删除本项目。
+
+感谢使用
 
 ## 致谢
 
