@@ -1,8 +1,13 @@
 package com.example.devicecontrol.ui.screen
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,7 +38,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -90,11 +94,17 @@ fun TopBar(
     onLogoutClick: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
-    val tabColor = when (currentTab) {
+    val targetColor = when (currentTab) {
         DeviceTab.Control -> com.example.devicecontrol.ui.theme.AppColors.tabControl
         DeviceTab.Points -> com.example.devicecontrol.ui.theme.AppColors.tabPoints
         DeviceTab.Me -> com.example.devicecontrol.ui.theme.AppColors.tabMe
     }
+    // Tab 指示器颜色平滑过渡
+    val tabColor by animateColorAsState(
+        targetValue = targetColor,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "tabIndicatorColor"
+    )
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -107,7 +117,10 @@ fun TopBar(
         ) {
             AnimatedContent(
                 targetState = currentTab,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = {
+                    (fadeIn(tween(200)) + slideInVertically(tween(200)) { -it / 4 }) togetherWith
+                    (fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 4 })
+                },
                 label = "topBarTitle"
             ) { tab ->
                 Row(verticalAlignment = Alignment.Bottom) {

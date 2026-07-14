@@ -1,11 +1,15 @@
 package com.example.devicecontrol.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -90,63 +94,71 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     var logExpanded by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
     var dialogSuppressChecked by remember { mutableStateOf(state.suppressPointsTaskWarning) }
+    var contentVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.pointsLogs.size) {
         if (state.pointsLogs.isNotEmpty() && logExpanded) {
             listState.animateScrollToItem(state.pointsLogs.lastIndex)
         }
     }
+    
+    LaunchedEffect(Unit) { contentVisible = true }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
         Spacer(Modifier.height(Spacings.sm))
 
-        // Log panel
-        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("执行日志", style = MaterialTheme.typography.labelLarge)
-                Row {
-                    if (state.pointsLogs.isNotEmpty()) {
-                        OutlinedButton(
-                            onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.clearPointsLogs() },
-                            modifier = Modifier.height(28.dp),
-                        ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
-                        Spacer(Modifier.width(4.dp))
-                    }
-                    OutlinedButton(
-                        onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); logExpanded = !logExpanded },
-                        modifier = Modifier.height(28.dp)
-                    ) { Text(if (logExpanded) "折叠" else "展开", style = MaterialTheme.typography.labelSmall) }
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Surface(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                color = LogColors.background.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(10.dp)) {
-                    val displayLogs = if (logExpanded) state.pointsLogs else state.pointsLogs.takeLast(3)
-                    if (displayLogs.isEmpty()) {
-                        item {
-                            Text(
-                                text = "等待执行任务...",
-                                color = LogColors.info,
-                                fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.alpha(0.6f)
-                            )
+        // Log panel with enter animation
+        AnimatedVisibility(
+            visible = contentVisible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 })
+        ) {
+            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("执行日志", style = MaterialTheme.typography.labelLarge)
+                    Row {
+                        if (state.pointsLogs.isNotEmpty()) {
+                            OutlinedButton(
+                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.clearPointsLogs() },
+                                modifier = Modifier.height(28.dp),
+                            ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
+                            Spacer(Modifier.width(4.dp))
                         }
-                    } else {
-                        items(displayLogs) { line ->
-                            Text(
-                                text = line,
-                                color = LogColors.default,
-                                fontFamily = FontFamily.Monospace,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontSize = 11.sp,
-                                maxLines = if (logExpanded) Int.MAX_VALUE else 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                        OutlinedButton(
+                            onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); logExpanded = !logExpanded },
+                            modifier = Modifier.height(28.dp)
+                        ) { Text(if (logExpanded) "折叠" else "展开", style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    color = LogColors.background.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(10.dp)) {
+                        val displayLogs = if (logExpanded) state.pointsLogs else state.pointsLogs.takeLast(3)
+                        if (displayLogs.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "等待执行任务...",
+                                    color = LogColors.info,
+                                    fontFamily = FontFamily.Monospace,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.alpha(0.6f)
+                                )
+                            }
+                        } else {
+                            items(displayLogs) { line ->
+                                Text(
+                                    text = line,
+                                    color = LogColors.default,
+                                    fontFamily = FontFamily.Monospace,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontSize = 11.sp,
+                                    maxLines = if (logExpanded) Int.MAX_VALUE else 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                         }
                     }
                 }
@@ -158,39 +170,44 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         
         Spacer(Modifier.height(Spacings.md))
 
-// Step timeline
-        val currentPhaseIndex = state.pointsProgress?.let { phaseToIndex(it.phase) } ?: if (state.runningPointsTask) 0 else -1
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = CardShapes.cardCorner,
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+// Step timeline with enter animation
+        AnimatedVisibility(
+            visible = contentVisible,
+            enter = fadeIn(tween(500, delayMillis = 150)) + slideInVertically(tween(500, delayMillis = 150), initialOffsetY = { it / 4 })
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                PHASES.forEachIndexed { index, phase ->
-                    val status = when {
-                        currentPhaseIndex < 0 -> "pending"
-                        index < currentPhaseIndex -> "completed"
-                        index == currentPhaseIndex && state.runningPointsTask -> "active"
-                        index == currentPhaseIndex && !state.runningPointsTask -> "pending"
-                        else -> "pending"
-                    }
-                    PhaseRow(phase = phase, status = status, progress = if (status == "active") state.pointsProgress else null)
-                    if (index < PHASES.lastIndex) {
-                        val lineColor by animateColorAsState(
-                            targetValue = when (status) {
-                                "completed" -> TimelineColors.completed
-                                else -> TimelineColors.pending
-                            },
-                            label = "lineColor"
-                        )
-                        Box(
-                            modifier = Modifier
-                                .padding(start = 11.dp)
-                                .width(2.dp)
-                                .height(12.dp)
-                                .background(lineColor, RoundedCornerShape(1.dp))
-                        )
+            val currentPhaseIndex = state.pointsProgress?.let { phaseToIndex(it.phase) } ?: if (state.runningPointsTask) 0 else -1
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = CardShapes.cardCorner,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    PHASES.forEachIndexed { index, phase ->
+                        val status = when {
+                            currentPhaseIndex < 0 -> "pending"
+                            index < currentPhaseIndex -> "completed"
+                            index == currentPhaseIndex && state.runningPointsTask -> "active"
+                            index == currentPhaseIndex && !state.runningPointsTask -> "pending"
+                            else -> "pending"
+                        }
+                        PhaseRow(phase = phase, status = status, progress = if (status == "active") state.pointsProgress else null)
+                        if (index < PHASES.lastIndex) {
+                            val lineColor by animateColorAsState(
+                                targetValue = when (status) {
+                                    "completed" -> TimelineColors.completed
+                                    else -> TimelineColors.pending
+                                },
+                                label = "lineColor"
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 11.dp)
+                                    .width(2.dp)
+                                    .height(12.dp)
+                                    .background(lineColor, RoundedCornerShape(1.dp))
+                            )
+                        }
                     }
                 }
             }
@@ -199,52 +216,57 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         Spacer(Modifier.height(Spacings.md))
 
       
-// Bottom action buttons
-        if (state.runningPointsTask) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+// Bottom action buttons with enter animation
+        AnimatedVisibility(
+            visible = contentVisible,
+            enter = fadeIn(tween(400, delayMillis = 300)) + slideInVertically(tween(400, delayMillis = 300), initialOffsetY = { it / 3 })
+        ) {
+            if (state.runningPointsTask) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (state.pointsTaskPaused) AppColors.resume else AppColors.pause,
+                            contentColor = AppColors.white
+                        )
+                    ) {
+                        Text(if (state.pointsTaskPaused) "继续" else "暂停")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            vm.stopPointsTask()
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.stop)
+                    ) {
+                        Text("结束")
+                    }
+                }
+            } else {
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask()
+                        if (state.suppressPointsTaskWarning) {
+                            val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
+                            vm.startPointsTask(ua)
+                        } else {
+                            vm.showPointsTaskWarning()
+                        }
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !state.runningPointsTask,
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (state.pointsTaskPaused) AppColors.resume else AppColors.pause,
-                        contentColor = AppColors.white
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.start, contentColor = AppColors.white)
                 ) {
-                    Text(if (state.pointsTaskPaused) "继续" else "暂停")
+                    Text("开始执行自动化任务")
                 }
-                OutlinedButton(
-                    onClick = {
-                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.stopPointsTask()
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AppColors.stop)
-                ) {
-                    Text("结束")
-                }
-            }
-        } else {
-            Button(
-                onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    if (state.suppressPointsTaskWarning) {
-                        val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
-                        vm.startPointsTask(ua)
-                    } else {
-                        vm.showPointsTaskWarning()
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.runningPointsTask,
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.start, contentColor = AppColors.white)
-            ) {
-                Text("开始执行自动化任务")
             }
         }
     }
@@ -312,6 +334,7 @@ private fun PhaseRow(phase: TaskPhase, status: String, progress: com.example.dev
                 "active" -> TimelineColors.active
                 else -> TimelineColors.pending
             },
+            animationSpec = tween(300, easing = FastOutSlowInEasing),
             label = "indicatorColor"
         )
         val infiniteTransition = rememberInfiniteTransition(label = "pulse")
