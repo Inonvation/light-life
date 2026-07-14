@@ -159,7 +159,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
     LaunchedEffect(state.currentTab) {
         val target = TAB_LIST.indexOf(state.currentTab)
         if (target >= 0 && pagerState.currentPage != target) {
-            pagerState.animateScrollToPage(target, animationSpec = tween(300, easing = LinearEasing))
+            pagerState.animateScrollToPage(target, animationSpec = tween(200, easing = LinearEasing))
         }
     }
 
@@ -220,11 +220,11 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 visible = state.showSettings,
                 enter = slideInHorizontally(
                     initialOffsetX = { it },
-                    animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.LinearEasing)
+                    animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.LinearEasing)
                 ),
                 exit = slideOutHorizontally(
                     targetOffsetX = { it },
-                    animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.LinearEasing)
+                    animationSpec = androidx.compose.animation.core.tween(150, easing = androidx.compose.animation.core.LinearEasing)
                 ),
             ) {
                 SettingsScreen(state = state, vm = vm)
