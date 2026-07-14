@@ -18,11 +18,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.devicecontrol"
+        applicationId = "com.inonvation.lightlife"
         minSdk = 26
         targetSdk = 35
         versionCode = project.findProperty("buildVersionCode")?.toString()?.toIntOrNull() ?: 5
-        versionName = "0.4.5"
+        versionName = "0.4.6"
     }
 
     buildTypes {
