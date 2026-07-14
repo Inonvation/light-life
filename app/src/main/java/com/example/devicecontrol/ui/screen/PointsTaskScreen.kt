@@ -110,9 +110,10 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         // Log panel with enter animation
         AnimatedVisibility(
             visible = contentVisible,
-            enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 })
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 }),
+            modifier = Modifier.weight(1f)
         ) {
-            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("执行日志", style = MaterialTheme.typography.labelLarge)
                     Row {
