@@ -47,7 +47,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
     val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp)) {
         // Header: title + logout + settings
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PageTitle("我的", if (state.hasToken) "已登录" else "未登录")
                 if (state.hasToken) {
@@ -60,7 +60,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                 Icon(Icons.Outlined.Settings, contentDescription = "设置")
             }
         }
-        Spacer(Modifier.height(Spacings.xxl))
+        Spacer(Modifier.height(Spacings.xl))
 
         // Login card
         if (!state.hasToken) {
@@ -113,16 +113,37 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                 }
             }
         } else {
-            // Points stats card
+            // My assets card
             Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("积分统计", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("我的资产", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("当前积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("${state.balance?.pointsText ?: "-"}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.height(4.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("积分可抵扣", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${state.totalPointsDeducted}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.refreshBalance() },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
+                    ) { Text("刷新余额") }
+                }
+            }
+
+            Spacer(Modifier.height(Spacings.md))
+
+            // Points stats card
+            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("积分统计", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("累计获得", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("${state.totalPointsEarned}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
@@ -137,13 +158,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                         Text("累计开水", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("${state.totalWaterCount} 次", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     }
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.refreshBalance() },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
-                    ) { Text("刷新余额") }
                 }
             }
 
