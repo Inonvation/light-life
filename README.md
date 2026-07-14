@@ -129,13 +129,14 @@ scripts\build.ps1             # PowerShell
 
 ## TODO
 
-- [x] Point tasks refactor：断点续跑重构
-- [x] Points stats fix：积分统计修复
-- [x] Backup & restore：备份与恢复功能
-- [ ] Me screen rewrite：「我的」界面重写
-- [ ] Task log cleanup：日志格式与存储逻辑优化
-- [ ] Theme overhaul：主题适配全面优化
-- [ ] UI components reuse：组件复用 + 间距圆角统一
+- [x] 刷积分脚本断点续跑功能
+- [x] 备份与恢复功能
+- [ ] 积分统计显示为零
+- [ ] 「我的」界面重写
+- [ ] 日志格式与存储逻辑优化
+- [ ] 主题适配全面优化
+- [ ] 执行日志图形化界面
+
 
 ---
 
