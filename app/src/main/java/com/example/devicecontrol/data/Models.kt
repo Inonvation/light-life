@@ -102,3 +102,10 @@ data class OrderHistoryItem(
         completedAt = completedAt,
     )
 }
+
+class UnlockException(
+    message: String,
+    val diagnosis: DiagnosisResult,
+    cause: Throwable? = null,
+) : Exception(message, cause)
+

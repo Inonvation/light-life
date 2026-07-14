@@ -499,6 +499,11 @@ class AppViewModel(
         showToast("已恢复 " + counts.orders + " 条订单、" + counts.logs + " 条执行日志")
     }
 
+    override fun onCleared() {
+        unlockTimerJob?.cancel()
+        super.onCleared()
+    }
+
     companion object {
         val PHONE_REGEX = Regex("^1[3-9]\\d{9}$")
     }
