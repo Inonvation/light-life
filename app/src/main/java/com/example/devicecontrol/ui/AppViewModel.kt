@@ -69,6 +69,8 @@ data class AppUiState(
     val toastMessage: String? = null,
     val errorMessage: String? = null,
     val appVersion: String = "",
+    val showPointsTaskWarning: Boolean = false,
+    val suppressPointsTaskWarning: Boolean = false,
     val showSettings: Boolean = false,
 )
 
@@ -425,6 +427,18 @@ class AppViewModel(
 
     fun dismissOrderDetail() {
         _state.update { it.copy(orderDetail = null) }
+    }
+
+    fun showPointsTaskWarning() {
+        _state.update { it.copy(showPointsTaskWarning = true) }
+    }
+
+    fun dismissPointsTaskWarning() {
+        _state.update { it.copy(showPointsTaskWarning = false) }
+    }
+
+    fun toggleSuppressPointsTaskWarning() {
+        _state.update { it.copy(suppressPointsTaskWarning = !it.suppressPointsTaskWarning) }
     }
 
     fun showOrderHistory() {
