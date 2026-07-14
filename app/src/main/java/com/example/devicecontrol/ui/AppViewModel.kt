@@ -284,6 +284,7 @@ class AppViewModel(
                     totalPointsDeducted = it.getTotalDeductedAmount(),
                 )}
             }
+            refreshBalance()
         }.onFailure {
             appendPointLog("任务失败：${it.message ?: "未知错误"}")
         }

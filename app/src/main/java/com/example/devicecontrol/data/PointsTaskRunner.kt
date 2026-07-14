@@ -197,7 +197,12 @@ class PointsTaskRunner(
 
     private suspend fun balance(token: String, ua: String): Int? {
         val res = request("https://userapi.qiekj.com/user/balance", token, ua, mapOf("token" to token))
-        return (res.dataMap()["integral"] as? Number)?.toInt()
+        val integral = res.dataMap()["integral"]
+        return when (integral) {
+            is Number -> integral.toInt()
+            is String -> integral.toDoubleOrNull()?.toInt()
+            else -> null
+        }
     }
 
     private suspend fun request(
@@ -249,7 +254,7 @@ class PointsTaskRunner(
     }
 
     private fun sign(timestamp: String, url: String, token: String): String = sha256(
-        "appSecret=$ANDROID_SECRET&channel=android_app&timestamp=$timestamp&token=$token&version=$VERSION&${url.drop(25)}",
+        "appSecret=$ANDROID_SECRET&channel=android_app&timestamp=$timestamp&token=$token&version=${ApiConfig.VERSION}&${url.drop(25)}",
     )
 
     private fun signzfb(timestamp: String, url: String, token: String): String = sha256(
@@ -266,9 +271,9 @@ class PointsTaskRunner(
     private fun Map<String, Any?>.dataMap(): Map<String, Any?> = this["data"] as? Map<String, Any?> ?: emptyMap()
 
     private companion object {
-        const val VERSION = "1.60.3"
-        const val ANDROID_SECRET = "nFU9pbG8YQoAe1kFh+E7eyrdlSLglwEJeA0wwHB1j5o="
-        const val ALIPAY_SECRET = "Ew+ZSuppXZoA9YzBHgHmRvzt0Bw1CpwlQQtSl49QNhY="
+        const val VERSION = ApiConfig.VERSION
+        const val ANDROID_SECRET = ApiConfig.ANDROID_SECRET
+        const val ALIPAY_SECRET = ApiConfig.ALIPAY_SECRET
         val NOT_FINISH_TASKS = setOf(
             "7328b1db-d001-4e6a-a9e6-6ae8d281ddbf",
             "e8f837b8-4317-4bf5-89ca-99f809bf9041",
