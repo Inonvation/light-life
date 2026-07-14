@@ -13,15 +13,14 @@ jobs:
       contents: write
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: 设置 JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
           java-version: "17"
-
       - name: 设置 Gradle 缓存
         uses: actions/cache@v4
         with:
@@ -31,30 +30,26 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-
       - name: 赋予 gradlew 执行权限
         run: chmod +x gradlew
-
       - name: 构建 APK
         env:
           TAG: ${{ github.ref_name }}
         run: |
           VERSION="${TAG#v}"
-          echo "Building version: $VERSION"
           ./gradlew :app:assembleDebug -PbuildVersionName="$VERSION"
-          # 重命名 APK：ShouDiao-v{版本号}.apk
           cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/ShouDiao-v${VERSION}.apk"
-
+      - name: 生成 Release 内容
+        run: |
+          PREV=$(git tag --sort=-v:refname | sed -n '2p')
+          [ -z "$PREV" ] && LOG=$(git log --oneline --no-decorate HEAD) || LOG=$(git log --oneline --no-decorate "$PREV"..HEAD)
+          CLEAN=$(echo "$LOG" | sed 's/^[a-f0-9]* //' | grep -viE '^(chore|docs|ci|test|build|style|revert):' | sed -E 's/^(feat|fix|refactor|perf|style): *//')
+          echo "## 更新内容" > release_body.md
+          echo "$CLEAN" | sed '/^$/d; s/^/- /' >> release_body.md
       - name: 上传 APK 到 Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: app/build/outputs/apk/debug/ShouDiao-v*.apk
-          name: ${{ github.ref_name }}
-          body: |
-            ### 瘦刁生活 ${{ github.ref_name }}
-            
-            Release 发布后可在 GitHub 页面编辑更新内容。
-          generate_release_notes: true
-          make_latest: true
+          body_path: release_body.md
           fail_on_unmatched_files: false
