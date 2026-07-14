@@ -269,7 +269,6 @@ class AppViewModel(
             // 从日志中解析本次获得积分并保存到统计
             val gainedPoints = state.value.pointsLogs.let { logs ->
                 logs.findLast { it.contains("今日积分") }
-                    ?.replaceAfter("今日积分：", "")
                     ?.substringAfter("今日积分：")
                     ?.filter { it.isDigit() || it == '.' }
                     ?.toDoubleOrNull()
