@@ -89,7 +89,6 @@ import com.example.devicecontrol.ui.theme.Spacings
 fun TopBar(
     currentTab: DeviceTab,
     hasToken: Boolean,
-    unlockStatus: String?,
     hapticEnabled: Boolean,
     onSettingsClick: () -> Unit,
     onLogoutClick: () -> Unit,
@@ -137,7 +136,7 @@ fun TopBar(
                     Spacer(Modifier.width(Spacings.sm))
                     Text(
                         text = when (tab) {
-                            DeviceTab.Control -> unlockStatus ?: "历史设备"
+                            DeviceTab.Control -> "历史设备"
                             DeviceTab.Points -> "自动化刷积分"
                             DeviceTab.Me -> if (hasToken) "已登录" else "未登录"
                         },
