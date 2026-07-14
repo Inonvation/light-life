@@ -20,10 +20,14 @@ captures/
 
 # Logs
 *.log
+*.zip
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Temp scripts
+scripts/_*.py
 
 # Archive APKs
 archive/
