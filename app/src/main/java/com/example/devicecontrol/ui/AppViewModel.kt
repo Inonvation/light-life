@@ -68,10 +68,13 @@ data class AppUiState(
     val logCompactEnabled: Boolean = true,
     val toastMessage: String? = null,
     val errorMessage: String? = null,
+    val appVersion: String = "",
+    val showSettings: Boolean = false,
 )
 
 class AppViewModel(
     private val repository: AppRepository,
+    private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
     private val logStore: TaskLogStore? = null,
@@ -83,6 +86,7 @@ class AppViewModel(
         AppUiState(
             hasToken = repository.localToken() != null,
             orderHistory = repository.orderHistory(),
+            appVersion = appVersion,
         ),
     )
     val state: StateFlow<AppUiState> = _state
@@ -276,7 +280,7 @@ class AppViewModel(
             appendPointLog("任务流程结束")
             // 从日志中解析本次获得积分并保存到统计
             val gainedPoints = run {
-            val line = state.value.pointsLogs.findLast { it.contains("本次获得") }
+            val line = state.value.pointsLogs.findLast { it.contains("本次获得") && it.contains("积分") }
             if (line != null) {
                 val regex = Regex("本次获得\\s*(\\d+)")
                 regex.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 0
@@ -326,6 +330,9 @@ class AppViewModel(
     fun clearPointsLogs() {
         _state.update { it.copy(pointsLogs = emptyList()) }
     }
+
+        fun showSettings() { _state.update { it.copy(showSettings = true) } }
+    fun dismissSettings() { _state.update { it.copy(showSettings = false) } }
 
     fun logout() {
         repository.clearToken()
@@ -467,6 +474,7 @@ class AppViewModel(
 
 class AppViewModelFactory(
     private val repository: AppRepository,
+    private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
     private val logStore: TaskLogStore? = null,
@@ -474,6 +482,6 @@ class AppViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(repository, pointsStatsStore, taskStateStore, logStore, themePreferences) as T
+        return AppViewModel(repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences) as T
     }
 }

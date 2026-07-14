@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -48,6 +49,7 @@ import com.example.devicecontrol.ui.screen.MeScreen
 import com.example.devicecontrol.ui.screen.OrderDetailDialog
 import com.example.devicecontrol.ui.screen.OrderHistoryDialog
 import com.example.devicecontrol.ui.screen.PointsTaskScreen
+import com.example.devicecontrol.ui.screen.SettingsScreen
 import com.example.devicecontrol.ui.screen.TokenDialog
 import com.example.devicecontrol.ui.shortcutRequestFromIntent
 import com.example.devicecontrol.ui.theme.DeviceControlTheme
@@ -67,7 +69,7 @@ class MainActivity : ComponentActivity() {
         val taskLogStore = TaskLogStore(applicationContext)
         setContent {
             val vm: AppViewModel = viewModel(
-                factory = AppViewModelFactory(repository, statsStore, taskStateStore, taskLogStore, themePrefs),
+                factory = AppViewModelFactory(repository, (packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"), statsStore, taskStateStore, taskLogStore, themePrefs),
             )
             val uiState by vm.state.collectAsState()
             DeviceControlTheme(
@@ -115,6 +117,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
         )
     }
 
+
+
     state.orderDetail?.let { OrderDetailDialog(detail = it, onDismiss = vm::dismissOrderDetail) }
 
     Scaffold(
@@ -129,10 +133,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
         },
     ) { padding ->
         Surface(modifier = Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
+            if (state.showSettings) {
+                SettingsScreen(state = state, vm = vm)
+            } else {
             when (state.currentTab) {
                 DeviceTab.Control -> ControlScreen(state, vm)
                 DeviceTab.Points -> PointsTaskScreen(state, vm)
                 DeviceTab.Me -> MeScreen(state, vm)
+            }
             }
         }
     }
