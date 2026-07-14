@@ -47,6 +47,11 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                     Text("抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("¥${state.todayWaterAmount}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                 }
+                Spacer(Modifier.height(4.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("总共开水次数", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${state.totalWaterCount} 次", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                }
             }
         }
         Spacer(Modifier.height(30.dp))

@@ -49,6 +49,7 @@ data class AppUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val todayWaterCount: Int = 0,
     val todayWaterAmount: String = "0.00",
+    val totalWaterCount: Int = 0,
     val totalPointsEarned: Int = 0,
     val totalPointsDeducted: String = "0.00",
     val devices: List<DeviceItem> = emptyList(),
@@ -323,6 +324,7 @@ class AppViewModel(
             balance = null,
             todayWaterCount = 0,
             todayWaterAmount = "0.00",
+            totalWaterCount = 0,
             totalPointsEarned = 0,
             totalPointsDeducted = "0.00",
         )}
@@ -406,15 +408,17 @@ class AppViewModel(
             set(java.util.Calendar.MILLISECOND, 0)
             timeInMillis
         }
-        val orders = repository.orderHistory().filter { it.completedAt >= todayStart }
-        val count = orders.size
-        val amount = orders.mapNotNull { item ->
+        val todayOrders = repository.orderHistory().filter { it.completedAt >= todayStart }
+        val allOrders = repository.orderHistory()
+        val count = todayOrders.size
+        val amount = todayOrders.mapNotNull { item ->
             val raw = item.integralCost.filter { it.isDigit() || it == '.' || it == '-' }
             raw.toDoubleOrNull()
         }.sum()
         _state.update { it.copy(
             todayWaterCount = count,
             todayWaterAmount = String.format("%.2f", amount),
+            totalWaterCount = allOrders.size,
         )}
     }
 
