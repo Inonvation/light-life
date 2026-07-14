@@ -153,7 +153,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.dismissSettings() }) {
+                    IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.dismissSettings() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                     }
                     Text("设置", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
@@ -187,7 +187,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             val selected = currentMode == mode
                             FilterChip(
                                 selected = selected,
-                                onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateThemeMode(mode) },
+                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateThemeMode(mode) },
                                 label = { Text(label) },
                             )
                         }
@@ -208,7 +208,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             Text("触感反馈", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("按钮和开关操作时触发振动", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Switch(checked = state.hapticEnabled, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleHaptic() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
+                        Switch(checked = state.hapticEnabled, onCheckedChange = { if (!state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleHaptic() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
                     }
                 }
             }
@@ -288,7 +288,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             Text("执行日志精简", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("任务完成后自动折叠重复的成功日志", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Switch(checked = state.logCompactEnabled, onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleLogCompact() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
+                        Switch(checked = state.logCompactEnabled, onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleLogCompact() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
                     }
                 }
             }
@@ -302,7 +302,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             Text("历史执行日志", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("查看过去保存的任务执行记录", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showArchivedLogs() }, shape = RoundedCornerShape(8.dp)) { Text("查看") }
+                        OutlinedButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showArchivedLogs() }, shape = RoundedCornerShape(8.dp)) { Text("查看") }
                     }
                 }
             }
@@ -319,7 +319,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(
                             onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 exportLauncher.launch("LightLife_backup_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA).format(java.util.Date()) + ".lif")
                             },
                             shape = RoundedCornerShape(8.dp),
@@ -327,7 +327,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                         ) { Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(4.dp)); Text("导出备份") }
                         OutlinedButton(
                             onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 importLauncher.launch(arrayOf("application/json"))
                             },
                             shape = RoundedCornerShape(8.dp),
@@ -350,7 +350,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             Text("我的 Token", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("查看当前登录凭证，可用于调试", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showCurrentToken() }) {
+                        IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showCurrentToken() }) {
                             Icon(Icons.Outlined.Code, contentDescription = "查看 Token", modifier = Modifier.size(24.dp))
                         }
                     }

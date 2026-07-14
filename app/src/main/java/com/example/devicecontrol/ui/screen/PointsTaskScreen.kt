@@ -231,7 +231,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask()
                         },
                         modifier = Modifier.weight(1f),
@@ -258,7 +258,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             } else {
                 Button(
                     onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         if (suppressWarning) {
                             val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
                             vm.startPointsTask(ua)

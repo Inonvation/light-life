@@ -90,6 +90,7 @@ fun TopBar(
     currentTab: DeviceTab,
     hasToken: Boolean,
     unlockStatus: String?,
+    hapticEnabled: Boolean,
     onSettingsClick: () -> Unit,
     onLogoutClick: () -> Unit,
 ) {
@@ -149,14 +150,14 @@ fun TopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (currentTab == DeviceTab.Me && hasToken) {
                     IconButton(onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onLogoutClick()
                     }) {
                         Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "退出登录")
                     }
                 }
                 IconButton(onClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onSettingsClick()
                 }) {
                     Icon(Icons.Outlined.Settings, contentDescription = "设置")

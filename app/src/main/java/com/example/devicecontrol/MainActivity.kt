@@ -179,7 +179,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
                     NavigationBarItem(
                         selected = state.currentTab == tab,
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             vm.selectTab(tab)
                         },
                         icon = { Icon(icon, contentDescription = null) },
@@ -196,6 +196,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
                     currentTab = state.currentTab,
                     hasToken = state.hasToken,
                     unlockStatus = state.unlockStatus,
+                    hapticEnabled = state.hapticEnabled,
                     onSettingsClick = { vm.showSettings() },
                     onLogoutClick = { vm.showLogoutConfirm() },
                 )
