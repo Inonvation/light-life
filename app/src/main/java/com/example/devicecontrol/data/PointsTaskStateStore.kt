@@ -10,6 +10,7 @@ class PointsTaskStateStore(context: Context) {
 
     private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
     private fun savedDate(): String = prefs.getString("run_date", "") ?: ""
+    fun getRunDate(): String = savedDate()
     private fun isToday(): Boolean = savedDate() == today()
 
     fun getAppVideoCount(): Int = if (isToday()) prefs.getInt("app_video", 0) else 0

@@ -443,6 +443,7 @@ class AppViewModel(
             hapticEnabled = s.hapticEnabled,
             logCompactEnabled = s.logCompactEnabled,
             userAgent = s.userAgent,
+            taskStateStore = taskStateStore,
         ) ?: return ""
         return backupManager.toJson(backup)
     }

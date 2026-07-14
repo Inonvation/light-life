@@ -22,6 +22,7 @@ data class BackupPayload(
     val orderHistory: List<OrderHistoryItem>? = null,
     val pointsStats: PointsStatsPayload? = null,
     val taskLogs: List<TaskLogPayload>? = null,
+    val dailyTaskState: DailyTaskStatePayload? = null,
 )
 
 data class PointsStatsPayload(
@@ -34,6 +35,13 @@ data class RestoreCounts(val orders: Int = 0, val logs: Int = 0)
 data class TaskLogPayload(
     val name: String = "",
     val content: String = "",
+)
+
+data class DailyTaskStatePayload(
+    val phase: String = "none",
+    val appVideoCount: Int = 0,
+    val alipayVideoCount: Int = 0,
+    val runDate: String = "",
 )
 
 /**
@@ -64,6 +72,7 @@ class BackupManager(private val context: Context) {
         hapticEnabled: Boolean,
         logCompactEnabled: Boolean,
         userAgent: String,
+        taskStateStore: PointsTaskStateStore? = null,
     ): BackupData {
         val logs = taskLogStore?.let { store ->
             store.listFiles().map { (name, content) ->
@@ -86,6 +95,14 @@ class BackupManager(private val context: Context) {
                     )
                 },
                 taskLogs = logs?.ifEmpty { null },
+                dailyTaskState = taskStateStore?.let {
+                    DailyTaskStatePayload(
+                        phase = it.getPhase(),
+                        appVideoCount = it.getAppVideoCount(),
+                        alipayVideoCount = it.getAlipayVideoCount(),
+                        runDate = it.getRunDate(),
+                    )
+                },
             ),
         )
     }
@@ -168,6 +185,19 @@ class BackupManager(private val context: Context) {
         payload.token?.let { token ->
             if (token.isNotBlank()) {
                 TokenStore(context).saveToken(token)
+            }
+        }
+
+        payload.dailyTaskState?.let { daily ->
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA).format(java.util.Date())
+            val taskPrefs = context.getSharedPreferences("points_task_state", Context.MODE_PRIVATE)
+            if (daily.runDate == today && daily.phase != "none") {
+                taskPrefs.edit()
+                    .putString("phase", daily.phase)
+                    .putInt("app_video", daily.appVideoCount)
+                    .putInt("alipay_video", daily.alipayVideoCount)
+                    .putString("run_date", daily.runDate)
+                    .apply()
             }
         }
 
