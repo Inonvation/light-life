@@ -36,6 +36,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,10 +51,38 @@ import com.example.devicecontrol.ui.AppUiState
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.theme.CardShapes
 import com.example.devicecontrol.ui.theme.Spacings
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    runCatching {
+                        ctx.contentResolver.openInputStream(uri)?.use { input ->
+                            java.io.BufferedReader(java.io.InputStreamReader(input, Charsets.UTF_8)).readText()
+                        }
+                    }.getOrNull()
+                }
+                if (json.isNullOrBlank()) {
+                    android.widget.Toast.makeText(ctx, "文件内容为空", android.widget.Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                vm.restoreFromBackupJson(json)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(ctx, "导入失败：" + (e.message ?: "无法读取文件"), android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
     
     // 卡片进入动画状态 - 使用 isActive 作为 key，每次切换到"我的"页面时触发动画
     var cardsVisible by remember { mutableStateOf(false) }
@@ -117,6 +146,16 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text("登录")
+                    }
+                    if (!state.loggingIn) {
+                        Spacer(Modifier.height(8.dp))
+                        androidx.compose.material3.TextButton(
+                            onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); backupLauncher.launch(arrayOf("application/json")) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                        ) {
+                            Text("导入备份登录", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
                 }
             }
