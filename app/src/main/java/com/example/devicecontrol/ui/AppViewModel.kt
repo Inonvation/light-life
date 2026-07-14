@@ -9,6 +9,7 @@ import com.example.devicecontrol.data.DeviceItem
 import com.example.devicecontrol.data.OrderHistoryItem
 import com.example.devicecontrol.data.PointsTaskRunner
 import com.example.devicecontrol.data.PointsTaskStateStore
+import com.example.devicecontrol.data.TaskLogStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.UnlockResult
 import com.example.devicecontrol.ui.theme.ThemeMode
@@ -61,6 +62,8 @@ data class AppUiState(
     val showOrderHistory: Boolean = false,
     val showLogoutConfirm: Boolean = false,
     val tokenDialogText: String? = null,
+    val archivedLogs: List<Pair<String, String>> = emptyList(),
+    val showArchivedLogs: Boolean = false,
     val hapticEnabled: Boolean = true,
     val logCompactEnabled: Boolean = true,
     val toastMessage: String? = null,
@@ -71,6 +74,7 @@ class AppViewModel(
     private val repository: AppRepository,
     private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
+    private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
 ) : ViewModel() {
     private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore)
@@ -383,6 +387,14 @@ class AppViewModel(
         }
     }
 
+    fun showArchivedLogs() {
+        _state.update { it.copy(archivedLogs = logStore?.listFiles() ?: emptyList(), showArchivedLogs = true) }
+    }
+
+    fun dismissArchivedLogs() {
+        _state.update { it.copy(showArchivedLogs = false) }
+    }
+
     fun showCurrentToken() {
         val token = repository.localToken()?.takeIf { it.isNotBlank() }
         _state.update { it.copy(tokenDialogText = token ?: "当前未登录，暂无 Token") }
@@ -460,10 +472,11 @@ class AppViewModelFactory(
     private val repository: AppRepository,
     private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
+    private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(repository, pointsStatsStore, taskStateStore, themePreferences) as T
+        return AppViewModel(repository, pointsStatsStore, taskStateStore, logStore, themePreferences) as T
     }
 }

@@ -1,4 +1,4 @@
-package com.example.devicecontrol.ui.screen
+﻿package com.example.devicecontrol.ui.screen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,10 +13,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.devicecontrol.ui.AppUiState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.theme.AppColors
 import com.example.devicecontrol.ui.theme.CardShapes
@@ -103,6 +107,20 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                 }
             }
         }
+        
+        Button(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showArchivedLogs() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) { Text("查看历史日志") }
+        Spacer(Modifier.height(12.dp))
+        if (state.showArchivedLogs) {
+            AlertDialog(
+                onDismissRequest = { vm.dismissArchivedLogs() },
+                title = { Text("历史执行日志") },
+                text = {
+                    val text = state.archivedLogs.joinToString("\n---\n") { (n, c) -> "运行日志: $n\n$c" }
+                    Text(text.ifEmpty { "暂无历史日志" }, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 9.sp)
+                },
+                confirmButton = { TextButton(onClick = { vm.dismissArchivedLogs() }) { Text("关闭") } }
+            )
+        }
         Spacer(Modifier.height(12.dp))
         if (state.runningPointsTask) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -115,4 +133,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx); vm.startPointsTask(ua) }, modifier = Modifier.fillMaxWidth(), enabled = !state.runningPointsTask, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.start, contentColor = AppColors.white)) { Text(if (state.runningPointsTask) "任务执行中" else "开始执行自动化任务") }
         }
     }
+
+
+
 }
