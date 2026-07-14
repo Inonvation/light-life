@@ -51,6 +51,7 @@ fun pinDeviceShortcut(context: Context, device: DeviceItem) {
         .setIntent(shortcutIntent)
         .build()
     shortcutManager.requestPinShortcut(shortcut, null)
+    Toast.makeText(context, "已尝试添加桌面快捷方式，若失败请检查是否已授权软件添加快捷方式的权限", Toast.LENGTH_LONG).show()
 }
 
 fun openProjectHome(context: Context) {
