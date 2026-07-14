@@ -1,4 +1,4 @@
-﻿package com.example.devicecontrol
+package com.example.devicecontrol
 
 import android.os.Bundle
 import android.widget.Toast
@@ -18,6 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,11 +38,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.res.painterResource
-import com.example.devicecontrol.R
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -66,7 +67,6 @@ import com.example.devicecontrol.ui.shortcutRequestFromIntent
 import com.example.devicecontrol.ui.theme.DeviceControlTheme
 import com.example.devicecontrol.ui.theme.ThemeMode
 import com.example.devicecontrol.ui.theme.ThemePreferences
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -150,21 +150,12 @@ private fun DeviceControlApp(vm: AppViewModel) {
 
     val initialPage = TAB_LIST.indexOf(state.currentTab).coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = initialPage) { TAB_LIST.size }
-    val scope = rememberCoroutineScope()
 
     // 点击 tab 触发动画切页
     LaunchedEffect(state.currentTab) {
         val target = TAB_LIST.indexOf(state.currentTab)
         if (target >= 0 && pagerState.currentPage != target) {
             pagerState.animateScrollToPage(target, animationSpec = tween(250, easing = LinearEasing))
-        }
-    }
-
-    // pager 滑动后同步 tab
-    LaunchedEffect(pagerState.currentPage) {
-        val tab = TAB_LIST[pagerState.currentPage]
-        if (tab != state.currentTab) {
-            vm.selectTab(tab)
         }
     }
 
@@ -179,14 +170,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 val haptic = LocalHapticFeedback.current
                 TAB_LIST.forEachIndexed { index, tab ->
                     val label = when (tab) { DeviceTab.Control -> "首页"; DeviceTab.Points -> "积分任务"; DeviceTab.Me -> "我的" }
-                    val iconRes = when (tab) { DeviceTab.Control -> R.drawable.ic_outlined_home; DeviceTab.Points -> R.drawable.ic_outlined_play_arrow; DeviceTab.Me -> R.drawable.ic_outlined_person }
+                    val icon = when (tab) { DeviceTab.Control -> Icons.Outlined.Home; DeviceTab.Points -> Icons.Outlined.PlayArrow; DeviceTab.Me -> Icons.Outlined.Person }
                     NavigationBarItem(
                         selected = state.currentTab == tab,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             vm.selectTab(tab)
                         },
-                        icon = { Icon(painterResource(iconRes), contentDescription = null) },
+                        icon = { Icon(icon, contentDescription = null) },
                         label = { Text(label) },
                     )
                 }
@@ -220,13 +211,9 @@ private fun DeviceControlApp(vm: AppViewModel) {
                                     val threshold = 60f
                                     val cp = pagerState.currentPage
                                     if (totalDrag < -threshold && cp < TAB_LIST.size - 1) {
-                                        scope.launch {
-                                            pagerState.animateScrollToPage(cp + 1, animationSpec = tween(250, easing = LinearEasing))
-                                        }
+                                        vm.selectTab(TAB_LIST[cp + 1])
                                     } else if (totalDrag > threshold && cp > 0) {
-                                        scope.launch {
-                                            pagerState.animateScrollToPage(cp - 1, animationSpec = tween(250, easing = LinearEasing))
-                                        }
+                                        vm.selectTab(TAB_LIST[cp - 1])
                                     }
                                 },
                                 onDragCancel = { }
@@ -261,8 +248,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
         }
     }
 }
-
-
 
 
 
