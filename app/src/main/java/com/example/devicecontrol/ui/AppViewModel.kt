@@ -462,9 +462,7 @@ class AppViewModel(
             showToast("备份文件格式不匹配，请选择有效的 .lif 备份文件")
             return
         }
-        // 恢复 Token
-        backup.data.token?.takeIf { it.isNotBlank() }?.let { repository.saveToken(it) }
-        // 数据部分委托 BackupManager.restore()
+        // 数据部分委托 BackupManager.restore()（包含 Token 恢复）
         val counts = backupManager?.restore(backup) ?: return
         // 刷新 UI 状态
         _state.update { it.copy(
