@@ -19,15 +19,7 @@ class PointsTaskStateStore(context: Context) {
     fun getAlipayVideoCount(): Int = if (isToday()) prefs.getInt("alipay_video", 0) else 0
     fun setAlipayVideoCount(n: Int) { prefs.edit().putInt("alipay_video", n).putString("run_date", today()).apply() }
 
-    fun getCompletedTaskCodes(): Set<String> =
-        if (isToday()) prefs.getStringSet("task_codes", emptySet()) ?: emptySet()
-        else emptySet()
-    fun addCompletedTaskCode(code: String) {
-        val s = getCompletedTaskCodes().toMutableSet().apply { add(code) }
-        prefs.edit().putStringSet("task_codes", s).putString("run_date", today()).apply()
-    }
 
-    fun isAllCompleted(): Boolean = getAppVideoCount() >= 20 && getAlipayVideoCount() >= 50
 
     fun isLogCompactEnabled(): Boolean = prefs.getBoolean("log_compact", true)
     fun setLogCompactEnabled(v: Boolean) { prefs.edit().putBoolean("log_compact", v).apply() }

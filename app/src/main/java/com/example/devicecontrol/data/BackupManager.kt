@@ -50,7 +50,6 @@ data class DailyTaskStatePayload(
  */
 class BackupManager(private val context: Context) {
 
-    fun getContext(): Context = context
 
     private val moshi = Moshi.Builder()
         .add(LenientStringJsonAdapter())
@@ -175,7 +174,7 @@ class BackupManager(private val context: Context) {
             prefs.edit().putString("theme_mode", mode).apply()
         }
 
-        // 恢复触感、日志紧凑模式和 UserAgent
+        // 恢复触感、日志紧凑模式、UserAgent 和每日任务状态
         val taskPrefs = context.getSharedPreferences("points_task_state", Context.MODE_PRIVATE)
         payload.hapticEnabled?.let { taskPrefs.edit().putBoolean("haptic_enabled", it).apply() }
         payload.logCompactEnabled?.let { taskPrefs.edit().putBoolean("log_compact", it).apply() }
@@ -190,7 +189,6 @@ class BackupManager(private val context: Context) {
 
         payload.dailyTaskState?.let { daily ->
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA).format(java.util.Date())
-            val taskPrefs = context.getSharedPreferences("points_task_state", Context.MODE_PRIVATE)
             if (daily.runDate == today && daily.phase != "none") {
                 taskPrefs.edit()
                     .putString("phase", daily.phase)

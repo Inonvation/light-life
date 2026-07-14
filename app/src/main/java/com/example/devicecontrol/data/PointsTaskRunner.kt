@@ -311,7 +311,6 @@ class PointsTaskRunner(
     }
 
     private fun Map<String, Any?>.codeInt(): Int? = (this["code"] as? Number)?.toInt()
-    private fun Map<String, Any?>.messageText(): String = this["msg"]?.toString() ?: this["message"]?.toString() ?: "未知结果"
     private fun Map<String, Any?>.dataMap(): Map<String, Any?> = this["data"] as? Map<String, Any?> ?: emptyMap()
 
     private companion object {

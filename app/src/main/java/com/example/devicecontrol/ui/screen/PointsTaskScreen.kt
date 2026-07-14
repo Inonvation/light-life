@@ -331,8 +331,6 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                     Spacer(Modifier.height(4.dp))
                     Text("• 即使在同一固定设备下，也尽量避免每天在同一时间段执行刷积分任务")
                     Spacer(Modifier.height(4.dp))
-                    Text("• 即使在同一固定设备下，也尽量避免每天在同一时间段执行刷积分任务")
-                    Spacer(Modifier.height(4.dp))
                     Text("• 建议在 WiFi 稳定的环境下执行任务")
                     Spacer(Modifier.height(12.dp))
                     Text("免责声明", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)

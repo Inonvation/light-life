@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -71,7 +69,6 @@ import com.example.devicecontrol.ui.openProjectHome
 import com.example.devicecontrol.ui.theme.CardShapes
 import com.example.devicecontrol.ui.theme.Spacings
 import com.example.devicecontrol.ui.theme.ThemeMode
-import com.example.devicecontrol.ui.theme.ThemePreferences
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -133,7 +130,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             }
         }
     }
-    val themePrefs = remember { ThemePreferences(ctx) }
     val currentMode = state.themeMode
 
     Column(

@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.example.devicecontrol.data.UnlockException
-import com.example.devicecontrol.data.DiagnosisResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 
@@ -601,8 +600,8 @@ class AppViewModel(
             set(java.util.Calendar.MILLISECOND, 0)
             timeInMillis
         }
-        val todayOrders = repository.orderHistory().filter { it.completedAt >= todayStart }
         val allOrders = repository.orderHistory()
+        val todayOrders = allOrders.filter { it.completedAt >= todayStart }
         val count = todayOrders.size
         val amount = todayOrders.mapNotNull { item ->
             val raw = item.integralCost.filter { it.isDigit() || it == '.' || it == '-' }
