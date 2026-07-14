@@ -1,5 +1,8 @@
 ﻿package com.example.devicecontrol.ui.screen
 
+import androidx.compose.ui.res.painterResource
+import com.example.devicecontrol.R
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,10 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Logout
-import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -155,7 +154,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("订单记录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showOrderHistory() }) {
-                            Icon(Icons.Outlined.Receipt, contentDescription = "查看订单")
+                            Icon(painterResource(R.drawable.ic_outlined_receipt), contentDescription = "查看订单")
                         }
                     }
                     if (state.orderHistory.isNotEmpty()) {
@@ -178,3 +177,4 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
         )
     }
 }
+

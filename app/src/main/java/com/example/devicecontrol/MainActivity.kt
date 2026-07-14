@@ -18,10 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.painterResource
+import com.example.devicecontrol.R
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -181,14 +179,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 val haptic = LocalHapticFeedback.current
                 TAB_LIST.forEachIndexed { index, tab ->
                     val label = when (tab) { DeviceTab.Control -> "首页"; DeviceTab.Points -> "积分任务"; DeviceTab.Me -> "我的" }
-                    val icon = when (tab) { DeviceTab.Control -> Icons.Outlined.Home; DeviceTab.Points -> Icons.Outlined.PlayArrow; DeviceTab.Me -> Icons.Outlined.Person }
+                    val iconRes = when (tab) { DeviceTab.Control -> R.drawable.ic_outlined_home; DeviceTab.Points -> R.drawable.ic_outlined_play_arrow; DeviceTab.Me -> R.drawable.ic_outlined_person }
                     NavigationBarItem(
                         selected = state.currentTab == tab,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             vm.selectTab(tab)
                         },
-                        icon = { Icon(icon, contentDescription = null) },
+                        icon = { Icon(painterResource(iconRes), contentDescription = null) },
                         label = { Text(label) },
                     )
                 }
@@ -263,6 +261,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
         }
     }
 }
+
+
 
 
 
