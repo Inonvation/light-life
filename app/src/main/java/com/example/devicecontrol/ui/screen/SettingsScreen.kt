@@ -1,6 +1,8 @@
 ﻿package com.example.devicecontrol.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -37,7 +41,10 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -321,6 +328,9 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
 
 @Composable
 private fun ArchivedLogsDialog(state: AppUiState, vm: AppViewModel) {
+    // 记录展开的日志索引
+    var expandedIndex by remember { mutableStateOf(-1) }
+    
     AlertDialog(
         onDismissRequest = { vm.dismissArchivedLogs() },
         title = { Text("历史执行日志") },
@@ -329,18 +339,48 @@ private fun ArchivedLogsDialog(state: AppUiState, vm: AppViewModel) {
                 Text("暂无历史日志", color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 LazyColumn(modifier = Modifier.height(360.dp)) {
-                    items(state.archivedLogs) { (name, content) ->
-                        Text(name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    items(state.archivedLogs.size) { index ->
+                        val (name, content) = state.archivedLogs[index]
+                        val isExpanded = expandedIndex == index
+                        
+                        // 日期标题（可点击展开/折叠）
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { expandedIndex = if (isExpanded) -1 else index }
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                name, 
+                                style = MaterialTheme.typography.labelMedium, 
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Icon(
+                                imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = if (isExpanded) "折叠" else "展开",
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        
+                        // 展开时显示详细日志
+                        AnimatedVisibility(visible = isExpanded) {
+                            Column {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = content,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = content.take(300).let { if (it.length < content.length) "$it..." else it },
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
                         HorizontalDivider()
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(4.dp))
                     }
                 }
             }
