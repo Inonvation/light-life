@@ -14,6 +14,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -157,7 +159,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
     LaunchedEffect(state.currentTab) {
         val target = TAB_LIST.indexOf(state.currentTab)
         if (target >= 0 && pagerState.currentPage != target) {
-            pagerState.animateScrollToPage(target)
+            pagerState.animateScrollToPage(target, animationSpec = tween(300, easing = LinearEasing))
         }
     }
 

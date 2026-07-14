@@ -1,5 +1,0 @@
-﻿Bump version to 0.1.0
-
-- Add phone number format validation with red error text
-- Fix verification code input (NumberPassword, digit-only filter)
-- Move logout to top-left with vector icon and confirmation dialog
