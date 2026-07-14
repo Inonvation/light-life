@@ -98,7 +98,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                         )
                         Spacer(Modifier.width(8.dp))
                         Button(
-                            onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.sendCode() },
+                            onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.sendCode() },
                             enabled = !state.sendingCode && state.phone.isNotBlank(),
                             shape = RoundedCornerShape(8.dp),
                         ) {
@@ -107,7 +107,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     }
                     Spacer(Modifier.height(12.dp))
                     Button(
-                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.login() },
+                        onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.login() },
                         enabled = !state.loggingIn && state.phone.isNotBlank() && state.code.isNotBlank(),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
@@ -142,7 +142,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     }
                     Spacer(Modifier.height(12.dp))
                     Button(
-                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.refreshBalance() },
+                        onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.refreshBalance() },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
@@ -191,7 +191,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("订单记录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showOrderHistory() }) {
+                        IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showOrderHistory() }) {
                             Icon(Icons.Outlined.Receipt, contentDescription = "查看订单")
                         }
                     }

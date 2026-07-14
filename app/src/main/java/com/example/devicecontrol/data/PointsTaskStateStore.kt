@@ -31,6 +31,9 @@ class PointsTaskStateStore(context: Context) {
     fun isLogCompactEnabled(): Boolean = prefs.getBoolean("log_compact", true)
     fun setLogCompactEnabled(v: Boolean) { prefs.edit().putBoolean("log_compact", v).apply() }
 
+    fun isHapticEnabled(): Boolean = prefs.getBoolean("haptic_enabled", true)
+    fun setHapticEnabled(v: Boolean) { prefs.edit().putBoolean("haptic_enabled", v).apply() }
+
     fun getPhase(): String = prefs.getString("phase", "none") ?: "none"
     fun setPhase(p: String) { prefs.edit().putString("phase", p).putString("run_date", today()).apply() }
 

@@ -95,6 +95,9 @@ class AppViewModel(
     val state: StateFlow<AppUiState> = _state
 
     init {
+        taskStateStore?.let {
+            _state.update { s -> s.copy(hapticEnabled = it.isHapticEnabled()) }
+        }
         themePreferences?.let {
             _state.update { s -> s.copy(themeMode = it.getThemeMode()) }
         }
@@ -365,7 +368,11 @@ class AppViewModel(
         refreshTodayWater()
     }
 
-    fun toggleHaptic() { _state.update { it.copy(hapticEnabled = !it.hapticEnabled) } }
+    fun toggleHaptic() {
+        val v = !state.value.hapticEnabled
+        taskStateStore?.setHapticEnabled(v)
+        _state.update { it.copy(hapticEnabled = v) }
+    }
 
     fun toggleLogCompact() {
         val v = !state.value.logCompactEnabled
@@ -429,7 +436,10 @@ class AppViewModel(
             } catch (_: IllegalArgumentException) {}
         }
         // 恢复设置项
-        backup.data.hapticEnabled?.let { enabled -> _state.update { s -> s.copy(hapticEnabled = enabled) } }
+        backup.data.hapticEnabled?.let { enabled ->
+            taskStateStore?.setHapticEnabled(enabled)
+            _state.update { s -> s.copy(hapticEnabled = enabled) }
+        }
         backup.data.logCompactEnabled?.let { compact ->
             taskStateStore?.setLogCompactEnabled(compact)
             _state.update { s -> s.copy(logCompactEnabled = compact) }
