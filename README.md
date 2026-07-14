@@ -49,35 +49,11 @@
 
 ```
 app/src/main/java/com/example/devicecontrol/
-├── MainActivity.kt                 # 应用入口
-├── data/                           # 数据层
-│   ├── ApiConfig.kt                # API 配置
-│   ├── AppRepository.kt            # 数据仓库
-│   ├── BackupManager.kt            # 备份管理
-│   ├── DeviceApi.kt                # 设备 API 接口
-│   ├── EmptyDataJsonAdapter.kt     # JSON 适配器
-│   ├── HeaderInterceptor.kt        # 请求头拦截器
-│   ├── LenientStringJsonAdapter.kt # JSON 适配器
-│   ├── Models.kt                   # 数据模型
-│   ├── OrderHistoryStore.kt        # 订单历史存储
-│   ├── PointsStatsStore.kt         # 积分统计存储
-│   ├── PointsTaskRunner.kt         # 积分任务执行器
-│   ├── PointsTaskStateStore.kt     # 任务状态存储
-│   ├── TaskLogStore.kt             # 任务日志存储
-│   └── TokenStore.kt               # Token 存储
-├── ui/                             # UI 层
-│   ├── AppViewModel.kt             # 主 ViewModel
-│   ├── ShortcutUtils.kt            # 快捷方式工具
-│   └── screen/                     # 页面
-│       ├── Components.kt           # 通用组件
-│       ├── ControlScreen.kt        # 设备控制页
-│       ├── MeScreen.kt             # 个人中心页
-│       ├── OrderDetailDialog.kt    # 订单详情弹窗
-│       ├── OrderHistoryDialog.kt   # 订单历史弹窗
-│       ├── PointsTaskScreen.kt     # 积分任务页
-│       ├── SettingsScreen.kt       # 设置页
-│       └── TokenDialog.kt          # Token 弹窗
-└── res/                            # 资源文件
+├── MainActivity.kt      # 应用入口
+├── data/                # 数据层（API、存储、任务执行）
+├── ui/                  # UI 层（ViewModel、页面、组件）
+│   └── screen/          # 各功能页面
+└── res/                 # 资源文件
 ```
 
 ---
