@@ -73,7 +73,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("执行日志", style = MaterialTheme.typography.labelLarge)
-                TextButton(onClick = { logExpanded = !logExpanded }) { Text(if (logExpanded) "折叠" else "展开") }
+                TextButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); logExpanded = !logExpanded }) { Text(if (logExpanded) "折叠" else "展开") }
             }
             Spacer(Modifier.height(8.dp))
             Surface(modifier = Modifier.fillMaxWidth().weight(1f), color = LogColors.background, shape = RoundedCornerShape(8.dp)) {
@@ -94,8 +94,8 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (state.pointsTaskPaused) { Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.resumePointsTask() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.resume, contentColor = AppColors.white)) { Text("继续") } }
                 else { Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.pausePointsTask() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.pause, contentColor = AppColors.white)) { Text("暂停") } }
-                Button(onClick = { vm.stopPointsTask() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.stop, contentColor = AppColors.white)) { Text("结束") }
-                Button(onClick = { vm.clearPointsLogs() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.clear, contentColor = AppColors.white)) { Text("清除日志") }
+                Button(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.stopPointsTask() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.stop, contentColor = AppColors.white)) { Text("结束") }
+                Button(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.clearPointsLogs() }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.clear, contentColor = AppColors.white)) { Text("清除日志") }
             }
         } else {
             Button(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx); vm.startPointsTask(ua) }, modifier = Modifier.fillMaxWidth(), enabled = !state.runningPointsTask, shape = RoundedCornerShape(8.dp), colors = ButtonDefaults.buttonColors(containerColor = AppColors.start, contentColor = AppColors.white)) { Text(if (state.runningPointsTask) "任务执行中" else "开始执行自动化任务") }

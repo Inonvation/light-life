@@ -93,7 +93,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("我的资产", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        IconButton(onClick = vm::refreshBalance, enabled = state.hasToken && !state.loadingBalance) {
+                        IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.refreshBalance() }, enabled = state.hasToken && !state.loadingBalance) {
                             if (state.loadingBalance) { CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp) }
                             else { Icon(Icons.Outlined.Refresh, contentDescription = "刷新资产") }
                         }
