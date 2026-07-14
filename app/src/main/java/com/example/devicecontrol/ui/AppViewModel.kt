@@ -411,41 +411,10 @@ class AppViewModel(
             showToast("备份文件格式不匹配，请选择有效的 .lif 备份文件")
             return
         }
-        var restoredOrderCount = 0
-        var restoredLogCount = 0
-        // 恢复 Token（直接写入 TokenStore）
+        // 恢复 Token
         backup.data.token?.takeIf { it.isNotBlank() }?.let { repository.saveToken(it) }
-        // 恢复订单历史
-        backup.data.orderHistory?.let { orders ->
-            val ctx = backupManager!!.getContext()
-            val prefs = ctx.getSharedPreferences("order_history", android.content.Context.MODE_PRIVATE)
-            val moshi = com.squareup.moshi.Moshi.Builder()
-                .add(com.example.devicecontrol.data.LenientStringJsonAdapter())
-                .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
-                .build()
-            val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, OrderHistoryItem::class.java)
-            val adapter = moshi.adapter<List<OrderHistoryItem>>(listType)
-            prefs.edit().putString("orders", adapter.toJson(orders.take(50))).apply()
-            restoredOrderCount = orders.take(50).size
-        }
-        // 恢复积分统计
-        backup.data.pointsStats?.let { stats ->
-            pointsStatsStore?.let { store ->
-                val ctx = backupManager!!.getContext()
-                val prefs = ctx.getSharedPreferences("points_stats", android.content.Context.MODE_PRIVATE)
-                prefs.edit().putInt("total_earned", stats.totalEarned).putString("total_deducted", stats.totalDeducted).apply()
-            }
-        }
-        // 恢复任务日志
-        backup.data.taskLogs?.let { logs ->
-            val ctx = backupManager!!.getContext()
-            val logDir = java.io.File(ctx.filesDir, "task_logs").also { it.mkdirs() }
-            logDir.listFiles()?.forEach { it.delete() }
-            for (log in logs) {
-                java.io.File(logDir, log.name).writeText(log.content, Charsets.UTF_8)
-                restoredLogCount++
-            }
-        }
+        // 数据部分委托 BackupManager.restore()
+        val counts = backupManager?.restore(backup) ?: return
         // 刷新 UI 状态
         _state.update { it.copy(
             hasToken = repository.localToken() != null,
@@ -469,7 +438,7 @@ class AppViewModel(
         }
         backup.data.suppressPointsTaskWarning?.let { suppressed -> _state.update { s -> s.copy(suppressPointsTaskWarning = suppressed) } }
         refreshTodayWater()
-        showToast("已恢复 " + restoredOrderCount + " 条订单、" + restoredLogCount + " 条执行日志")
+        showToast("已恢复 " + counts.orders + " 条订单、" + counts.logs + " 条执行日志")
     }
 
     companion object {
