@@ -2,7 +2,7 @@
 
 将胖乖生活核心流程（饮水设备解锁 + 积分自动化）重构成原生 Android 应用，去除臃肿功能和广告，保留最实用的部分。
 
-> Kotlin + Jetpack Compose + OkHttp / Moshi，单 APK 约 4MB。
+> Kotlin + Jetpack Compose + OkHttp / Moshi，单 APK 约 20MB。
 
 ---
 
@@ -102,7 +102,7 @@ src/main/java/com/example/devicecontrol/
 自动化积分功能模拟正常用户操作流程，可能违反相关平台服务条款。
 
 - 请自行承担账号、设备、接口变更和平台规则风险
-- 可能面临账户**永久无法使用积分**甚至**封号**的风险
+- 可能面临账户**积分清零****永久无法使用积分**甚至**封号**的风险
 - **本人概不承担因此产生的任何责任**
 
 ## 致谢
