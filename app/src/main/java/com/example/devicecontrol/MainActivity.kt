@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,7 +13,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
@@ -49,6 +52,7 @@ import com.example.devicecontrol.data.OrderHistoryStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.PointsTaskStateStore
 import com.example.devicecontrol.data.TaskLogStore
+import com.example.devicecontrol.data.BackupManager
 import com.example.devicecontrol.data.TokenStore
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.AppViewModelFactory
@@ -60,6 +64,7 @@ import com.example.devicecontrol.ui.screen.OrderHistoryDialog
 import com.example.devicecontrol.ui.screen.PointsTaskScreen
 import com.example.devicecontrol.ui.screen.SettingsScreen
 import com.example.devicecontrol.ui.screen.TokenDialog
+import com.example.devicecontrol.ui.screen.TopBar
 import com.example.devicecontrol.ui.shortcutRequestFromIntent
 import com.example.devicecontrol.ui.theme.DeviceControlTheme
 import com.example.devicecontrol.ui.theme.ThemeMode
@@ -79,7 +84,7 @@ class MainActivity : ComponentActivity() {
         val taskLogStore = TaskLogStore(applicationContext)
         setContent {
             val vm: AppViewModel = viewModel(
-                factory = AppViewModelFactory(repository, (packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"), statsStore, taskStateStore, taskLogStore, themePrefs),
+                factory = AppViewModelFactory(repository, (packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"), statsStore, taskStateStore, taskLogStore, themePrefs, BackupManager(applicationContext)),
             )
             val uiState by vm.state.collectAsState()
             DeviceControlTheme(
@@ -104,10 +109,8 @@ private val TAB_LIST = listOf(DeviceTab.Control, DeviceTab.Points, DeviceTab.Me)
 private fun DeviceControlApp(vm: AppViewModel) {
     val state by vm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // Back handler: close settings or dialogs instead of exiting
     BackHandler(enabled = state.showOrderHistory || state.showLogoutConfirm || state.tokenDialogText != null || state.orderDetail != null) {
         when {
             state.showOrderHistory -> vm.dismissOrderHistory()
@@ -151,7 +154,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
     val initialPage = TAB_LIST.indexOf(state.currentTab).coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = initialPage) { TAB_LIST.size }
 
-    // Sync ViewModel tab selection -> Pager (for bottom nav clicks)
     LaunchedEffect(state.currentTab) {
         val target = TAB_LIST.indexOf(state.currentTab)
         if (target >= 0 && pagerState.currentPage != target) {
@@ -159,7 +161,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
         }
     }
 
-    // Sync Pager swipe -> ViewModel
     LaunchedEffect(pagerState.currentPage) {
         val tab = TAB_LIST[pagerState.currentPage]
         if (tab != state.currentTab) {
@@ -170,42 +171,39 @@ private fun DeviceControlApp(vm: AppViewModel) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            AnimatedVisibility(
-                visible = !state.showSettings,
-                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
-            ) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    val haptic = LocalHapticFeedback.current
-                    TAB_LIST.forEachIndexed { index, tab ->
-                        val label = when (tab) { DeviceTab.Control -> "首页"; DeviceTab.Points -> "积分任务"; DeviceTab.Me -> "我的" }
-                        val icon = when (tab) { DeviceTab.Control -> Icons.Outlined.Home; DeviceTab.Points -> Icons.Outlined.PlayArrow; DeviceTab.Me -> Icons.Outlined.Person }
-                        NavigationBarItem(
-                            selected = state.currentTab == tab,
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                vm.selectTab(tab)
-                            },
-                            icon = { Icon(icon, contentDescription = null) },
-                            label = { Text(label) },
-                        )
+            if (!state.showSettings) {
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                        val haptic = LocalHapticFeedback.current
+                        TAB_LIST.forEachIndexed { index, tab ->
+                            val label = when (tab) { DeviceTab.Control -> "首页"; DeviceTab.Points -> "积分任务"; DeviceTab.Me -> "我的" }
+                            val icon = when (tab) { DeviceTab.Control -> Icons.Outlined.Home; DeviceTab.Points -> Icons.Outlined.PlayArrow; DeviceTab.Me -> Icons.Outlined.Person }
+                            NavigationBarItem(
+                                selected = state.currentTab == tab,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    vm.selectTab(tab)
+                                },
+                                icon = { Icon(icon, contentDescription = null) },
+                                label = { Text(label) },
+                            )
+                        }
                     }
                 }
             }
-        }
     ) { padding ->
         Surface(modifier = Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
-            AnimatedVisibility(
-                visible = state.showSettings,
-                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
-            ) {
-                SettingsScreen(state = state, vm = vm)
-            }
-            if (!state.showSettings) {
+            // 主页内容固定不动
+            Column(modifier = Modifier.fillMaxSize()) {
+                TopBar(
+                    currentTab = state.currentTab,
+                    hasToken = state.hasToken,
+                    unlockStatus = state.unlockStatus,
+                    onSettingsClick = { vm.showSettings() },
+                    onLogoutClick = { vm.showLogoutConfirm() },
+                )
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.weight(1f),
                     beyondViewportPageCount = 1,
                 ) { page ->
                     when (TAB_LIST[page]) {
@@ -214,6 +212,20 @@ private fun DeviceControlApp(vm: AppViewModel) {
                         DeviceTab.Me -> MeScreen(state, vm)
                     }
                 }
+            }
+            // 设置页从右侧覆盖滑入
+            AnimatedVisibility(
+                visible = state.showSettings,
+                enter = slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = androidx.compose.animation.core.tween(250, easing = androidx.compose.animation.core.LinearEasing)
+                ),
+                exit = slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.LinearEasing)
+                ),
+            ) {
+                SettingsScreen(state = state, vm = vm)
             }
         }
     }

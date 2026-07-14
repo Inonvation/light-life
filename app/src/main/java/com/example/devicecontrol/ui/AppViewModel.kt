@@ -12,6 +12,7 @@ import com.example.devicecontrol.data.PointsTaskStateStore
 import com.example.devicecontrol.data.TaskLogStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.UnlockResult
+import com.example.devicecontrol.data.BackupManager
 import com.example.devicecontrol.ui.theme.ThemeMode
 import com.example.devicecontrol.ui.theme.ThemePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,6 +82,7 @@ class AppViewModel(
     private val taskStateStore: PointsTaskStateStore? = null,
     private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
+    private val backupManager: BackupManager? = null,
 ) : ViewModel() {
     private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore)
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
@@ -377,6 +379,99 @@ class AppViewModel(
         _state.update { it.copy(themeMode = mode) }
     }
 
+
+
+    fun prepareBackupJson(): String {
+        val s = state.value
+        val backup = backupManager?.collect(
+            appVersion = s.appVersion,
+            token = repository.localToken(),
+            orderHistory = s.orderHistory,
+            pointsStats = pointsStatsStore,
+            taskLogStore = logStore,
+            themeMode = s.themeMode.name,
+            hapticEnabled = s.hapticEnabled,
+            logCompactEnabled = s.logCompactEnabled,
+            suppressPointsTaskWarning = s.suppressPointsTaskWarning,
+        ) ?: return ""
+        return backupManager.toJson(backup)
+    }
+
+    fun restoreFromBackupJson(json: String) {
+        runCatching {
+            _restoreFromBackupJson(json)
+        }.onFailure { e ->
+            showToast("导入失败：" + (e.message ?: "未知错误"))
+        }
+    }
+
+    private fun _restoreFromBackupJson(json: String) {
+        val backup = backupManager?.fromJson(json)
+        if (backup == null) {
+            showToast("备份文件格式不匹配，请选择有效的 .lif 备份文件")
+            return
+        }
+        var restoredOrderCount = 0
+        var restoredLogCount = 0
+        // 恢复 Token（直接写入 TokenStore）
+        backup.data.token?.takeIf { it.isNotBlank() }?.let { repository.saveToken(it) }
+        // 恢复订单历史
+        backup.data.orderHistory?.let { orders ->
+            val ctx = backupManager!!.getContext()
+            val prefs = ctx.getSharedPreferences("order_history", android.content.Context.MODE_PRIVATE)
+            val moshi = com.squareup.moshi.Moshi.Builder()
+                .add(com.example.devicecontrol.data.LenientStringJsonAdapter())
+                .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+                .build()
+            val listType = com.squareup.moshi.Types.newParameterizedType(List::class.java, OrderHistoryItem::class.java)
+            val adapter = moshi.adapter<List<OrderHistoryItem>>(listType)
+            prefs.edit().putString("orders", adapter.toJson(orders.take(50))).apply()
+            restoredOrderCount = orders.take(50).size
+        }
+        // 恢复积分统计
+        backup.data.pointsStats?.let { stats ->
+            pointsStatsStore?.let { store ->
+                val ctx = backupManager!!.getContext()
+                val prefs = ctx.getSharedPreferences("points_stats", android.content.Context.MODE_PRIVATE)
+                prefs.edit().putInt("total_earned", stats.totalEarned).putString("total_deducted", stats.totalDeducted).apply()
+            }
+        }
+        // 恢复任务日志
+        backup.data.taskLogs?.let { logs ->
+            val ctx = backupManager!!.getContext()
+            val logDir = java.io.File(ctx.filesDir, "task_logs").also { it.mkdirs() }
+            logDir.listFiles()?.forEach { it.delete() }
+            for (log in logs) {
+                java.io.File(logDir, log.name).writeText(log.content, Charsets.UTF_8)
+                restoredLogCount++
+            }
+        }
+        // 刷新 UI 状态
+        _state.update { it.copy(
+            hasToken = repository.localToken() != null,
+            orderHistory = repository.orderHistory(),
+            totalPointsEarned = pointsStatsStore?.getTotalEarned() ?: 0,
+            totalPointsDeducted = pointsStatsStore?.getTotalDeductedAmount() ?: "0.00",
+        )}
+        // 恢复主题模式
+        backup.data.themeMode?.let { modeName ->
+            try {
+                val mode = com.example.devicecontrol.ui.theme.ThemeMode.valueOf(modeName)
+                themePreferences?.setThemeMode(mode)
+                _state.update { it.copy(themeMode = mode) }
+            } catch (_: IllegalArgumentException) {}
+        }
+        // 恢复设置项
+        backup.data.hapticEnabled?.let { enabled -> _state.update { s -> s.copy(hapticEnabled = enabled) } }
+        backup.data.logCompactEnabled?.let { compact ->
+            taskStateStore?.setLogCompactEnabled(compact)
+            _state.update { s -> s.copy(logCompactEnabled = compact) }
+        }
+        backup.data.suppressPointsTaskWarning?.let { suppressed -> _state.update { s -> s.copy(suppressPointsTaskWarning = suppressed) } }
+        refreshTodayWater()
+        showToast("已恢复 " + restoredOrderCount + " 条订单、" + restoredLogCount + " 条执行日志")
+    }
+
     companion object {
         val PHONE_REGEX = Regex("^1[3-9]\\d{9}$")
     }
@@ -493,9 +588,10 @@ class AppViewModelFactory(
     private val taskStateStore: PointsTaskStateStore? = null,
     private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
+    private val backupManager: BackupManager? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences) as T
+        return AppViewModel(repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager) as T
     }
 }
