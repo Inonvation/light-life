@@ -16,7 +16,7 @@ const val ACTION_OPEN_DEVICE_SHORTCUT = "com.example.devicecontrol.OPEN_DEVICE_S
 const val EXTRA_GOODS_ID = "goods_id"
 const val EXTRA_DEVICE_ID = "device_id"
 const val EXTRA_GOODS_NAME = "goods_name"
-const val PROJECT_URL = "https://github.com/Inonvation/light-life"
+const val PROJECT_URL = "https://github.com/Inonvation/qiekj-android"
 
 fun shortcutRequestFromIntent(intent: Intent?): DeviceShortcutRequest? {
     if (intent?.action != ACTION_OPEN_DEVICE_SHORTCUT) return null
@@ -29,12 +29,12 @@ fun shortcutRequestFromIntent(intent: Intent?): DeviceShortcutRequest? {
 
 fun pinDeviceShortcut(context: Context, device: DeviceItem) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-        Toast.makeText(context, "当前系统不支持添加桌面快捷方�?, Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "当前系统不支持添加桌面快捷方式", Toast.LENGTH_LONG).show()
         return
     }
     val shortcutManager = context.getSystemService(ShortcutManager::class.java)
     if (shortcutManager?.isRequestPinShortcutSupported != true) {
-        Toast.makeText(context, "当前桌面不支持添加快捷方�?, Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "当前桌面不支持添加快捷方式", Toast.LENGTH_LONG).show()
         return
     }
     val label = device.goodsName.ifBlank { "历史设备" }
