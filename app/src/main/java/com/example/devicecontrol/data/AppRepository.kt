@@ -78,6 +78,14 @@ class AppRepository(
         val skuId = api.goodsid2sku(goodsId = goodsId, token = token).requireData().firstOrNull()?.skuId
             ?: error("未获取到 skuId")
 
+
+        onStep("正在检测设备状态")
+        runCatching {
+            api.syncWater(skuId = skuId, token = token)
+        }.getOrElse { _ ->
+            // 预检失败不阻断流程
+        }
+
         onStep("正在获取 IMEI")
         val imei = api.getImei(goodsId = goodsId, token = token).requireData().imei
             ?: error("未获取到 imei")
@@ -101,17 +109,27 @@ class AppRepository(
         val orderNo = unlock.orderNo ?: error("未获取到订单号")
         onStep("设备已启动，等待使用结束")
 
+        delay(2000)
+
         var lastStatus: SyncData
         var pollAttempts = 0
+        var everWorked = false
         val maxPollAttempts = 300
         do {
-            delay(1000)
-            lastStatus = api.syncWater(skuId = skuId, token = token).requireData()
+            lastStatus = runCatching {
+                api.syncWater(skuId = skuId, token = token).requireData()
+            }.getOrElse { e -> throwDiagnosed(e, "设备状态轮询") }
+            if (lastStatus.workStatus == 2) everWorked = true
             pollAttempts++
             if (pollAttempts >= maxPollAttempts)
-                error("设备使用超时（" + maxPollAttempts + "秒），请检查设备状态")
+                throwDiagnosed(Exception("设备使用超时（${maxPollAttempts}秒）"), "设备状态轮询")
             onStep("设备工作中，正在等待完成")
+            delay(1000)
         } while (lastStatus.workStatus == 2)
+
+        if (!everWorked) {
+            throwDiagnosed(Exception("设备未启动或未响应，可能已离线"), "设备状态轮询")
+        }
 
         val finalOrderNo = lastStatus.identify ?: orderNo
         onStep("正在创建后付订单")
@@ -153,6 +171,15 @@ class AppRepository(
             ),
         )
         return result
+    }
+
+
+    private fun throwDiagnosed(original: Throwable, step: String): Nothing {
+        val code = if (original.message?.matches(Regex("HTTP \\d+.*")) == true) {
+            original.message?.substringAfter("HTTP ")?.substringBefore(":")?.trim()?.toIntOrNull()
+        } else null
+        val diagnosis = DeviceErrorDiagnosis.diagnose(code, original.message, step)
+        throw UnlockException(diagnosis.primaryReason, diagnosis, original)
     }
 
     private fun requireToken(): String = tokenStore.readToken()?.takeIf { it.isNotBlank() }
