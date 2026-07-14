@@ -84,8 +84,9 @@ class PointsTaskRunner(
         delay(3000)
         val after = balance(token, userAgent)
         val gained = after?.let { a -> before?.let { b -> a - b } }
-        log("总积分：${after ?: "-"}，今日积分：${gained ?: "-"}")
-        log("所有任务均已完成")
+        log("总积分：${after ?: "-"}")
+        val conclusion = if (gained != null && gained > 0) "成功获取积分，本次获得 $gained" else "本次未获得积分"
+        log(conclusion)
     }
 
     private suspend fun signIn(token: String, ua: String, log: suspend (String) -> Unit) {
@@ -97,7 +98,7 @@ class PointsTaskRunner(
             fields = mapOf("activityId" to "600001", "token" to token),
         )
         when (res.codeInt()) {
-            0 -> log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}")
+            0 -> log("签到已提交，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}")
             33001 -> log("今天已经签到过")
             else -> log("签到失败：${res.messageText()}")
         }
@@ -110,7 +111,7 @@ class PointsTaskRunner(
             userAgent = ua,
             fields = mapOf("shieldingResourceType" to "1", "token" to token),
         )
-        log("屏蔽资源查询完成：${res.messageText()}")
+        log("屏蔽资源查询：${res.messageText()}")
     }
 
     private suspend fun queryByType(token: String, ua: String, log: suspend (String) -> Unit) {
@@ -121,9 +122,9 @@ class PointsTaskRunner(
             fields = mapOf("taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a", "token" to token),
         )
         if (res.codeInt() == 0 && res["data"] == true) {
-            log("首页浏览成功，获得积分")
+            log("首页浏览已提交")
         } else {
-            log("首页浏览失败：${res.messageText()}")
+            log("首页浏览未通过：${res.messageText()}")
         }
     }
 
@@ -148,13 +149,13 @@ class PointsTaskRunner(
                 reportProgress(title, index + 1, limit)
                 val taskRes = completeTask(token, ua, taskCode)
                 if (taskRes.codeInt() == 0 && taskRes["data"] == true) {
-                    log("$title 第${index + 1}次接口成功")
+                    log("$title 第${index + 1}次已提交")
                 } else {
-                    log("$title 第${index + 1}次失败：${taskRes.messageText()}")
+                    log("$title 第${index + 1}次未通过：${taskRes.messageText()}")
                 }
                 cancellableDelay(10000)
             }
-            log("$title 任务完成")
+            log("$title 执行完毕")
             cancellableDelay(5000)
         }
     }
@@ -166,10 +167,10 @@ class PointsTaskRunner(
             reportProgress("看广告赚积分", index + 1, 20)
             val res = completeTask(token, ua, 2)
             if (res.codeInt() == 0 && res["data"] == true) {
-                log("第${index + 1}次 APP 视频广告接口成功")
+                log("第${index + 1}次已提交")
                 cancellableDelay(15000)
             } else {
-                log("APP 视频任务停止：${res.messageText()}")
+                log("第${index + 1}次未通过，停止")
                 return
             }
         }
@@ -188,10 +189,10 @@ class PointsTaskRunner(
                 channel = "alipay",
             )
             if (res.codeInt() == 0 && res["data"] == true) {
-                log("第${index + 1}次支付宝视频广告接口成功")
+                log("第${index + 1}次已提交")
                 cancellableDelay(15000)
             } else {
-                log("支付宝视频任务停止：${res.messageText()}")
+                log("第${index + 1}次未通过，停止")
                 return
             }
         }
