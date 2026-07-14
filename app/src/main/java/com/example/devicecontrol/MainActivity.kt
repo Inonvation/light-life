@@ -5,6 +5,11 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -124,13 +129,19 @@ private fun DeviceControlApp(vm: AppViewModel) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                val haptic = LocalHapticFeedback.current
-                NavigationBarItem(selected = state.currentTab == DeviceTab.Control, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.selectTab(DeviceTab.Control) }, icon = { Icon(Icons.Outlined.Home, contentDescription = null) }, label = { Text("首页") })
-                NavigationBarItem(selected = state.currentTab == DeviceTab.Points, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.selectTab(DeviceTab.Points) }, icon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) }, label = { Text("积分任务") })
-                NavigationBarItem(selected = state.currentTab == DeviceTab.Me, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.selectTab(DeviceTab.Me) }, icon = { Icon(Icons.Outlined.Person, contentDescription = null) }, label = { Text("我的") })
+            AnimatedVisibility(
+                visible = !state.showSettings,
+                enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
+            ) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                    val haptic = LocalHapticFeedback.current
+                    NavigationBarItem(selected = state.currentTab == DeviceTab.Control, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.selectTab(DeviceTab.Control) }, icon = { Icon(Icons.Outlined.Home, contentDescription = null) }, label = { Text("首页") })
+                    NavigationBarItem(selected = state.currentTab == DeviceTab.Points, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.selectTab(DeviceTab.Points) }, icon = { Icon(Icons.Outlined.PlayArrow, contentDescription = null) }, label = { Text("积分任务") })
+                    NavigationBarItem(selected = state.currentTab == DeviceTab.Me, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.selectTab(DeviceTab.Me) }, icon = { Icon(Icons.Outlined.Person, contentDescription = null) }, label = { Text("我的") })
+                }
             }
-        },
+        }
     ) { padding ->
         Surface(modifier = Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
             if (state.showSettings) {
