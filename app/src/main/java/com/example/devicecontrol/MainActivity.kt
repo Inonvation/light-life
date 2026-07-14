@@ -7,7 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -155,16 +155,21 @@ private fun DeviceControlApp(vm: AppViewModel) {
     LaunchedEffect(state.currentTab) {
         val target = TAB_LIST.indexOf(state.currentTab)
         if (target >= 0 && pagerState.currentPage != target) {
-            pagerState.animateScrollToPage(target, animationSpec = tween(250, easing = LinearEasing))
+            pagerState.animateScrollToPage(target, animationSpec = tween(300, easing = FastOutSlowInEasing))
         }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            // 底部导航栏始终渲染以保持 padding 稳定，设置页打开时透明不可见
+            // 底部导航栏始终渲染以保持 padding 稳定，设置页打开时平滑淡出
+            val bottomBarAlpha by animateFloatAsState(
+                targetValue = if (state.showSettings) 0f else 1f,
+                animationSpec = tween(200, easing = FastOutSlowInEasing),
+                label = "bottomBarAlpha"
+            )
             NavigationBar(
-                modifier = Modifier.alpha(if (state.showSettings) 0f else 1f),
+                modifier = Modifier.alpha(bottomBarAlpha),
                 containerColor = MaterialTheme.colorScheme.surface
             ) {
                 val haptic = LocalHapticFeedback.current
@@ -225,14 +230,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
                     when (TAB_LIST[page]) {
                         DeviceTab.Control -> ControlScreen(state, vm)
                         DeviceTab.Points -> PointsTaskScreen(state, vm)
-                        DeviceTab.Me -> MeScreen(state, vm)
+                        DeviceTab.Me -> MeScreen(state, vm, isActive = state.currentTab == DeviceTab.Me)
                     }
                 }
             }
-            // 设置页通过 graphicsLayer 平移控制显隐，不触发重布局
+            // 设置页平滑滑入
             val settingsOffset by animateFloatAsState(
                 targetValue = if (state.showSettings) 0f else 1f,
-                animationSpec = tween(150, easing = LinearEasing),
+                animationSpec = tween(300, easing = FastOutSlowInEasing),
                 label = "settingsSlide"
             )
             Box(
@@ -240,7 +245,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
                     .fillMaxSize()
                     .graphicsLayer {
                         translationX = settingsOffset * size.width
-                        alpha = if (settingsOffset < 0.5f) 1f else 0f
+                        // 透明度使用平滑过渡，而不是在 0.5 处跳变
+                        alpha = 1f - settingsOffset
                     }
             ) {
                 SettingsScreen(state = state, vm = vm)

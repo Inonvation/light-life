@@ -1,5 +1,9 @@
 ﻿package com.example.devicecontrol.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +32,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -43,13 +52,26 @@ import com.example.devicecontrol.ui.theme.CardShapes
 import com.example.devicecontrol.ui.theme.Spacings
 
 @Composable
-fun MeScreen(state: AppUiState, vm: AppViewModel) {
+fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
     val haptic = LocalHapticFeedback.current
+    
+    // 卡片进入动画状态 - 使用 isActive 作为 key，每次切换到"我的"页面时触发动画
+    var cardsVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(isActive) { 
+        if (isActive) {
+            cardsVisible = false
+            cardsVisible = true 
+        }
+    }
+    
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp)) {
         Spacer(Modifier.height(Spacings.sm))
 
         // Login card
-        if (!state.hasToken) {
+        AnimatedVisibility(
+            visible = !state.hasToken && cardsVisible,
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 3 })
+        ) {
             Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("登录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -98,8 +120,13 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                     }
                 }
             }
-        } else {
-            // My assets card
+        }
+        
+        // My assets card
+        AnimatedVisibility(
+            visible = state.hasToken && cardsVisible,
+            enter = fadeIn(tween(400, delayMillis = 100)) + slideInVertically(tween(400, delayMillis = 100), initialOffsetY = { it / 3 })
+        ) {
             Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("我的资产", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -122,10 +149,15 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                     ) { Text("刷新余额") }
                 }
             }
+        }
 
-            Spacer(Modifier.height(Spacings.md))
+        Spacer(Modifier.height(Spacings.md))
 
-            // Points stats card
+        // Points stats card
+        AnimatedVisibility(
+            visible = state.hasToken && cardsVisible,
+            enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(tween(400, delayMillis = 200), initialOffsetY = { it / 3 })
+        ) {
             Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("积分统计", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -146,10 +178,15 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                     }
                 }
             }
+        }
 
-            Spacer(Modifier.height(Spacings.md))
+        Spacer(Modifier.height(Spacings.md))
 
-            // Order history card
+        // Order history card
+        AnimatedVisibility(
+            visible = state.hasToken && cardsVisible,
+            enter = fadeIn(tween(400, delayMillis = 300)) + slideInVertically(tween(400, delayMillis = 300), initialOffsetY = { it / 3 })
+        ) {
             Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -169,12 +206,17 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
         Spacer(Modifier.height(Spacings.xxl))
 
         // Version footer
-        Text(
-            text = "LightLife v${state.appVersion}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
+        AnimatedVisibility(
+            visible = cardsVisible,
+            enter = fadeIn(tween(500, delayMillis = 400))
+        ) {
+            Text(
+                text = "LightLife v${state.appVersion}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
