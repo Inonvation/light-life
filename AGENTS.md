@@ -33,6 +33,23 @@
 - 不要将个人 Token、抓包文件、签名密钥上传到公开仓库
 - `PointsTaskRunner.kt` 中的 `ANDROID_SECRET` / `ALIPAY_SECRET` 是接口签名密钥，反编译 APK 也能获取，属于已知暴露项
 ## Commit 规范
-- `feat:` 新功能 / `fix:` 修复 / `refactor:` 重构 / `perf:` 优化 → 出现在 Release 中
-- `chore:` 杂项 / `docs:` 文档 / `ci:` CI 配置 / `test:` 测试 / `build:` 构建 / `style:` 代码格式 / `revert:` 回滚 → 不出现在 Release 中
-- 前缀英文，描述中文，例如 `fix: 修复登录页面空指针崩溃`
+### 前缀类型
+| 前缀 | 用途 | 出现在 Release |
+|------|------|:---:|
+| `feat:` | 新功能 | ✅ |
+| `fix:` | 修复 Bug | ✅ |
+| `perf:` | 性能优化 | ✅ |
+| `refactor:` | 重构（不影响功能） | ✅ |
+| `chore:` | 杂项、依赖更新 | ❌ |
+| `docs:` | 文档 | ❌ |
+| `ci:` | CI/CD 配置 | ❌ |
+| `test:` | 测试 | ❌ |
+| `build:` | 构建脚本 | ❌ |
+| `style:` | 代码格式（无逻辑变更） | ❌ |
+| `revert:` | 回滚 | ❌ |
+
+### 基本规则
+- 前缀英文小写加冒号，描述中文，例如 `fix: 修复登录页面空指针崩溃`
+- **一个 commit 只做一件事**：多个修复点必须拆成多个 commit，不要把不同功能的改动合并到一个 commit 中
+- 每个 commit 必须编译通过，不允许提交编译失败的代码
+- 保持线性提交历史，不合并（squash）有价值的细粒度 commit
