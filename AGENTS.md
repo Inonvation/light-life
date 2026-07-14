@@ -5,19 +5,25 @@
 - 不要自作主张做任何用户没有要求的事情
 
 ## 构建与版本
-- `scripts\build.bat` / `build.ps1` — 自动管理版本号，构建并归档 APK
+- `scripts\build.bat` / `build.ps1` — 自动管理版本号，构建并归档 Debug APK
 - 直接构建：`gradlew :app:archiveDebugApk -PbuildVersionName="x.y.z"`
 - APK 归档至 `archive/`，命名格式 `app-debug-v{x.y.z}.apk`
-- GitHub Actions Release 中命名为 `LightLife-v{x.y.z}.apk`
+- GitHub Actions Release 构建 **Release 包**（R8 优化），命名为 `LightLife-v{x.y.z}.apk`
 - `versionCode`: 每次发布 +1
-- `versionName`: 语义化版本，如 "0.0.13"（不带 v 前缀）
+- `versionName`: 语义化版本，如 "0.4.0"（不带 v 前缀）
+- Release 包启用 R8 全模式 + ProGuard 规则，约 2MB；Debug 包约 18MB
 
 ## 发布新版本
 1. 按用户指定的版本号更新 `app/build.gradle.kts` 中 `defaultConfig.versionName`
-2. 构建 APK：运行 `archiveDebugApk` 任务
-3. 提交推送：`git add -A && git commit -m "Bump version to x.y.z" && git push`
+2. 提交所有改动（按功能拆分 commit，遵循 Commit 规范）
+3. 推送：`git push origin main`
 4. 打 tag（必须指定 `main` 分支）：`git tag vx.y.z main && git push --tags`
-5. 告知用户 GitHub Actions 正在自动构建，Release 由工作流自动处理，无需手动 `gh release create`
+5. 告知用户 GitHub Actions 正在自动构建 Release 包，Release 由工作流自动处理
+
+## 安装到手机
+- Debug 包：`gradlew :app:installDebug`（编译快，方便调试）
+- Release 包：`gradlew :app:installRelease`（体积小，含 R8 优化）
+- **两个都装**：先装 Debug 测试功能，确认无误后再装 Release 验证最终效果
 
 ## 签名
 - `app/debug.keystore` 已提交到仓库，本地与 CI 签名一致

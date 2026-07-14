@@ -30,6 +30,9 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: 赋予 gradlew 执行权限
+        run: chmod +x gradlew
+
       - name: 代码检查
         run: ./gradlew :app:lintDebug
 

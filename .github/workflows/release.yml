@@ -33,6 +33,9 @@ jobs:
         with:
           cache-read-only: false
 
+      - name: 赋予 gradlew 执行权限
+        run: chmod +x gradlew
+
       - name: 构建 APK
         env:
           TAG: ${{ github.ref_name }}
