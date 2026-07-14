@@ -1,6 +1,10 @@
 ﻿package com.example.devicecontrol.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -45,6 +49,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.Alignment
@@ -128,7 +135,12 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     val themePrefs = remember { ThemePreferences(ctx) }
     val currentMode = state.themeMode
 
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(WindowInsets.statusBars.asPaddingValues())
+    ) {
         // 自定义顶栏，与主页 TopBar 高度对齐
         Column(
             modifier = Modifier
@@ -468,6 +480,14 @@ private fun ArchivedLogsDialog(state: AppUiState, vm: AppViewModel) {
                         val isExpanded = expandedIndex == index
                         
                         // 日期标题（可点击展开/折叠）
+                        val logTime = remember(name) {
+                            try {
+                                val timePart = name.removePrefix("run_").removeSuffix(".txt") // MMdd_HHmmss
+                                val parts = timePart.split("_")
+                                if (parts.size == 2) "${parts[0].substring(0,2)}-${parts[0].substring(2)} ${parts[1].substring(0,2)}:${parts[1].substring(2,4)}:${parts[1].substring(4)}"
+                                else name
+                            } catch (_: Exception) { name }
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -477,7 +497,7 @@ private fun ArchivedLogsDialog(state: AppUiState, vm: AppViewModel) {
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                name, 
+                                logTime, 
                                 style = MaterialTheme.typography.labelMedium, 
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.weight(1f)
@@ -490,7 +510,11 @@ private fun ArchivedLogsDialog(state: AppUiState, vm: AppViewModel) {
                         }
                         
                         // 展开时显示详细日志
-                        AnimatedVisibility(visible = isExpanded) {
+                        AnimatedVisibility(
+                            visible = isExpanded,
+                            enter = expandVertically() + fadeIn(),
+                            exit = shrinkVertically() + fadeOut()
+                        ) {
                             Column {
                                 Spacer(Modifier.height(4.dp))
                                 Text(

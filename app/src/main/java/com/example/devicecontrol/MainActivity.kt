@@ -234,23 +234,23 @@ private fun DeviceControlApp(vm: AppViewModel) {
                     }
                 }
             }
-            // 设置页平滑滑入
-            val settingsOffset by animateFloatAsState(
-                targetValue = if (state.showSettings) 0f else 1f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "settingsSlide"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = settingsOffset * size.width
-                        // 透明度使用平滑过渡，而不是在 0.5 处跳变
-                        alpha = 1f - settingsOffset
-                    }
-            ) {
-                SettingsScreen(state = state, vm = vm)
-            }
+        }
+        // 设置页平滑滑入（在 Surface 外部，不受底部 padding 限制）
+        val settingsOffset by animateFloatAsState(
+            targetValue = if (state.showSettings) 0f else 1f,
+            animationSpec = tween(300, easing = FastOutSlowInEasing),
+            label = "settingsSlide"
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationX = settingsOffset * size.width
+                    // 透明度使用平滑过渡，而不是在 0.5 处跳变
+                    alpha = 1f - settingsOffset
+                }
+        ) {
+            SettingsScreen(state = state, vm = vm)
         }
     }
 }
