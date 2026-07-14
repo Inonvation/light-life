@@ -38,6 +38,7 @@ import com.example.devicecontrol.data.AppRepository
 import com.example.devicecontrol.data.OrderHistoryStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.PointsTaskStateStore
+import com.example.devicecontrol.data.TaskLogStore
 import com.example.devicecontrol.data.TokenStore
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.AppViewModelFactory
@@ -63,9 +64,10 @@ class MainActivity : ComponentActivity() {
         )
         val statsStore = PointsStatsStore(applicationContext)
         val taskStateStore = PointsTaskStateStore(applicationContext)
+        val taskLogStore = TaskLogStore(applicationContext)
         setContent {
             val vm: AppViewModel = viewModel(
-                factory = AppViewModelFactory(repository, statsStore, taskStateStore, themePrefs),
+                factory = AppViewModelFactory(repository, statsStore, taskStateStore, taskLogStore, themePrefs),
             )
             val uiState by vm.state.collectAsState()
             DeviceControlTheme(
