@@ -5,9 +5,6 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 data class BackupData(
     val backupVersion: Int = 1,
@@ -31,6 +28,8 @@ data class PointsStatsPayload(
     val totalEarned: Int = 0,
     val totalDeducted: String = "0.00",
 )
+
+data class RestoreCounts(val orders: Int = 0, val logs: Int = 0)
 
 data class TaskLogPayload(
     val name: String = "",
@@ -105,7 +104,7 @@ class BackupManager(private val context: Context) {
     fun fromJson(json: String): BackupData? {
         return runCatching {
             val parsed = backupAdapter.fromJson(json) ?: return@runCatching null
-            if (parsed.backupVersion != 1) return@runCatching null
+            if (parsed.backupVersion != BACKUP_VERSION) return@runCatching null
             parsed
         }.getOrNull()
     }
@@ -114,59 +113,41 @@ class BackupManager(private val context: Context) {
      * 将备份数据恢复到各 Store。
      * 返回恢复摘要信息。
      */
-    fun restore(
-        backup: BackupData,
-        tokenStore: TokenStore?,
-        orderHistoryStore: OrderHistoryStore?,
-        pointsStatsStore: PointsStatsStore?,
-        taskLogStore: TaskLogStore?,
-        onResult: (message: String) -> Unit,
-    ) {
+    fun restore(backup: BackupData): RestoreCounts {
         val payload = backup.data
-        val restored = mutableListOf<String>()
+        var orderCount = 0
+        var logCount = 0
 
-        // 恢复 Token
-        payload.token?.let { t ->
-            if (t.isNotBlank()) {
-                tokenStore?.saveToken(t)
-                restored.add("Token")
-            }
-        }
-
-        // 恢复订单历史
         payload.orderHistory?.let { orders ->
             val orderPrefs = context.getSharedPreferences("order_history", Context.MODE_PRIVATE)
             val listType = Types.newParameterizedType(List::class.java, OrderHistoryItem::class.java)
             val listAdapter = moshi.adapter<List<OrderHistoryItem>>(listType)
             orderPrefs.edit().putString("orders", listAdapter.toJson(orders.take(50))).apply()
-            restored.add("${orders.size} 笔订单")
+            orderCount = orders.take(50).size
         }
 
-        // 恢复积分统计
         payload.pointsStats?.let { stats ->
             val prefs = context.getSharedPreferences("points_stats", Context.MODE_PRIVATE)
             prefs.edit()
                 .putInt("total_earned", stats.totalEarned)
                 .putString("total_deducted", stats.totalDeducted)
                 .apply()
-            restored.add("积分统计")
         }
 
-        // 恢复任务日志
         payload.taskLogs?.let { logs ->
             val logDir = File(context.filesDir, "task_logs").also { it.mkdirs() }
             logDir.listFiles()?.forEach { it.delete() }
             for (log in logs) {
-                val file = File(logDir, log.name)
-                file.writeText(log.content, Charsets.UTF_8)
+                File(logDir, log.name).writeText(log.content, Charsets.UTF_8)
+                logCount++
             }
-            restored.add("${logs.size} 条执行日志")
         }
 
-        onResult("已恢复：" + restored.joinToString("、"))
+        return RestoreCounts(orderCount, logCount)
     }
 
     companion object {
+        const val BACKUP_VERSION = 1
         const val BACKUP_MIME_TYPE = "application/json"
         const val SUGGESTED_EXTENSION = ".lif"
     }
