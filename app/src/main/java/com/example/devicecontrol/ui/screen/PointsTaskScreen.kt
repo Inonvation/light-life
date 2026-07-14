@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.devicecontrol.ui.AppUiState
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.theme.AppColors
@@ -78,8 +79,8 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             Surface(modifier = Modifier.fillMaxWidth().weight(1f), color = LogColors.background, shape = RoundedCornerShape(8.dp)) {
                 if (logExpanded) {
                     LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(12.dp)) {
-                        if (state.pointsLogs.isEmpty()) { item { Text("等待执行任务...", color = Color(0xFFB8C7D1), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium) } }
-                        else { items(state.pointsLogs) { line -> Text(text = line, color = Color(0xFFB7F7C1), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium) } }
+                        if (state.pointsLogs.isEmpty()) { item { Text("等待执行任务...", color = Color(0xFFB8C7D1), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) } }
+                        else { items(state.pointsLogs) { line -> Text(text = line, color = Color(0xFFB7F7C1), fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall, fontSize = 11.sp) } }
                     }
                 }
             }
