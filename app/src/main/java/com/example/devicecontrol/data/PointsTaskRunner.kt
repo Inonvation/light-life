@@ -54,10 +54,18 @@ class PointsTaskRunner(
         onProgress?.invoke(phase, step, total)
     }
 
+    private fun isQuotaExhausted(res: Map<String, Any?>): Boolean {
+        val code = res.codeInt()
+        val data = res["data"]
+        // code 非 0，或 code=0 但 data 不为 true，都视为额度耗尽
+        return (code != null && code != 0) || data != true
+    }
+
         suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
         val phase = stateStore?.getPhase() ?: "none"
-        if (phase == "none") stateStore?.setPhase("start")
+        if (phase == "complete") stateStore?.reset()
+        if (phase == "none" || phase == "complete") stateStore?.setPhase("start")
         log("已读取登录凭证：${token.take(8)}...${token.takeLast(8)}")
         log("已获取设备信息：$userAgent")
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
@@ -69,7 +77,7 @@ class PointsTaskRunner(
             checkPause(); signIn(token, userAgent, log); stateStore?.setPhase("signin_done"); checkPause()
         }
         if (phase in listOf("none", "start", "signin_done")) {
-            checkPause(); shieldingQuery(token, userAgent, log); log("▶ 浏览首页任务"); queryByType(token, userAgent, log); stateStore?.setPhase("browse_done"); checkPause()
+            checkPause(); shieldingQuery(token, userAgent, log); log("▶ 执行浏览任务"); queryByType(token, userAgent, log); stateStore?.setPhase("browse_done"); checkPause()
         }
         if (phase in listOf("none", "start", "signin_done", "browse_done")) {
             delay(1000); checkPause(); runTaskList(token, userAgent, log); stateStore?.setPhase("tasks_done"); checkPause()
@@ -79,7 +87,7 @@ class PointsTaskRunner(
         delay(3000)
         val after = balance(token, userAgent); val gained = after?.let { a -> before?.let { b -> a - b } }
         log("总积分：${after ?: "-"}")
-        val conclusion = if (gained != null && gained > 0) "本次获得 $gained 积分" else "未获得积分，可重启 APP 再试"
+        val conclusion = when { gained != null && gained > 0 -> "本次获得 $gained 积分"; gained == 0 -> "积分未变化，广告次数可能已达上限"; else -> "无法获取积分数据" }
         log(conclusion); stateStore?.setPhase("complete")
     }private suspend fun signIn(token: String, ua: String, log: suspend (String) -> Unit) {
         log("▶ 签到...")
@@ -91,8 +99,8 @@ class PointsTaskRunner(
         )
         when (res.codeInt()) {
             0 -> log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}")
-            33001 -> log("今日已签到")
-            else -> log("签到失败")
+            33001 -> log("签到：今日已完成")
+            else -> log("签到失败（code: ${res.codeInt()}）")
         }
     }
 
@@ -114,9 +122,9 @@ class PointsTaskRunner(
             fields = mapOf("taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a", "token" to token),
         )
         if (res.codeInt() == 0 && res["data"] == true) {
-            log("首页浏览成功")
+            log("浏览任务已触发")
         } else {
-            log("首页浏览失败")
+            log("浏览任务触发失败（code: ${res.codeInt()}）")
         }
     }
 
@@ -124,10 +132,15 @@ class PointsTaskRunner(
         log("开始查询可执行任务")
         val res = request("https://userapi.qiekj.com/task/list", token, ua, mapOf("token" to token))
         if (res.codeInt() != 0) {
-            log("查询任务失败")
+            log("查询任务列表失败（code: ${res.codeInt()}）")
             return
         }
         val items = (res.dataMap()["items"] as? List<*>)?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
+        if (items.isEmpty()) {
+            log("无可执行任务，跳过")
+            return
+        }
+        var executedCount = 0
         for (item in items) {
             checkPause()
             val completed = (item["completedStatus"] as? Number)?.toInt() ?: -1
@@ -136,64 +149,89 @@ class PointsTaskRunner(
 
             val title = item["title"]?.toString().orEmpty().ifBlank { "未命名任务" }
             val limit = ((item["dailyTaskLimit"] as? Number)?.toInt() ?: 1).coerceAtLeast(1)
-            log("▶ 任务：$title")
+            log("▶ $title")
+            var taskFailed = false
             repeat(limit) { index ->
+                if (taskFailed) return@repeat
                 reportProgress(title, index + 1, limit)
                 val taskRes = completeTask(token, ua, taskCode)
                 val ok = taskRes.codeInt() == 0 && taskRes["data"] == true
-                val seq = if (limit > 1) "第${index + 1}次" else ""
-                log("$title$seq${if (ok) "成功" else "失败"}")
+                val seq = if (limit > 1) "（${index + 1}/$limit）" else ""
+                if (ok) {
+                    log("$title$seq 完成")
+                } else {
+                    log("$title$seq 未完成，跳过后续次数")
+                    taskFailed = true
+                }
                 cancellableDelay(10000)
             }
-            log("  ✓ $title 完成")
+            executedCount++
             cancellableDelay(5000)
         }
+        if (executedCount == 0) {
+            log("所有任务今日已完成")
+        } else {
+            log("任务列表执行完毕")
+        }
     }
-
     private suspend fun runAppVideos(token: String, ua: String, log: suspend (String) -> Unit) {
         val startFrom = stateStore?.getAppVideoCount() ?: 0
-        if (startFrom > 0) log("→ 已观看过$startFrom 次广告，从中断位置继续")
-        log("→ 开始观看广告赚积分")
+        if (startFrom > 0) log("→ 已观看过 $startFrom 次，从第 ${startFrom + 1} 次继续")
+        log("→ 开始观看 APP 广告（共 20 次）")
         for (i in startFrom until 20) {
             checkPause()
-            reportProgress("看广告赚积分", i + 1, 20)
-            val res = completeTask(token, ua, 2)
+            reportProgress("APP 广告", i + 1, 20)
+            val res = runCatching { completeTask(token, ua, 2) }.getOrElse {
+                log("  广告 #${i + 1}：网络异常，结束广告阶段")
+                return
+            }
             if (res.codeInt() == 0 && res["data"] == true) {
-                log("  ✓ 广告 #${i + 1}：成功")
+                log("  ✓ 广告 #${i + 1}/20 完成")
                 stateStore?.setAppVideoCount(i + 1)
                 cancellableDelay(15000)
+            } else if (isQuotaExhausted(res)) {
+                log("  广告次数已用完，今日已完成 $i/20 次")
+                return
             } else {
-                log("  ✗ 广告 #${i + 1}：失败，结束本次")
+                log("  广告 #${i + 1}/20 失败（code: ${res.codeInt()}），结束广告阶段")
                 return
             }
         }
+        log("APP 广告 20 次全部完成")
     }
-
     private suspend fun runAlipayVideos(token: String, ua: String, log: suspend (String) -> Unit) {
         val startFrom = stateStore?.getAlipayVideoCount() ?: 0
-        if (startFrom > 0) log("→ 已观看过$startFrom 次支付宝广告，从中断位置继续")
-        log("→ 开始观看支付宝广告")
+        if (startFrom > 0) log("→ 已观看过 $startFrom 次，从第 ${startFrom + 1} 次继续")
+        log("→ 开始观看支付宝广告（共 50 次）")
         for (i in startFrom until 50) {
             checkPause()
             reportProgress("支付宝广告", i + 1, 50)
-            val res = request(
-                url = "https://userapi.qiekj.com/task/completed",
-                token = token,
-                userAgent = ua,
-                fields = mapOf("taskCode" to "9", "token" to token),
-                channel = "alipay",
-            )
+            val res = runCatching {
+                request(
+                    url = "https://userapi.qiekj.com/task/completed",
+                    token = token,
+                    userAgent = ua,
+                    fields = mapOf("taskCode" to "9", "token" to token),
+                    channel = "alipay",
+                )
+            }.getOrElse {
+                log("  支付宝广告 #${i + 1}：网络异常，结束广告阶段")
+                return
+            }
             if (res.codeInt() == 0 && res["data"] == true) {
-                log("第${i + 1}次成功")
+                log("  ✓ 支付宝广告 #${i + 1}/50 完成")
                 stateStore?.setAlipayVideoCount(i + 1)
                 cancellableDelay(15000)
+            } else if (isQuotaExhausted(res)) {
+                log("  支付宝广告次数已用完，今日已完成 $i/50 次")
+                return
             } else {
-                log("第${i + 1}次失败，结束")
+                log("  支付宝广告 #${i + 1}/50 失败（code: ${res.codeInt()}），结束广告阶段")
                 return
             }
         }
+        log("支付宝广告 50 次全部完成")
     }
-
     private suspend fun completeTask(token: String, ua: String, taskCode: Any): Map<String, Any?> = request(
         url = "https://userapi.qiekj.com/task/completed",
         token = token,
