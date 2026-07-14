@@ -98,8 +98,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
-        PageTitle("积分任务", "自动化刷积分")
-        Spacer(Modifier.height(Spacings.xl))
+        Spacer(Modifier.height(Spacings.sm))
 
         // Log panel
         Column(modifier = Modifier.weight(1f).fillMaxWidth()) {

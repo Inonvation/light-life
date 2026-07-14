@@ -32,8 +32,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
-        PageTitle("首页", state.unlockStatus ?: "历史设备")
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(6.dp))
         Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("今日喝水统计", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)

@@ -46,21 +46,7 @@ import com.example.devicecontrol.ui.theme.Spacings
 fun MeScreen(state: AppUiState, vm: AppViewModel) {
     val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 18.dp)) {
-        // Header: title + logout + settings
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PageTitle("我的", if (state.hasToken) "已登录" else "未登录")
-                if (state.hasToken) {
-                    IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showLogoutConfirm() }) {
-                        Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "退出登录")
-                    }
-                }
-            }
-            IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showSettings() }) {
-                Icon(Icons.Outlined.Settings, contentDescription = "设置")
-            }
-        }
-        Spacer(Modifier.height(Spacings.xl))
+        Spacer(Modifier.height(Spacings.sm))
 
         // Login card
         if (!state.hasToken) {
