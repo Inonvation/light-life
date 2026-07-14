@@ -23,11 +23,14 @@ import androidx.compose.ui.unit.dp
 import com.example.devicecontrol.ui.AppUiState
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.pinDeviceShortcut
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.example.devicecontrol.ui.theme.CardShapes
 
 @Composable
 fun ControlScreen(state: AppUiState, vm: AppViewModel) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
         PageTitle("首页", state.unlockStatus ?: "历史设备")
         Spacer(Modifier.height(24.dp))
@@ -53,7 +56,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
         else {
             LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
                 items(state.devices) { device ->
-                    DeviceRow(name = device.goodsName.ifBlank { "未命名设备" }, enabled = !state.unlocking, onClick = { vm.unlock(device) }, onAddShortcut = { pinDeviceShortcut(context, device) })
+                    DeviceRow(name = device.goodsName.ifBlank { "未命名设备" }, enabled = !state.unlocking, onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.unlock(device) }, onAddShortcut = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); pinDeviceShortcut(context, device) })
                 }
             }
         }

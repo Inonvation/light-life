@@ -47,7 +47,7 @@ import com.example.devicecontrol.ui.theme.Spacings
 fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     val ctx = LocalContext.current; val listState = rememberLazyListState(); var logExpanded by remember { mutableStateOf(true) }; val haptic = LocalHapticFeedback.current
     LaunchedEffect(state.pointsLogs.size) { if (state.pointsLogs.isNotEmpty() && logExpanded) listState.animateScrollToItem(state.pointsLogs.lastIndex) }
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
         PageTitle("积分任务", "自动化刷积分"); Spacer(Modifier.height(Spacings.xl))
         Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -58,7 +58,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                         Text("${p.step} / ${p.total}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Spacer(Modifier.height(Spacings.sm))
-                    LinearProgressIndicator(progress = { (p.step.toFloat() / p.total.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(8.dp))
+                    LinearProgressIndicator(progress = { (p.step.toFloat() / p.total.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().height(8.dp), color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceVariant)
                 } else { Text(text = if (state.runningPointsTask) "任务启动中..." else "等待任务执行", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
         }

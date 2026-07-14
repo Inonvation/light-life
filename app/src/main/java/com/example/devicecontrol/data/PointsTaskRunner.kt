@@ -133,7 +133,7 @@ class PointsTaskRunner(
             if (completed != 0 || taskCode.toString() in NOT_FINISH_TASKS) continue
 
             val title = item["title"]?.toString().orEmpty().ifBlank { "未命名任务" }
-            val limit = (item["dailyTaskLimit"] as? Number)?.toInt() ?: 1
+            val limit = ((item["dailyTaskLimit"] as? Number)?.toInt() ?: 1).coerceAtLeast(1)
             reportProgress(title, 1, limit)
             log("开始执行任务：$title")
             repeat(limit) { index ->

@@ -16,6 +16,10 @@ class PointsStatsStore(context: Context) {
             .apply()
     }
 
+    fun updateEarned(earned: Int) {
+        prefs.edit().putInt(KEY_EARNED, earned).apply()
+    }
+
     private companion object {
         private const val KEY_EARNED = "total_earned"
         private const val KEY_DEDUCTED = "total_deducted"

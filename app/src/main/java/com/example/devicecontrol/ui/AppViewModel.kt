@@ -59,6 +59,7 @@ data class AppUiState(
     val showOrderHistory: Boolean = false,
     val showLogoutConfirm: Boolean = false,
     val tokenDialogText: String? = null,
+    val hapticEnabled: Boolean = true,
     val toastMessage: String? = null,
     val errorMessage: String? = null,
 )
@@ -332,6 +333,8 @@ class AppViewModel(
         }
         refreshTodayWater()
     }
+
+    fun toggleHaptic() { _state.update { it.copy(hapticEnabled = !it.hapticEnabled) } }
 
     fun updateThemeMode(mode: ThemeMode) {
         themePreferences?.setThemeMode(mode)
