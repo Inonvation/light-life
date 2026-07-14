@@ -1,6 +1,7 @@
 package com.example.devicecontrol.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
@@ -12,12 +13,16 @@ object Spacings {
     val lg = 16.dp
     val xl = 20.dp
     val xxl = 24.dp
+    val xxxl = 32.dp
 }
 
 
 // Card corner radius
 object CardShapes {
     val cardCorner = RoundedCornerShape(12.dp)
+    val headerCorner = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+    val chipCorner = RoundedCornerShape(20.dp)
+    val smallCardCorner = RoundedCornerShape(10.dp)
 }
 
 
@@ -32,6 +37,21 @@ object AppColors {
     val stop = Color(0xFFD32F2F)
     val clear = Color(0xFF455A64)
     val white = Color.White
+}
+
+// Header gradient — green theme matching the app identity
+object HeaderGradients {
+    val lightStart = Color(0xFF4E6E5D)
+    val lightEnd = Color(0xFF3A5A4A)
+    val darkStart = Color(0xFF2D4A3A)
+    val darkEnd = Color(0xFF1E3528)
+}
+
+// Stat card indicator colors
+object StatColors {
+    val waterCount = Color(0xFF2E7DBA)
+    val waterAmount = Color(0xFFE8A838)
+    val totalWater = Color(0xFF4E6E5D)
 }
 
 
