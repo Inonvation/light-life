@@ -67,7 +67,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             TopAppBar(
                 title = { Text("设置") },
                 navigationIcon = {
-                    IconButton(onClick = { vm.dismissSettings() }) {
+                    IconButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.dismissSettings() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
                     }
                 }

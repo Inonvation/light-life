@@ -3,30 +3,27 @@
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -44,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -108,8 +104,21 @@ private val TAB_LIST = listOf(DeviceTab.Control, DeviceTab.Points, DeviceTab.Me)
 private fun DeviceControlApp(vm: AppViewModel) {
     val state by vm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Back handler: close settings or dialogs instead of exiting
+    BackHandler(enabled = state.showOrderHistory || state.showLogoutConfirm || state.tokenDialogText != null || state.orderDetail != null) {
+        when {
+            state.showOrderHistory -> vm.dismissOrderHistory()
+            state.showLogoutConfirm -> vm.dismissLogoutConfirm()
+            state.tokenDialogText != null -> vm.dismissCurrentToken()
+            state.orderDetail != null -> vm.dismissOrderDetail()
+        }
+    }
+    BackHandler(enabled = state.showSettings) {
+        vm.dismissSettings()
+    }
 
     LaunchedEffect(state.toastMessage) {
         state.toastMessage?.let { msg ->
@@ -132,16 +141,25 @@ private fun DeviceControlApp(vm: AppViewModel) {
             onDismissRequest = vm::dismissLogoutConfirm, title = { Text("确认退出") },
             text = { Text("确定要退出登录吗？退出后需要重新登录才能使用。") },
             confirmButton = { TextButton(onClick = { vm.dismissLogoutConfirm(); vm.logout() }) { Text("确定退出", color = MaterialTheme.colorScheme.error) } },
-            dismissButton = { TextButton(onClick = vm::dismissLogoutConfirm) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { vm.dismissLogoutConfirm() }) { Text("取消") } },
             shape = RoundedCornerShape(8.dp),
         )
     }
 
     state.orderDetail?.let { OrderDetailDialog(detail = it, onDismiss = vm::dismissOrderDetail) }
 
-    val pagerState = rememberPagerState(initialPage = TAB_LIST.indexOf(state.currentTab).coerceAtLeast(0)) { TAB_LIST.size }
+    val initialPage = TAB_LIST.indexOf(state.currentTab).coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = initialPage) { TAB_LIST.size }
 
-    // Sync pager swipes back to ViewModel
+    // Sync ViewModel tab selection -> Pager (for bottom nav clicks)
+    LaunchedEffect(state.currentTab) {
+        val target = TAB_LIST.indexOf(state.currentTab)
+        if (target >= 0 && pagerState.currentPage != target) {
+            pagerState.animateScrollToPage(target)
+        }
+    }
+
+    // Sync Pager swipe -> ViewModel
     LaunchedEffect(pagerState.currentPage) {
         val tab = TAB_LIST[pagerState.currentPage]
         if (tab != state.currentTab) {
@@ -167,7 +185,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 vm.selectTab(tab)
-                                scope.launch { pagerState.animateScrollToPage(index) }
                             },
                             icon = { Icon(icon, contentDescription = null) },
                             label = { Text(label) },
@@ -178,12 +195,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
         }
     ) { padding ->
         Surface(modifier = Modifier.fillMaxSize().padding(padding), color = MaterialTheme.colorScheme.background) {
-            if (state.showSettings) {
-                // Settings slides in from right
-                Box(modifier = Modifier.fillMaxSize()) {
-                    SettingsScreen(state = state, vm = vm)
-                }
-            } else {
+            AnimatedVisibility(
+                visible = state.showSettings,
+                enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+                exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(),
+            ) {
+                SettingsScreen(state = state, vm = vm)
+            }
+            if (!state.showSettings) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),

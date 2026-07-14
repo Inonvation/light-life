@@ -125,7 +125,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel) {
                     Spacer(Modifier.height(4.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("积分可抵扣", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${state.totalPointsDeducted}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                        Text("${state.balance?.integralAmount?.let { "¥$it" } ?: "-"}", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                     }
                     Spacer(Modifier.height(12.dp))
                     Button(
