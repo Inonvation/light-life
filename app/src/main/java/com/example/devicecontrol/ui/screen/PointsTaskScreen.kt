@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,12 +29,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -93,7 +96,9 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     val listState = rememberLazyListState()
     var logExpanded by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
-    var dialogSuppressChecked by remember { mutableStateOf(state.suppressPointsTaskWarning) }
+    var dialogSuppressChecked by remember { mutableStateOf(false) }
+    val prefs = remember { ctx.getSharedPreferences("points_task_state", android.content.Context.MODE_PRIVATE) }
+    var suppressWarning by remember { mutableStateOf(prefs.getBoolean("suppress_warning", false)) }
     var contentVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.pointsLogs.size) {
@@ -254,7 +259,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                 Button(
                     onClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (state.suppressPointsTaskWarning) {
+                        if (suppressWarning) {
                             val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
                             vm.startPointsTask(ua)
                         } else {
@@ -273,12 +278,38 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     }
 
     if (state.showPointsTaskWarning) {
+        var countdown by remember { mutableStateOf(5) }
+        LaunchedEffect(state.showPointsTaskWarning) {
+            countdown = 5
+            while (countdown > 0) {
+                kotlinx.coroutines.delay(1000)
+                countdown--
+            }
+        }
         AlertDialog(
-            onDismissRequest = { vm.dismissPointsTaskWarning() },
-            title = { Text("提示（必读！防止积分清零及封号风险！！！）") },
+            onDismissRequest = { },
+            title = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column {
+                        Text("提示", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text("必读！防止积分清零及封号风险！！！", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    }
+                    IconButton(
+                        onClick = { vm.dismissPointsTaskWarning() },
+                        modifier = Modifier.offset(x = 12.dp, y = (-12).dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "关闭", modifier = Modifier.size(20.dp))
+                    }
+                }
+            },
             text = {
                 Column {
-                    Text("执行自动化任务前请注意：")
+                    Text("执行自动化任务前请注意：", fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(8.dp))
                     Text("• 任务持续失败时，重启 APP 再试。仍失败需在官方 APP 手动观看一条广告")
                     Spacer(Modifier.height(4.dp))
@@ -286,7 +317,19 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                     Spacer(Modifier.height(4.dp))
                     Text("• 即使在不同设备的不同账户下，也尽量避免同时执行刷积分任务")
                     Spacer(Modifier.height(4.dp))
+                    Text("• 即使在同一固定设备下，也尽量避免每天在同一时间段执行刷积分任务")
+                    Spacer(Modifier.height(4.dp))
+                    Text("• 即使在同一固定设备下，也尽量避免每天在同一时间段执行刷积分任务")
+                    Spacer(Modifier.height(4.dp))
                     Text("• 建议在 WiFi 稳定的环境下执行任务")
+                    Spacer(Modifier.height(12.dp))
+                    Text("免责声明", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                    Spacer(Modifier.height(4.dp))
+                    Text("本项目为个人兴趣开发，仅供学习和测试使用。自动化积分功能模拟正常用户操作流程，可能违反相关平台服务条款。")
+                    Spacer(Modifier.height(4.dp))
+                    Text("• 请自行承担账号、设备、接口变更和平台规则风险")
+                    Text("• 可能面临账户积分清零、永久无法使用积分甚至封号的风险")
+                    Text("• 本人概不承担因此产生的任何责任")
                 }
             },
             confirmButton = {
@@ -303,18 +346,20 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                         )
                         Text("不再提示", style = MaterialTheme.typography.bodySmall)
                     }
-                    TextButton(onClick = {
-                        if (dialogSuppressChecked != state.suppressPointsTaskWarning) {
-                            vm.toggleSuppressPointsTaskWarning()
-                        }
-                        if (dialogSuppressChecked) {
-                            android.widget.Toast.makeText(ctx, "已关闭任务前提示，后续可在设置中重新开启", android.widget.Toast.LENGTH_SHORT).show()
-                        }
-                        val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
-                        vm.startPointsTask(ua)
-                        vm.dismissPointsTaskWarning()
-                    }) {
-                        Text("开始执行")
+                    TextButton(
+                        onClick = {
+                            if (dialogSuppressChecked) {
+                                suppressWarning = true
+                                prefs.edit().putBoolean("suppress_warning", true).apply()
+                                android.widget.Toast.makeText(ctx, "后续不再弹出，可在设置中查看提示", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                            val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
+                            vm.startPointsTask(ua)
+                            vm.dismissPointsTaskWarning()
+                        },
+                        enabled = countdown == 0
+                    ) {
+                        Text(if (countdown > 0) "${countdown}秒后可执行" else "开始执行")
                     }
                 }
             },
