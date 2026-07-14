@@ -26,13 +26,14 @@ import com.example.devicecontrol.ui.pinDeviceShortcut
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.example.devicecontrol.ui.theme.CardShapes
+import com.example.devicecontrol.ui.theme.Spacings
 
 @Composable
 fun ControlScreen(state: AppUiState, vm: AppViewModel) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(Spacings.sm))
         Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("今日喝水统计", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -53,7 +54,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                 }
             }
         }
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(Spacings.xxl + Spacings.xs))
         if (!state.hasToken) { EmptyText("请先到「我的」页面登录获取权限"); return@Column }
         if (state.loadingDevices) { LoadingText("正在查询历史设备") }
         else if (state.devices.isEmpty()) { EmptyText("暂无历史设备") }

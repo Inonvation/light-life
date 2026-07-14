@@ -91,9 +91,9 @@ fun TopBar(
 ) {
     val haptic = LocalHapticFeedback.current
     val tabColor = when (currentTab) {
-        DeviceTab.Control -> Color(0xFF2196F3)
-        DeviceTab.Points -> Color(0xFF4CAF50)
-        DeviceTab.Me -> Color(0xFF9C27B0)
+        DeviceTab.Control -> com.example.devicecontrol.ui.theme.AppColors.tabControl
+        DeviceTab.Points -> com.example.devicecontrol.ui.theme.AppColors.tabPoints
+        DeviceTab.Me -> com.example.devicecontrol.ui.theme.AppColors.tabMe
     }
     Column(
         modifier = Modifier

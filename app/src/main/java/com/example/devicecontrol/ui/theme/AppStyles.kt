@@ -23,6 +23,9 @@ object CardShapes {
 
 // Button colors
 object AppColors {
+    val tabControl = Color(0xFF2196F3)
+    val tabPoints = Color(0xFF4CAF50)
+    val tabMe = Color(0xFF9C27B0)
     val start = Color(0xFF222222)
     val pause = Color(0xFFE6A817)
     val resume = Color(0xFF4CAF50)
