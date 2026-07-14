@@ -259,7 +259,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                         OutlinedButton(
                             onClick = {
                                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                importLauncher.launch(arrayOf("application/json", "*/*"))
+                                importLauncher.launch(arrayOf("application/json"))
                             },
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.weight(1f)

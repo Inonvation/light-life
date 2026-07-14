@@ -103,8 +103,17 @@ class BackupManager(private val context: Context) {
      */
     fun fromJson(json: String): BackupData? {
         return runCatching {
+            // 先尝试解析顶层结构，看是否为合法 JSON
             val parsed = backupAdapter.fromJson(json) ?: return@runCatching null
+            // 验证备份版本号
             if (parsed.backupVersion != BACKUP_VERSION) return@runCatching null
+            // 验证 data 字段至少有一项备份内容
+            val d = parsed.data
+            if (d.token == null && d.themeMode == null && d.hapticEnabled == null
+                && d.logCompactEnabled == null && d.suppressPointsTaskWarning == null
+                && d.orderHistory == null && d.pointsStats == null && d.taskLogs == null) {
+                return@runCatching null
+            }
             parsed
         }.getOrNull()
     }
@@ -152,3 +161,4 @@ class BackupManager(private val context: Context) {
         const val SUGGESTED_EXTENSION = ".lif"
     }
 }
+
