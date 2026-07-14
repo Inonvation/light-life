@@ -2,6 +2,7 @@
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -114,7 +115,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     val themePrefs = remember { ThemePreferences(ctx) }
     val currentMode = state.themeMode
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // 自定义顶栏，与主页 TopBar 高度对齐
         Column(
             modifier = Modifier
