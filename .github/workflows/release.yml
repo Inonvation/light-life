@@ -38,7 +38,7 @@ jobs:
         run: |
           VERSION="${TAG#v}"
           ./gradlew :app:assembleDebug -PbuildVersionName="$VERSION"
-          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/ShouDiao-v${VERSION}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/LightLife-v${VERSION}.apk"
       - name: 生成 Release 内容
         run: |
           PREV=$(git tag --sort=-v:refname | sed -n '2p')
@@ -50,6 +50,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          files: app/build/outputs/apk/debug/ShouDiao-v*.apk
+          files: app/build/outputs/apk/debug/LightLife-v*.apk
           body_path: release_body.md
           fail_on_unmatched_files: false
