@@ -8,6 +8,7 @@ import com.example.devicecontrol.data.BalanceData
 import com.example.devicecontrol.data.DeviceItem
 import com.example.devicecontrol.data.OrderHistoryItem
 import com.example.devicecontrol.data.PointsTaskRunner
+import com.example.devicecontrol.data.PointsTaskStateStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.UnlockResult
 import com.example.devicecontrol.ui.theme.ThemeMode
@@ -61,6 +62,7 @@ data class AppUiState(
     val showLogoutConfirm: Boolean = false,
     val tokenDialogText: String? = null,
     val hapticEnabled: Boolean = true,
+    val logCompactEnabled: Boolean = true,
     val toastMessage: String? = null,
     val errorMessage: String? = null,
 )
@@ -68,9 +70,10 @@ data class AppUiState(
 class AppViewModel(
     private val repository: AppRepository,
     private val pointsStatsStore: PointsStatsStore? = null,
+    private val taskStateStore: PointsTaskStateStore? = null,
     private val themePreferences: ThemePreferences? = null,
 ) : ViewModel() {
-    private val pointsTaskRunner = PointsTaskRunner { repository.localToken() }
+    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore)
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private val _state = MutableStateFlow(
         AppUiState(
@@ -333,6 +336,7 @@ class AppViewModel(
             totalWaterCount = 0,
             totalPointsEarned = 0,
             totalPointsDeducted = "0.00",
+            logCompactEnabled = true,
         )}
     }
 
@@ -347,6 +351,21 @@ class AppViewModel(
     }
 
     fun toggleHaptic() { _state.update { it.copy(hapticEnabled = !it.hapticEnabled) } }
+
+    fun toggleLogCompact() {
+        val v = !state.value.logCompactEnabled
+        taskStateStore?.setLogCompactEnabled(v)
+        _state.update { it.copy(logCompactEnabled = v) }
+    }
+
+    private fun compactPointsLogs() {
+        val logs = state.value.pointsLogs
+        if (logs.isEmpty()) return
+        val keep = logs.filter { line ->
+            !line.matches(Regex(".*第\\d+次(成功|失败).*"))
+        }
+        _state.update { it.copy(pointsLogs = keep) }
+    }
 
     fun updateThemeMode(mode: ThemeMode) {
         themePreferences?.setThemeMode(mode)
@@ -440,10 +459,11 @@ class AppViewModel(
 class AppViewModelFactory(
     private val repository: AppRepository,
     private val pointsStatsStore: PointsStatsStore? = null,
+    private val taskStateStore: PointsTaskStateStore? = null,
     private val themePreferences: ThemePreferences? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(repository, pointsStatsStore, themePreferences) as T
+        return AppViewModel(repository, pointsStatsStore, taskStateStore, themePreferences) as T
     }
 }
