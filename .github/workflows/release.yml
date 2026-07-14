@@ -48,15 +48,10 @@ jobs:
             LOG=$(git log --oneline --no-decorate "$PREV"..HEAD)
           fi
 
-          # Filter out non-release commits
-          FILTERED=$(echo "$LOG" | grep -viE '^[a-f0-9]+ (chore|docs|ci|test|build|style|revert):')
-
-          # Classify by prefix
-          FEAT=$(echo "$FILTERED" | grep -iE '^[a-f0-9]+ feat:' | sed -E 's/^[a-f0-9]+ feat: *//')
-          FIX=$(echo "$FILTERED" | grep -iE '^[a-f0-9]+ fix:' | sed -E 's/^[a-f0-9]+ fix: *//')
-          REFACTOR=$(echo "$FILTERED" | grep -iE '^[a-f0-9]+ (refactor|perf):' | sed -E 's/^[a-f0-9]+ (refactor|perf): *//')
-          # Uncategorized (no standard prefix)
-          OTHER=$(echo "$FILTERED" | grep -viE '^[a-f0-9]+ (feat|fix|refactor|perf|chore|docs|ci|test|build|style|revert):' | sed 's/^[a-f0-9]* //')
+          # Only include app-related commit prefixes
+          FEAT=$(echo "$LOG" | grep -iE '^[a-f0-9]+ feat:' | sed -E 's/^[a-f0-9]+ feat: *//')
+          FIX=$(echo "$LOG" | grep -iE '^[a-f0-9]+ fix:' | sed -E 's/^[a-f0-9]+ fix: *//')
+          REFACTOR=$(echo "$LOG" | grep -iE '^[a-f0-9]+ (refactor|perf):' | sed -E 's/^[a-f0-9]+ (refactor|perf): *//')
 
           {
             echo "## 更新内容"
@@ -77,12 +72,6 @@ jobs:
             if [ -n "$REFACTOR" ]; then
               echo "### ⚡ 优化"
               echo "$REFACTOR" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
-              echo ""
-            fi
-
-            if [ -n "$OTHER" ]; then
-              echo "### 📦 其他"
-              echo "$OTHER" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
               echo ""
             fi
           } > release_body.md
