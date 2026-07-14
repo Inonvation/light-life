@@ -2,7 +2,18 @@
 
 将胖乖生活核心流程（饮水设备解锁 + 积分自动化）重构成原生 Android 应用，去除臃肿功能和广告，保留最实用的部分。
 
-> Kotlin + Jetpack Compose + OkHttp / Moshi，单 APK 约 20MB。
+---
+
+## 技术栈
+
+| 类别 | 技术 |
+|------|------|
+| 语言 | Kotlin |
+| UI 框架 | Jetpack Compose + Material3 |
+| 网络 | OkHttp + Retrofit |
+| 序列化 | Moshi |
+| 存储 | SharedPreferences + JSON 文件 |
+| 构建 | Gradle + AGP 8.7.3 |
 
 ---
 
@@ -22,7 +33,7 @@
 
 ### 界面与交互
 - 底部导航：首页 / 积分任务 / 我的
-- 暗黑模式：跟随系统 / 浅色 / 深色
+- 主题支持：跟随系统 / 浅色 / 深色
 - 触感反馈：按钮和开关操作附带振动
 - Token 查看：一键复制当前登录凭据
 
@@ -31,6 +42,43 @@
 - 积分统计：累计获得积分与抵扣金额持久化
 - 订单历史：JSON 文件本地存储
 - 任务状态：SharedPreferences 持久化，跨天自动归零
+
+---
+
+## 项目结构
+
+```
+app/src/main/java/com/example/devicecontrol/
+├── MainActivity.kt                 # 应用入口
+├── data/                           # 数据层
+│   ├── ApiConfig.kt                # API 配置
+│   ├── AppRepository.kt            # 数据仓库
+│   ├── BackupManager.kt            # 备份管理
+│   ├── DeviceApi.kt                # 设备 API 接口
+│   ├── EmptyDataJsonAdapter.kt     # JSON 适配器
+│   ├── HeaderInterceptor.kt        # 请求头拦截器
+│   ├── LenientStringJsonAdapter.kt # JSON 适配器
+│   ├── Models.kt                   # 数据模型
+│   ├── OrderHistoryStore.kt        # 订单历史存储
+│   ├── PointsStatsStore.kt         # 积分统计存储
+│   ├── PointsTaskRunner.kt         # 积分任务执行器
+│   ├── PointsTaskStateStore.kt     # 任务状态存储
+│   ├── TaskLogStore.kt             # 任务日志存储
+│   └── TokenStore.kt               # Token 存储
+├── ui/                             # UI 层
+│   ├── AppViewModel.kt             # 主 ViewModel
+│   ├── ShortcutUtils.kt            # 快捷方式工具
+│   └── screen/                     # 页面
+│       ├── Components.kt           # 通用组件
+│       ├── ControlScreen.kt        # 设备控制页
+│       ├── MeScreen.kt             # 个人中心页
+│       ├── OrderDetailDialog.kt    # 订单详情弹窗
+│       ├── OrderHistoryDialog.kt   # 订单历史弹窗
+│       ├── PointsTaskScreen.kt     # 积分任务页
+│       ├── SettingsScreen.kt       # 设置页
+│       └── TokenDialog.kt          # Token 弹窗
+└── res/                            # 资源文件
+```
 
 ---
 
@@ -52,62 +100,70 @@
 
 ---
 
-## 项目结构
+## 构建
 
-``` 
-src/main/java/com/example/devicecontrol/
-├── MainActivity.kt
-├── data/
-│   ├── ApiConfig.kt
-│   ├── AppRepository.kt
-│   ├── DeviceApi.kt
-│   ├── HeaderInterceptor.kt
-│   ├── Models.kt
-│   ├── PointsTaskRunner.kt
-│   ├── PointsTaskStateStore.kt
-│   ├── PointsStatsStore.kt
-│   ├── TaskLogStore.kt
-│   ├── TokenStore.kt
-│   └── OrderHistoryStore.kt
-├── ui/
-│   ├── AppViewModel.kt
-│   └── screen/
-│       ├── ControlScreen.kt
-│       ├── PointsTaskScreen.kt
-│       └── MeScreen.kt
-└── res/
+### 环境要求
+- Android Studio Hedgehog (2023.1.1) 或更高版本
+- JDK 17
+- Android SDK 35
+
+### 构建步骤
+```bash
+# 克隆仓库
+git clone https://github.com/your-username/light-life.git
+cd light-life
+
+# 使用 Android Studio 打开项目，或命令行构建
+./gradlew assembleDebug      # Debug APK
+./gradlew assembleRelease    # Release APK
+
+# 使用构建脚本（自动管理版本号）
+scripts\build.bat             # Windows
+scripts\build.ps1             # PowerShell
 ```
+
+### APK 归档
+构建脚本会自动将 APK 归档到 `archive/` 目录，命名格式：`app-debug-v{版本号}.apk`
 
 ---
 
-## refactor&Todolist
-- [ ] 优化断点续跑阶段判断逻辑
-- [ ] 积分统计始终为零修复
-- [ ] 「我的」界面重写
-- [ ] 日志格式与存储逻辑优化
-- [ ] 暗黑模式全量适配
-- [ ] 组件复用 + 间距圆角统一
-- [ ] 订单文件和日志文件支持备份和导入
+## TODO
 
-## 注意事项
+- [x] Point tasks refactor：断点续跑重构
+- [x] Points stats fix：积分统计修复
+- [x] Backup & restore：备份与恢复功能
+- [ ] Me screen rewrite：「我的」界面重写
+- [ ] Task log cleanup：日志格式与存储逻辑优化
+- [ ] Theme overhaul：主题适配全面优化
+- [ ] UI components reuse：组件复用 + 间距圆角统一
 
-- Token 随手机号重新登录而变化，App 自动保存最新 Token
-- **不要将个人 Token、抓包文件、签名密钥上传到公开仓库**
-- `app/debug.keystore` 是本地调试签名，**请勿删除**
+---
 
-## 免责声明
+> [!NOTE]
+> - Token 随手机号重新登录而变化，App 自动保存最新 Token
+> - **不要将个人 Token、调试签名、API 密钥上传到公开仓库**
+> - `app/debug.keystore` 是本地调试签名，**请勿删除**
 
-本项目为个人兴趣开发，**仅供学习和测试使用**。
+---
 
-自动化积分功能模拟正常用户操作流程，可能违反相关平台服务条款。
+> [!CAUTION]
+> 本项目为个人兴趣开发，**仅供学习和测试使用**。
+>
+> 自动化积分功能模拟正常用户操作流程，可能违反相关平台服务条款。
+>
+> - 请自行承担账号、设备、接口变更和平台规则风险
+> - 可能面临账户**积分清零**、**永久无法使用积分**甚至**封号**的风险
+> - **本人概不承担因此产生的任何责任**
 
-- 请自行承担账号、设备、接口变更和平台规则风险
-- 可能面临账户**积分清零****永久无法使用积分**甚至**封号**的风险
-- **本人概不承担因此产生的任何责任**
+---
 
 ## 致谢
-- [3ryng1um/qiekj](https://github.com/3ryng1um/qiekj)
-- [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android)
+
+- [3ryng1um/qiekj](https://github.com/3ryng1um/qiekj) — 提供了积分自动化脚本及饮水设备解锁的接口分析与流程框架
+- [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) — 提供了原始 Android 客户端的框架结构与项目基础
+
+---
 
 ## 许可证
-MIT License
+
+[MIT License](LICENSE)
