@@ -11,6 +11,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -68,6 +75,8 @@ import com.example.devicecontrol.ui.theme.AppColors
 import com.example.devicecontrol.ui.theme.CardShapes
 import com.example.devicecontrol.ui.theme.LogColors
 import com.example.devicecontrol.ui.theme.Spacings
+import com.example.devicecontrol.ui.LogEntry
+import com.example.devicecontrol.ui.LogLevel
 import com.example.devicecontrol.ui.theme.TimelineColors
 
 private data class TaskPhase(val key: String, val label: String)
@@ -94,7 +103,7 @@ private fun phaseToIndex(phase: String): Int = when (phase) {
 fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     val ctx = LocalContext.current
     val listState = rememberLazyListState()
-    var logExpanded by remember { mutableStateOf(false) }
+    var logExpanded by remember { mutableStateOf(true) }
     val haptic = LocalHapticFeedback.current
     var dialogSuppressChecked by remember { mutableStateOf(false) }
     val prefs = remember { ctx.getSharedPreferences("points_task_state", android.content.Context.MODE_PRIVATE) }
@@ -121,49 +130,52 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("执行日志", style = MaterialTheme.typography.labelLarge)
-                    Row {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacings.xs)) {
                         if (state.pointsLogs.isNotEmpty()) {
                             OutlinedButton(
                                 onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.clearPointsLogs() },
-                                modifier = Modifier.height(28.dp),
+                                modifier = Modifier.height(36.dp),
                             ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
-                            Spacer(Modifier.width(4.dp))
                         }
                         OutlinedButton(
                             onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); logExpanded = !logExpanded },
-                            modifier = Modifier.height(28.dp)
+                            modifier = Modifier.height(36.dp)
                         ) { Text(if (logExpanded) "折叠" else "展开", style = MaterialTheme.typography.labelSmall) }
                     }
                 }
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(Spacings.sm))
                 Surface(
                     modifier = Modifier.fillMaxWidth().weight(1f),
-                    color = LogColors.background.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(8.dp)
+                    color = LogColors.background.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(10.dp)) {
+                    LazyColumn(state = listState, modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp)) {
                         val displayLogs = if (logExpanded) state.pointsLogs else state.pointsLogs.takeLast(3)
                         if (displayLogs.isEmpty()) {
                             item {
-                                Text(
-                                    text = "等待执行任务...",
-                                    color = LogColors.info,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.alpha(0.6f)
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Info,
+                                        contentDescription = null,
+                                        tint = LogColors.info.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "等待执行任务...",
+                                        color = LogColors.info.copy(alpha = 0.5f),
+                                        fontFamily = FontFamily.Monospace,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                         } else {
-                            items(displayLogs) { line ->
-                                Text(
-                                    text = line,
-                                    color = LogColors.default,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontSize = 11.sp,
-                                    maxLines = if (logExpanded) Int.MAX_VALUE else 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                            items(displayLogs, key = { "${it.timestamp}_${it.hashCode()}" }) { entry ->
+                                LogEntryRow(entry = entry, maxLines = if (logExpanded) Int.MAX_VALUE else 1)
                             }
                         }
                     }
@@ -433,6 +445,84 @@ private fun PhaseRow(phase: TaskPhase, status: String, progress: com.example.dev
                 text = " / ",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun LogEntryRow(entry: LogEntry, maxLines: Int = Int.MAX_VALUE) {
+    var expanded by remember { mutableStateOf(false) }
+    val levelColor = when (entry.level) {
+        LogLevel.SUCCESS -> LogColors.success
+        LogLevel.ERROR -> LogColors.error
+        LogLevel.WARN -> LogColors.warn
+        LogLevel.INFO -> LogColors.info
+    }
+    val levelIcon = when (entry.level) {
+        LogLevel.SUCCESS -> Icons.Outlined.CheckCircleOutline
+        LogLevel.ERROR -> Icons.Outlined.ErrorOutline
+        LogLevel.WARN -> Icons.Outlined.Warning
+        LogLevel.INFO -> Icons.Outlined.Info
+    }
+    val isCollapsed = entry.collapsed && !expanded
+    val displayText = if (isCollapsed) {
+        // Show only the label before colon, hide the detail
+        val colonIndex = entry.message.indexOf('：')
+        if (colonIndex > 0) entry.message.substring(0, colonIndex) else entry.message
+    } else {
+        entry.message
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (entry.collapsed) Modifier.clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) { expanded = !expanded } else Modifier
+            )
+            .padding(vertical = 1.5.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        // Timestamp
+        if (entry.timestamp.isNotEmpty()) {
+            Text(
+                text = entry.timestamp,
+                color = LogColors.timestamp,
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(end = 6.dp).width(52.dp)
+            )
+        }
+        // Level icon
+        Icon(
+            imageVector = levelIcon,
+            contentDescription = null,
+            tint = levelColor,
+            modifier = Modifier.size(13.dp).padding(top = 1.dp)
+        )
+        Spacer(Modifier.width(5.dp))
+        // Message
+        Text(
+            text = displayText,
+            color = levelColor,
+            fontFamily = FontFamily.Monospace,
+            style = MaterialTheme.typography.bodySmall,
+            fontSize = 12.sp,
+            maxLines = if (isCollapsed) 1 else maxLines,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        // Expand indicator
+        if (entry.collapsed) {
+            Icon(
+                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                contentDescription = if (expanded) "折叠" else "展开详情",
+                tint = LogColors.timestamp,
+                modifier = Modifier.size(14.dp).padding(start = 4.dp)
             )
         }
     }

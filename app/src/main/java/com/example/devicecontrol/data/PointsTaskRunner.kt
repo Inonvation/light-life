@@ -66,8 +66,8 @@ class PointsTaskRunner(
         val phase = stateStore?.getPhase() ?: "none"
         if (phase == "complete") stateStore?.reset()
         if (phase == "none" || phase == "complete") stateStore?.setPhase("start")
-        log("已读取登录凭证：${token.take(8)}...${token.takeLast(8)}")
-        log("已获取设备信息：$userAgent")
+        log("已读取登录凭证")
+        log("已获取设备信息")
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
         val userName = user.dataMap()["userName"]?.toString()
         log(if (userName.isNullOrBlank()) "当前账号未设置昵称" else "当前账号：$userName")

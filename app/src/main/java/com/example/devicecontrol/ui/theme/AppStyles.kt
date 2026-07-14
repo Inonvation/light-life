@@ -37,11 +37,16 @@ object AppColors {
 
 // Log panel colors
 object LogColors {
+    // Dark background for the log panel (works in both themes)
     val background = Color(0xFF1A1C1E)
-    val info = Color(0xFFB8C7D1)
-    val success = Color(0xFF6FCF97)
-    val error = Color(0xFFE06C75)
-    val default = Color(0xFFB7F7C1)
+    // Level-specific colors
+    val info = Color(0xFFB8C7D1)        // light blue-gray
+    val success = Color(0xFF6FCF97)     // green
+    val warn = Color(0xFFE5C07B)        // warm yellow
+    val error = Color(0xFFE06C75)       // red
+    val default = Color(0xFFB7F7C1)     // legacy light green (kept for compat)
+    // Timestamp color (dimmed)
+    val timestamp = Color(0xFF7A8A99)
 }
 
 

@@ -18,6 +18,7 @@ data class BackupPayload(
     val themeMode: String? = null,
     val hapticEnabled: Boolean? = null,
     val logCompactEnabled: Boolean? = null,
+    val userAgent: String? = null,
     val orderHistory: List<OrderHistoryItem>? = null,
     val pointsStats: PointsStatsPayload? = null,
     val taskLogs: List<TaskLogPayload>? = null,
@@ -62,6 +63,7 @@ class BackupManager(private val context: Context) {
         themeMode: String,
         hapticEnabled: Boolean,
         logCompactEnabled: Boolean,
+        userAgent: String,
     ): BackupData {
         val logs = taskLogStore?.let { store ->
             store.listFiles().map { (name, content) ->
@@ -75,6 +77,7 @@ class BackupManager(private val context: Context) {
                 themeMode = themeMode,
                 hapticEnabled = hapticEnabled,
                 logCompactEnabled = logCompactEnabled,
+                userAgent = userAgent,
                 orderHistory = orderHistory.ifEmpty { null },
                 pointsStats = pointsStats?.let {
                     PointsStatsPayload(

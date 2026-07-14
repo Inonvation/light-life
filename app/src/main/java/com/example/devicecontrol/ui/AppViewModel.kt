@@ -19,6 +19,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.example.devicecontrol.data.UnlockException
+import com.example.devicecontrol.data.DiagnosisResult
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 
 enum class DeviceTab { Control, Points, Me }
 
@@ -34,6 +38,28 @@ data class PointsProgress(
     val total: Int,
 )
 
+
+sealed class UnlockFlowState {
+    data object Idle : UnlockFlowState()
+    data object PreChecking : UnlockFlowState()
+    data class Working(val step: String, val elapsedSeconds: Int = 0) : UnlockFlowState()
+    data class Success(val result: UnlockResult) : UnlockFlowState()
+    data class Failed(
+        val message: String,
+        val step: String,
+        val rawError: String,
+        val suggestions: List<String> = emptyList(),
+    ) : UnlockFlowState()
+}
+enum class LogLevel { INFO, SUCCESS, WARN, ERROR }
+
+data class LogEntry(
+    val timestamp: String,
+    val message: String,
+    val level: LogLevel = LogLevel.INFO,
+    val collapsed: Boolean = false,
+)
+
 data class AppUiState(
     val currentTab: DeviceTab = DeviceTab.Control,
     val hasToken: Boolean = false,
@@ -47,7 +73,7 @@ data class AppUiState(
     val unlocking: Boolean = false,
     val runningPointsTask: Boolean = false,
     val pointsTaskPaused: Boolean = false,
-    val pointsLogs: List<String> = emptyList(),
+    val pointsLogs: List<LogEntry> = emptyList(),
     val pointsProgress: PointsProgress? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val todayWaterCount: Int = 0,
@@ -59,6 +85,8 @@ data class AppUiState(
     val balance: BalanceData? = null,
     val orderHistory: List<OrderHistoryItem> = emptyList(),
     val unlockStatus: String? = null,
+    val unlockFlowState: UnlockFlowState = UnlockFlowState.Idle,
+    val unlockElapsedSeconds: Int = 0,
     val orderDetail: UnlockResult? = null,
     val showOrderHistory: Boolean = false,
     val showLogoutConfirm: Boolean = false,
@@ -72,6 +100,8 @@ data class AppUiState(
     val appVersion: String = "",
     val showPointsTaskWarning: Boolean = false,
     val showSettings: Boolean = false,
+    val userAgent: String = "",
+    val deviceInfoDialogText: String? = null,
 )
 
 class AppViewModel(
@@ -85,6 +115,7 @@ class AppViewModel(
 ) : ViewModel() {
     private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore)
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
+    private var unlockTimerJob: Job? = null
     private val _state = MutableStateFlow(
         AppUiState(
             hasToken = repository.localToken() != null,
@@ -96,7 +127,11 @@ class AppViewModel(
 
     init {
         taskStateStore?.let {
-            _state.update { s -> s.copy(hapticEnabled = it.isHapticEnabled()) }
+            _state.update { s -> s.copy(
+                hapticEnabled = it.isHapticEnabled(),
+                logCompactEnabled = it.isLogCompactEnabled(),
+                userAgent = it.getUserAgent(),
+            ) }
         }
         themePreferences?.let {
             _state.update { s -> s.copy(themeMode = it.getThemeMode()) }
@@ -236,34 +271,44 @@ class AppViewModel(
 
     fun unlock(device: DeviceItem) = viewModelScope.launch {
         if (state.value.unlocking) return@launch
+        _state.update {
+            it.copy(unlocking = true, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0)
+        }
+        unlockTimerJob?.cancel()
+        unlockTimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                val cur = state.value.unlockFlowState
+                if (cur is UnlockFlowState.Working) {
+                    _state.update { it.copy(unlockElapsedSeconds = cur.elapsedSeconds + 1) }
+                }
+            }
+        }
         runCatching {
-            _state.update { it.copy(unlocking = true, unlockStatus = "准备解锁") }
             repository.unlockDevice(device) { step ->
-                _state.update { it.copy(unlockStatus = step) }
+                val isWorking = step.contains("等待完成") || step.contains("设备工作")
+                _state.update {
+                    it.copy(unlockStatus = step, unlockFlowState = if (isWorking) UnlockFlowState.Working(step, state.value.unlockElapsedSeconds) else UnlockFlowState.Working(step, 0))
+                }
             }
         }.onSuccess { result ->
-            _state.update {
-                it.copy(
-                    unlocking = false,
-                    unlockStatus = null,
-                    orderDetail = result,
-                    orderHistory = repository.orderHistory(),
-                )
-            }
-            showToast("解锁成功！订单原价：${result.originPrice}，花费小票：${result.ticketCost}")
-            // 累计积分抵扣金额
-            if (result.integralCost != "-") {
-                pointsStatsStore?.addDeducted(result.integralCost)
-                refreshPointsStats()
-            }
+            unlockTimerJob?.cancel()
+            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, orderDetail = result, orderHistory = repository.orderHistory()) }
+            if (result.integralCost != "-") { pointsStatsStore?.addDeducted(result.integralCost); refreshPointsStats() }
             refreshBalance()
-        }.onFailure {
-            _state.update { it.copy(unlocking = false, unlockStatus = null) }
-            showError(it.message ?: "解锁失败")
+        }.onFailure { e ->
+            unlockTimerJob?.cancel()
+            val diag = if (e is UnlockException) e.diagnosis else null
+            val failState = if (diag != null) UnlockFlowState.Failed(diag.primaryReason, diag.step, diag.rawError, diag.suggestions)
+                else UnlockFlowState.Failed(e.message ?: "未知错误", "未知", e.message ?: "")
+            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = failState, unlockElapsedSeconds = 0) }
         }
     }
 
-
+    fun dismissUnlockFlow() {
+        unlockTimerJob?.cancel()
+        _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0) }
+    }
         fun startPointsTask(userAgent: String) = viewModelScope.launch {
         if (state.value.runningPointsTask) return@launch
         pointsTaskRunner.paused = false
@@ -272,10 +317,12 @@ class AppViewModel(
             _state.update {
                 it.copy(
                     runningPointsTask = true,
-                    pointsLogs = listOf("准备执行自动化任务"),
+                    pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)),
+                    userAgent = userAgent,
                     pointsProgress = null,
                 )
             }
+            taskStateStore?.setUserAgent(userAgent)
             pointsTaskRunner.setOnProgress { phase, step, total ->
                 _state.update { it.copy(pointsProgress = PointsProgress(phase, step, total)) }
             }
@@ -286,12 +333,12 @@ class AppViewModel(
             appendPointLog("任务流程结束")
             // 从日志中解析本次获得积分并保存到统计
             val gainedPoints = run {
-            val line = state.value.pointsLogs.findLast { it.contains("本次获得") && it.contains("积分") }
-            if (line != null) {
-                val regex = Regex("本次获得\\s*(\\d+)")
-                regex.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-            } else 0
-        }
+                val entry = state.value.pointsLogs.findLast { it.message.contains("本次获得") && it.message.contains("积分") }
+                if (entry != null) {
+                    val regex = Regex("本次获得\\s*(\\d+)")
+                    regex.find(entry.message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                } else 0
+            }
             if (gainedPoints > 0) {
                 pointsStatsStore?.addEarned(gainedPoints)
             }
@@ -330,7 +377,7 @@ class AppViewModel(
         pointsTaskRunner.paused = false
         _state.update { it.copy(pointsTaskPaused = false, runningPointsTask = false) }
         appendPointLog("用户已结束任务")
-        logStore?.save(state.value.pointsLogs.joinToString("\n"))
+        logStore?.save(state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" })
     }
 
     fun clearPointsLogs() {
@@ -352,9 +399,6 @@ class AppViewModel(
             todayWaterCount = 0,
             todayWaterAmount = "0.00",
             totalWaterCount = 0,
-            totalPointsEarned = 0,
-            totalPointsDeducted = "0.00",
-            logCompactEnabled = true,
         )}
     }
 
@@ -398,6 +442,7 @@ class AppViewModel(
             themeMode = s.themeMode.name,
             hapticEnabled = s.hapticEnabled,
             logCompactEnabled = s.logCompactEnabled,
+            userAgent = s.userAgent,
         ) ?: return ""
         return backupManager.toJson(backup)
     }
@@ -444,6 +489,12 @@ class AppViewModel(
             taskStateStore?.setLogCompactEnabled(compact)
             _state.update { s -> s.copy(logCompactEnabled = compact) }
         }
+        backup.data.userAgent?.let { ua ->
+            if (ua.isNotBlank()) {
+                taskStateStore?.setUserAgent(ua)
+                _state.update { s -> s.copy(userAgent = ua) }
+            }
+        }
         refreshTodayWater()
         showToast("已恢复 " + counts.orders + " 条订单、" + counts.logs + " 条执行日志")
     }
@@ -455,7 +506,13 @@ class AppViewModel(
     private fun appendPointLog(line: String) {
         _state.update { state ->
             val now = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.CHINA).format(java.util.Date())
-            state.copy(pointsLogs = (state.pointsLogs + "[$now] $line").takeLast(500))
+            val level = when {
+                line.contains("成功") || line.contains("完成") || line.contains("获得") -> LogLevel.SUCCESS
+                line.contains("失败") || line.contains("错误") || line.contains("异常") -> LogLevel.ERROR
+                line.contains("暂停") || line.contains("终止") || line.contains("警告") -> LogLevel.WARN
+                else -> LogLevel.INFO
+            }
+            state.copy(pointsLogs = (state.pointsLogs + LogEntry(now, line, level)).takeLast(500))
         }
     }
 
@@ -475,6 +532,15 @@ class AppViewModel(
     fun showCurrentToken() {
         val token = repository.localToken()?.takeIf { it.isNotBlank() }
         _state.update { it.copy(tokenDialogText = token ?: "当前未登录，暂无 Token") }
+    }
+
+    fun showCurrentDeviceInfo() {
+        val ua = state.value.userAgent
+        _state.update { it.copy(deviceInfoDialogText = ua.ifBlank { "暂无设备信息，请先执行一次任务" }) }
+    }
+
+    fun dismissCurrentDeviceInfo() {
+        _state.update { it.copy(deviceInfoDialogText = null) }
     }
 
     fun showLogoutConfirm() {

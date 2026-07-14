@@ -37,5 +37,13 @@ class PointsTaskStateStore(context: Context) {
     fun getPhase(): String = prefs.getString("phase", "none") ?: "none"
     fun setPhase(p: String) { prefs.edit().putString("phase", p).putString("run_date", today()).apply() }
 
-    fun reset() { prefs.edit().clear().apply() }
+    fun getUserAgent(): String = prefs.getString("user_agent", "") ?: ""
+    fun setUserAgent(ua: String) { prefs.edit().putString("user_agent", ua).apply() }
+
+    fun reset() {
+        val editor = prefs.edit()
+        // 只删除任务运行状态，保留用户偏好设置
+        listOf("run_date", "app_video", "alipay_video", "task_codes", "phase").forEach { editor.remove(it) }
+        editor.apply()
+    }
 }

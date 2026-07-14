@@ -58,7 +58,7 @@ import com.example.devicecontrol.ui.DeviceTab
 import com.example.devicecontrol.ui.screen.ControlScreen
 import com.example.devicecontrol.ui.screen.MeScreen
 import com.example.devicecontrol.ui.screen.OrderDetailDialog
-import com.example.devicecontrol.ui.screen.OrderHistoryDialog
+import com.example.devicecontrol.ui.screen.OrderHistoryBottomSheet
 import com.example.devicecontrol.ui.screen.PointsTaskScreen
 import com.example.devicecontrol.ui.screen.SettingsScreen
 import com.example.devicecontrol.ui.screen.TokenDialog
@@ -133,7 +133,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
     state.tokenDialogText?.let { TokenDialog(token = it, onDismiss = vm::dismissCurrentToken) }
 
     if (state.showOrderHistory) {
-        OrderHistoryDialog(orders = state.orderHistory, onDismiss = vm::dismissOrderHistory, onOpenOrder = vm::showHistoricalOrder)
+        OrderHistoryBottomSheet(orders = state.orderHistory, onDismiss = vm::dismissOrderHistory)
     }
 
     if (state.showLogoutConfirm) {
@@ -195,7 +195,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 TopBar(
                     currentTab = state.currentTab,
                     hasToken = state.hasToken,
-                    unlockStatus = state.unlockStatus,
                     hapticEnabled = state.hapticEnabled,
                     onSettingsClick = { vm.showSettings() },
                     onLogoutClick = { vm.showLogoutConfirm() },

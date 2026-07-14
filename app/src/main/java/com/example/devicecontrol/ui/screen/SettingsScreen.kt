@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -354,6 +355,16 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             Icon(Icons.Outlined.Code, contentDescription = "查看 Token", modifier = Modifier.size(24.dp))
                         }
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("设备信息", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("当前设备的 User-Agent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showCurrentDeviceInfo() }) {
+                            Icon(Icons.Outlined.Phone, contentDescription = "查看设备信息", modifier = Modifier.size(24.dp))
+                        }
+                    }
                 }
             }
 
@@ -456,90 +467,11 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     }
 
     if (state.showArchivedLogs) {
-        ArchivedLogsDialog(state, vm)
+        ArchivedLogsBottomSheet(state, vm)
     }
 
     state.tokenDialogText?.let { TokenDialog(token = it, onDismiss = vm::dismissCurrentToken) }
+    state.deviceInfoDialogText?.let { TokenDialog(token = it, onDismiss = vm::dismissCurrentDeviceInfo) }
 }
 
-@Composable
-private fun ArchivedLogsDialog(state: AppUiState, vm: AppViewModel) {
-    // 记录展开的日志索引
-    var expandedIndex by remember { mutableStateOf(-1) }
-    
-    AlertDialog(
-        onDismissRequest = { vm.dismissArchivedLogs() },
-        title = { Text("历史执行日志") },
-        text = {
-            if (state.archivedLogs.isEmpty()) {
-                Text("暂无历史日志", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                LazyColumn(modifier = Modifier.height(360.dp)) {
-                    items(state.archivedLogs.size) { index ->
-                        val (name, content) = state.archivedLogs[index]
-                        val isExpanded = expandedIndex == index
-                        
-                        // 日期标题（可点击展开/折叠）
-                        val logTime = remember(name) {
-                            try {
-                                val timePart = name.removePrefix("run_").removeSuffix(".txt") // MMdd_HHmmss
-                                val parts = timePart.split("_")
-                                if (parts.size == 2) "${parts[0].substring(0,2)}-${parts[0].substring(2)} ${parts[1].substring(0,2)}:${parts[1].substring(2,4)}:${parts[1].substring(4)}"
-                                else name
-                            } catch (_: Exception) { name }
-                        }
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { expandedIndex = if (isExpanded) -1 else index }
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                logTime, 
-                                style = MaterialTheme.typography.labelMedium, 
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                                contentDescription = if (isExpanded) "折叠" else "展开",
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        
-                        // 展开时显示详细日志
-                        AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut()
-                        ) {
-                            Column {
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = content,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = FontFamily.Monospace,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                        
-                        Spacer(Modifier.height(4.dp))
-                        HorizontalDivider()
-                        Spacer(Modifier.height(4.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { vm.dismissArchivedLogs() }) { Text("关闭") } },
-        dismissButton = {
-            TextButton(onClick = {
-                vm.clearArchivedLogs()
-                vm.dismissArchivedLogs()
-            }) { Text("清除所有", color = MaterialTheme.colorScheme.error) }
-        },
-        shape = RoundedCornerShape(8.dp)
-    )
-}
+
