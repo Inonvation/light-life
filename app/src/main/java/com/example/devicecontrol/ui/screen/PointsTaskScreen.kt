@@ -33,7 +33,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -85,6 +89,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     val listState = rememberLazyListState()
     var logExpanded by remember { mutableStateOf(false) }
     val haptic = LocalHapticFeedback.current
+    var dialogSuppressChecked by remember { mutableStateOf(state.suppressPointsTaskWarning) }
 
     LaunchedEffect(state.pointsLogs.size) {
         if (state.pointsLogs.isNotEmpty() && logExpanded) {
@@ -194,23 +199,8 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
 
         Spacer(Modifier.height(Spacings.md))
 
-        // Failure hint
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Text(
-                text = "任务持续失败时，重启 APP 再试。仍失败需在官方 APP 手动观看一条广告",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.padding(10.dp)
-            )
-        }
-
-        Spacer(Modifier.height(Spacings.md))
-
-        // Bottom action buttons
+      
+// Bottom action buttons
         if (state.runningPointsTask) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
@@ -243,8 +233,12 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             Button(
                 onClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
-                    vm.startPointsTask(ua)
+                    if (state.suppressPointsTaskWarning) {
+                        val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
+                        vm.startPointsTask(ua)
+                    } else {
+                        vm.showPointsTaskWarning()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.runningPointsTask,
@@ -254,6 +248,56 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                 Text("开始执行自动化任务")
             }
         }
+    }
+
+    if (state.showPointsTaskWarning) {
+        AlertDialog(
+            onDismissRequest = { vm.dismissPointsTaskWarning() },
+            title = { Text("提示（必读！防止积分清零及封号风险！！！）") },
+            text = {
+                Column {
+                    Text("执行自动化任务前请注意：")
+                    Spacer(Modifier.height(8.dp))
+                    Text("• 任务持续失败时，重启 APP 再试。仍失败需在官方 APP 手动观看一条广告")
+                    Spacer(Modifier.height(4.dp))
+                    Text("• 尽量避免多账号在同一设备、同一网络 IP 下执行刷积分任务")
+                    Spacer(Modifier.height(4.dp))
+                    Text("• 即使在不同设备的不同账户下，也尽量避免同时执行刷积分任务")
+                    Spacer(Modifier.height(4.dp))
+                    Text("• 建议在 WiFi 稳定的环境下执行任务")
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = dialogSuppressChecked,
+                            onCheckedChange = { dialogSuppressChecked = it },
+                            colors = CheckboxDefaults.colors(checkedColor = AppColors.start)
+                        )
+                        Text("不再提示", style = MaterialTheme.typography.bodySmall)
+                    }
+                    TextButton(onClick = {
+                        if (dialogSuppressChecked != state.suppressPointsTaskWarning) {
+                            vm.toggleSuppressPointsTaskWarning()
+                        }
+                        if (dialogSuppressChecked) {
+                            android.widget.Toast.makeText(ctx, "已关闭任务前提示，后续可在设置中重新开启", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
+                        vm.startPointsTask(ua)
+                        vm.dismissPointsTaskWarning()
+                    }) {
+                        Text("开始执行")
+                    }
+                }
+            },
+            shape = RoundedCornerShape(8.dp),
+        )
     }
 }
 
