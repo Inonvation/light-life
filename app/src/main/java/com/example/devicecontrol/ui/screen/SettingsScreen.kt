@@ -94,16 +94,22 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val json = withContext(Dispatchers.IO) {
-                ctx.contentResolver.openInputStream(uri)?.use { input ->
-                    java.io.BufferedReader(java.io.InputStreamReader(input, Charsets.UTF_8)).readText()
+            try {
+                val json = withContext(Dispatchers.IO) {
+                    runCatching {
+                        ctx.contentResolver.openInputStream(uri)?.use { input ->
+                            java.io.BufferedReader(java.io.InputStreamReader(input, Charsets.UTF_8)).readText()
+                        }
+                    }.getOrNull()
                 }
+                if (json.isNullOrBlank()) {
+                    android.widget.Toast.makeText(ctx, "文件内容为空", android.widget.Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                vm.restoreFromBackupJson(json)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(ctx, "导入失败：" + (e.message ?: "无法读取文件"), android.widget.Toast.LENGTH_LONG).show()
             }
-            if (json.isNullOrBlank()) {
-                android.widget.Toast.makeText(ctx, "文件内容为空", android.widget.Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            vm.restoreFromBackupJson(json)
         }
     }
     val themePrefs = remember { ThemePreferences(ctx) }
