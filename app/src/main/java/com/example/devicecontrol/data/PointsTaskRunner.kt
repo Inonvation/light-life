@@ -215,7 +215,13 @@ class PointsTaskRunner(
                 setAdCount("app_video", index + 1)
                 delay(15_000)
             } else {
-                log("APP 视频任务停止：${res.messageText()}")
+                val msg = res.messageText()
+                if (msg.contains("任务已结束") || msg.contains("已结束")) {
+                    log("APP 视频任务：今日已完成")
+                    setAdCount("app_video", 20)
+                } else {
+                    log("APP 视频任务停止：$msg")
+                }
                 return
             }
         }
