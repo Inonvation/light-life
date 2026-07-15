@@ -27,7 +27,16 @@ class PointsTaskStateStore(context: Context) {
     fun isHapticEnabled(): Boolean = prefs.getBoolean("haptic_enabled", true)
     fun setHapticEnabled(v: Boolean) { prefs.edit().putBoolean("haptic_enabled", v).apply() }
 
-    fun getPhase(): String = prefs.getString("phase", "none") ?: "none"
+    fun isAutoCleanLogsEnabled(): Boolean = prefs.getBoolean("auto_clean_logs", false)
+    fun setAutoCleanLogsEnabled(v: Boolean) { prefs.edit().putBoolean("auto_clean_logs", v).apply() }
+
+    fun getPhase(): String {
+        if (!isToday()) {
+            reset()
+            return "none"
+        }
+        return prefs.getString("phase", "none") ?: "none"
+    }
     fun setPhase(p: String) { prefs.edit().putString("phase", p).putString("run_date", today()).apply() }
 
     fun getUserAgent(): String = prefs.getString("user_agent", "") ?: ""

@@ -191,6 +191,7 @@ class PointsTaskRunner(
                 cancellableDelay(15000)
             } else if (isQuotaExhausted(res)) {
                 log("  广告次数已用完，今日已完成 $i/20 次")
+                stateStore?.setAppVideoCount(20)
                 return
             } else {
                 log("  广告 #${i + 1}/20 失败（code: ${res.codeInt()}），结束广告阶段")
@@ -224,6 +225,7 @@ class PointsTaskRunner(
                 cancellableDelay(15000)
             } else if (isQuotaExhausted(res)) {
                 log("  支付宝广告次数已用完，今日已完成 $i/50 次")
+                stateStore?.setAlipayVideoCount(50)
                 return
             } else {
                 log("  支付宝广告 #${i + 1}/50 失败（code: ${res.codeInt()}），结束广告阶段")
