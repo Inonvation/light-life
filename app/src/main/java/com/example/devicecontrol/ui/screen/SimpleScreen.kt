@@ -207,7 +207,6 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                         color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                                    device.goodsName.let { /* goodsName is the device name */ }
                                 }
                                 if (isSelected) {
                                     Text("✓", color = MaterialTheme.colorScheme.primary,
