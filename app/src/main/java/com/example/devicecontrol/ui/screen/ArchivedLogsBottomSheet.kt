@@ -1,84 +1,55 @@
 package com.example.devicecontrol.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.devicecontrol.ui.AppUiState
 import com.example.devicecontrol.ui.AppViewModel
 import com.example.devicecontrol.ui.theme.LogColors
 import com.example.devicecontrol.ui.theme.Spacings
-import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,12 +58,11 @@ fun ArchivedLogsBottomSheet(state: AppUiState, vm: AppViewModel) {
     var expandedIndex by remember { mutableStateOf(-1) }
     var showConfirmClearDialog by remember { mutableStateOf(false) }
 
-    // 确认清除所有日志对话框
     if (showConfirmClearDialog) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showConfirmClearDialog = false },
             title = { Text("确认删除") },
-            text = { Text("确定要清除所有历史执行日志吗？此操作不可撤销。") },
+            text = { Text("确定要清除所有任务记录吗？此操作不可撤销。") },
             confirmButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
@@ -132,13 +102,15 @@ fun ArchivedLogsBottomSheet(state: AppUiState, vm: AppViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "历史执行日志",
+                    "任务记录",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacings.xs)) {
-                    TextButton(onClick = { showConfirmClearDialog = true }) {
-                        Text("清除所有", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                    if (state.archivedLogs.isNotEmpty()) {
+                        TextButton(onClick = { showConfirmClearDialog = true }) {
+                            Text("清除所有", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                     TextButton(onClick = { vm.dismissArchivedLogs() }) {
                         Text("关闭", style = MaterialTheme.typography.labelMedium)
@@ -149,38 +121,35 @@ fun ArchivedLogsBottomSheet(state: AppUiState, vm: AppViewModel) {
             Spacer(Modifier.height(Spacings.sm))
 
             if (state.archivedLogs.isEmpty()) {
-                // Empty state
                 Text(
-                    "暂无历史日志",
+                    "暂无任务记录",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 32.dp).fillMaxWidth(),
                 )
             } else {
-                // Date-grouped log list
                 val groupedLogs = remember(state.archivedLogs) {
                     groupLogsByDate(state.archivedLogs)
                 }
 
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 480.dp)
-                ) {
+                LazyColumn(modifier = Modifier.heightIn(max = 520.dp)) {
                     groupedLogs.forEach { (dateHeader, logs) ->
-                        // Sticky date header
                         item(key = "header_$dateHeader") {
                             DateSectionHeader(dateHeader)
                         }
-                        // Log entries for this date
                         itemsIndexed(logs, key = { _, (name, _) -> name }) { _, (name, content) ->
-                            val isExpanded = expandedIndex == state.archivedLogs.indexOfFirst { it.first == name }
+                            val globalIndex = state.archivedLogs.indexOfFirst { it.first == name }
+                            val isExpanded = expandedIndex == globalIndex
                             ArchivedLogCard(
                                 name = name,
                                 content = content,
                                 isExpanded = isExpanded,
-                                onClick = {
-                                    expandedIndex = if (isExpanded) -1 else state.archivedLogs.indexOfFirst { it.first == name }
-                                },
-                                onDelete = { vm.deleteArchivedLog(name) }
+                                onClick = { expandedIndex = if (isExpanded) -1 else globalIndex },
+                                onDelete = {
+                                    vm.deleteArchivedLog(name)
+                                    if (expandedIndex == globalIndex) expandedIndex = -1
+                                    else if (expandedIndex > globalIndex) expandedIndex--
+                                }
                             )
                         }
                     }
@@ -217,28 +186,7 @@ private fun ArchivedLogCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
-    val context = androidx.compose.ui.platform.LocalContext.current
-
-    // Delete confirmation dialog
-    if (showDeleteConfirm) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("确认删除") },
-            text = { Text("确定要删除这条执行日志吗？") },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = false; onDelete() }) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
+    val clipboard = LocalClipboardManager.current
 
     val logTime = remember(name) {
         try {
@@ -259,6 +207,7 @@ private fun ArchivedLogCard(
     }
 
     androidx.compose.material3.Card(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp),
@@ -287,53 +236,47 @@ private fun ArchivedLogCard(
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f)
                 )
-                // Delete icon button
-                IconButton(
-                    onClick = { showDeleteConfirm = true },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "删除",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                // Expand/collapse arrow
-                IconButton(
-                    onClick = onClick,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = if (isExpanded) "折叠" else "展开",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                Icon(
+                    imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = if (isExpanded) "折叠" else "展开详情",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
-            // Expanded content (same style as order history)
             AnimatedVisibility(
                 visible = isExpanded,
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
-                ) {
+                Column(modifier = Modifier.padding(start = 14.dp, end = 14.dp, bottom = 12.dp)) {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Spacer(Modifier.height(Spacings.sm))
-                    Column(
-                        modifier = Modifier.clickable {
-                            clipboard.setText(AnnotatedString(content))
-                            android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
-                        }
+
+                    // Log content with colored lines
+                    val lines = content.split("\n")
+                    lines.forEach { line ->
+                        LogLine(line)
+                    }
+
+                    Spacer(Modifier.height(Spacings.sm))
+
+                    // Action buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val lines = content.split("\n")
-                        lines.forEach { line ->
-                            LogLine(line)
+                        TextButton(onClick = { clipboard.setText(AnnotatedString(content)) }) {
+                            Icon(Icons.Outlined.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("复制", style = MaterialTheme.typography.labelSmall)
+                        }
+                        Spacer(Modifier.width(Spacings.sm))
+                        TextButton(onClick = onDelete) {
+                            Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.width(4.dp))
+                            Text("删除", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -350,21 +293,16 @@ private fun LogLine(line: String) {
         else -> LogColors.info
     }
 
-    Row(
-        modifier = Modifier.padding(vertical = 1.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = line,
-            color = color,
-            fontFamily = FontFamily.Monospace,
-            style = MaterialTheme.typography.bodySmall,
-            fontSize = 11.sp,
-            lineHeight = 16.sp,
-            modifier = Modifier.weight(1f)
-        )
-    }
+    Text(
+        text = line,
+        color = color,
+        fontFamily = FontFamily.Monospace,
+        style = MaterialTheme.typography.bodySmall,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+    )
 }
+
 private fun groupLogsByDate(logs: List<Pair<String, String>>): List<Pair<String, List<Pair<String, String>>>> {
     val today = java.text.SimpleDateFormat("MMdd", java.util.Locale.CHINA).format(java.util.Date())
     val calendar = java.util.Calendar.getInstance()
