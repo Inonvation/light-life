@@ -56,17 +56,12 @@ fun pinDeviceShortcut(context: Context, device: DeviceItem) {
 
 fun openProjectHome(context: Context) {
     try {
-        Toast.makeText(context, "正在打开 GitHub...", Toast.LENGTH_SHORT).show()
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(PROJECT_URL)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        if (context is android.app.Activity) {
-            context.startActivity(intent)
-        } else {
-            context.startActivity(intent)
-        }
+        val uri = Uri.parse(PROJECT_URL)
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        val appCtx = context.applicationContext
+        appCtx.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: Exception) {
         android.util.Log.e("OpenProject", "Failed to open URL", e)
-        Toast.makeText(context, "打开失败: ${e.message}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, "未找到浏览器，请手动打开 $PROJECT_URL", Toast.LENGTH_LONG).show()
     }
 }

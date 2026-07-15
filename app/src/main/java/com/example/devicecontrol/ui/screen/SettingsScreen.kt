@@ -57,13 +57,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.devicecontrol.R
 import com.example.devicecontrol.ui.AppUiState
 import com.example.devicecontrol.ui.AppViewModel
-import com.example.devicecontrol.ui.openProjectHome
+import com.example.devicecontrol.ui.PROJECT_URL
 import com.example.devicecontrol.ui.theme.CardShapes
 import com.example.devicecontrol.ui.theme.Spacings
 import com.example.devicecontrol.ui.theme.ThemeMode
@@ -83,6 +84,7 @@ import kotlinx.coroutines.withContext
 fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     @Suppress("DEPRECATION") val vibrator = ctx.getSystemService(android.content.Context.VIBRATOR_SERVICE) as Vibrator
 
@@ -168,7 +170,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
         val scrollState = rememberScrollState()
 
         // 滚动到顶部或底部时触发触感反馈
-        LaunchedEffect(scrollState) {
+        LaunchedEffect(scrollState, state.hapticEnabled) {
             var wasAtTop = true // 初始已在顶部，不触发
             var wasAtBottom = false
 
@@ -229,7 +231,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("超级简洁版", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("仅显示开水与刷积分功能，重启后生效", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("仅显示开水与刷积分功能，立即生效", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(checked = state.simpleModeEnabled, onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleSimpleMode() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
                     }
@@ -501,10 +503,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             Text("LightLife", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Text("版本 ${state.appVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        IconButton(onClick = {
-                            android.util.Log.d("SettingsScreen", "GitHub icon clicked, ctx=${ctx.javaClass.name}")
-                            openProjectHome(ctx)
-                        }) {
+                        IconButton(onClick = { uriHandler.openUri(PROJECT_URL) }) {
                             Icon(painterResource(R.drawable.ic_github), contentDescription = "GitHub", modifier = Modifier.size(24.dp))
                         }
                     }
