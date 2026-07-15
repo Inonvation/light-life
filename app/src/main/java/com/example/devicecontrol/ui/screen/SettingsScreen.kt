@@ -361,7 +361,24 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("数据备份", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(4.dp))
-                    Text("备份文件为 .lif 格式（JSON），包含 Token、订单记录、积分统计、执行日志和设置项。恢复时会覆盖当前数据。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("备份文件为 .lif 格式（JSON），恢复时会覆盖当前数据。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth().padding(end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text("去隐私化备份", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                if (state.backupPrivacySafe) "备份文件不包含登录凭证和设备信息，仅保留订单、日志和设置"
+                                else "开启后备份文件无法用于免验证码登录，适合分享或存放到不安全的位置",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = state.backupPrivacySafe,
+                            onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleBackupPrivacySafe() },
+                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary),
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedButton(
