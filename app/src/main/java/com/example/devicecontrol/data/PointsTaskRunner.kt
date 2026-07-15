@@ -25,6 +25,8 @@ class PointsTaskRunner(
 ) {
     @Volatile
     var cancelled = false
+    private var debugLog: DebugLogStore? = null
+    fun setDebugLog(log: DebugLogStore?) { debugLog = log }
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -290,9 +292,14 @@ class PointsTaskRunner(
         return withContext(Dispatchers.IO) {
             client.newCall(req).execute().use { response ->
                 val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) error("HTTP ${response.code}: ${body.take(300)}")
-                runCatching { jsonAdapter.fromJson(body).orEmpty() }
+                if (!response.isSuccessful) {
+                    debugLog?.e("Runner", "HTTP ${response.code}: ${url.substringAfterLast("/")}, body=${body.take(300)}")
+                    error("HTTP ${response.code}: ${body.take(300)}")
+                }
+                val result = runCatching { jsonAdapter.fromJson(body).orEmpty() }
                     .getOrElse { error("响应解析失败：${it.message ?: body.take(300)}") }
+                debugLog?.d("Runner", "${url.substringAfterLast("/")} channel=$channel code=${result.codeInt()} msg=${result.messageText()}")
+                result
             }
         }
     }

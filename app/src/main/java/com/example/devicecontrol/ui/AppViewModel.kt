@@ -139,7 +139,7 @@ class AppViewModel(
     private val debugLogStore: DebugLogStore? = null,
 ) : ViewModel() {
     private var pendingBackup: BackupData? = null
-    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, context)
+    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, context).also { it.setDebugLog(debugLogStore) }
     private var pointsTaskJob: Job? = null
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private var unlockTimerJob: Job? = null
