@@ -1,4 +1,4 @@
-package com.example.devicecontrol.data
+﻿package com.example.devicecontrol.data
 
 import android.content.Context
 import java.text.SimpleDateFormat
@@ -8,22 +8,28 @@ import java.util.Locale
 class PointsTaskStateStore(context: Context) {
     private val prefs = context.getSharedPreferences("points_task_state", Context.MODE_PRIVATE)
 
+    // 执行开始时冻结日期，所有读写基于此日期而非实时 today()，避免跨天污染
+    private var sessionDate: String? = null
+
+    fun setSessionDate(date: String) { sessionDate = date }
+
     private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+    private fun effectiveDate(): String = sessionDate ?: today()
     private fun savedDate(): String = prefs.getString("run_date", "") ?: ""
     fun getRunDate(): String = savedDate()
-    private fun isToday(): Boolean = savedDate() == today()
+    private fun isActiveDay(): Boolean = savedDate() == effectiveDate()
 
-    fun getAppVideoCount(): Int = if (isToday()) prefs.getInt("app_video", 0) else 0
-    fun setAppVideoCount(n: Int) { prefs.edit().putInt("app_video", n).putString("run_date", today()).apply() }
+    fun getAppVideoCount(): Int = if (isActiveDay()) prefs.getInt("app_video", 0) else 0
+    fun setAppVideoCount(n: Int) { prefs.edit().putInt("app_video", n).putString("run_date", effectiveDate()).apply() }
 
-    fun getAlipayVideoCount(): Int = if (isToday()) prefs.getInt("alipay_video", 0) else 0
-    fun setAlipayVideoCount(n: Int) { prefs.edit().putInt("alipay_video", n).putString("run_date", today()).apply() }
+    fun getAlipayVideoCount(): Int = if (isActiveDay()) prefs.getInt("alipay_video", 0) else 0
+    fun setAlipayVideoCount(n: Int) { prefs.edit().putInt("alipay_video", n).putString("run_date", effectiveDate()).apply() }
 
-    fun isSignInDone(): Boolean = isToday() && prefs.getBoolean("signin_done", false)
-    fun setSignInDone(v: Boolean) { prefs.edit().putBoolean("signin_done", v).putString("run_date", today()).apply() }
+    fun isSignInDone(): Boolean = isActiveDay() && prefs.getBoolean("signin_done", false)
+    fun setSignInDone(v: Boolean) { prefs.edit().putBoolean("signin_done", v).putString("run_date", effectiveDate()).apply() }
 
-    fun isTaskListDone(): Boolean = isToday() && prefs.getBoolean("tasklist_done", false)
-    fun setTaskListDone(v: Boolean) { prefs.edit().putBoolean("tasklist_done", v).putString("run_date", today()).apply() }
+    fun isTaskListDone(): Boolean = isActiveDay() && prefs.getBoolean("tasklist_done", false)
+    fun setTaskListDone(v: Boolean) { prefs.edit().putBoolean("tasklist_done", v).putString("run_date", effectiveDate()).apply() }
 
     fun isLogCompactEnabled(): Boolean = prefs.getBoolean("log_compact", true)
     fun setLogCompactEnabled(v: Boolean) { prefs.edit().putBoolean("log_compact", v).apply() }
@@ -37,21 +43,30 @@ class PointsTaskStateStore(context: Context) {
     fun isSimpleModeEnabled(): Boolean = prefs.getBoolean("simple_mode", false)
     fun setSimpleModeEnabled(v: Boolean) { prefs.edit().putBoolean("simple_mode", v).apply() }
 
+    fun isBackupPrivacySafe(): Boolean = prefs.getBoolean("backup_privacy_safe", false)
+    fun setBackupPrivacySafe(v: Boolean) { prefs.edit().putBoolean("backup_privacy_safe", v).apply() }
+
     fun getPhase(): String {
-        if (!isToday()) {
+        if (!isActiveDay()) {
             reset()
             return "none"
         }
         return prefs.getString("phase", "none") ?: "none"
     }
-    fun setPhase(p: String) { prefs.edit().putString("phase", p).putString("run_date", today()).apply() }
+    fun setPhase(p: String) { prefs.edit().putString("phase", p).putString("run_date", effectiveDate()).apply() }
 
     fun getUserAgent(): String = prefs.getString("user_agent", "") ?: ""
     fun setUserAgent(ua: String) { prefs.edit().putString("user_agent", ua).apply() }
 
+    fun getCompletedTaskCodes(): Set<String> = prefs.getStringSet("task_codes", emptySet()) ?: emptySet()
+    fun addCompletedTaskCode(code: String) {
+        val codes = prefs.getStringSet("task_codes", emptySet())?.toMutableSet() ?: mutableSetOf()
+        codes.add(code)
+        prefs.edit().putStringSet("task_codes", codes).putString("run_date", effectiveDate()).apply()
+    }
+
     fun reset() {
         val editor = prefs.edit()
-        // 只删除任务运行状态，保留用户偏好设置
         listOf("run_date", "app_video", "alipay_video", "signin_done", "tasklist_done", "task_codes", "phase").forEach { editor.remove(it) }
         editor.apply()
     }

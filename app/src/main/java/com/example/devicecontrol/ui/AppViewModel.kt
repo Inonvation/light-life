@@ -13,6 +13,7 @@ import com.example.devicecontrol.data.TaskLogStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.UnlockResult
 import com.example.devicecontrol.data.BackupManager
+import com.example.devicecontrol.data.TaskCancelledException
 import com.example.devicecontrol.ui.theme.ThemeMode
 import com.example.devicecontrol.ui.theme.ThemePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
