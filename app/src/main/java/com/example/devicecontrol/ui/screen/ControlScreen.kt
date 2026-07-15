@@ -66,10 +66,18 @@ import com.example.devicecontrol.ui.UnlockFlowState
 import com.example.devicecontrol.ui.pinDeviceShortcut
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.example.devicecontrol.ui.theme.CardShapes
 import com.example.devicecontrol.ui.theme.HeaderGradients
 import com.example.devicecontrol.ui.theme.StatColors
+import com.example.devicecontrol.ui.theme.successContainerColor
+import com.example.devicecontrol.ui.theme.onSuccessContainerColor
+import com.example.devicecontrol.ui.theme.warningContainerColor
+import com.example.devicecontrol.ui.theme.onWarningContainerColor
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ControlScreen(state: AppUiState, vm: AppViewModel) {
     val context = LocalContext.current
@@ -78,6 +86,11 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
     var cardVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { cardVisible = true }
 
+    PullToRefreshBox(
+        isRefreshing = state.loadingDevices,
+        onRefresh = { vm.refreshDevices() },
+        modifier = Modifier.fillMaxSize()
+    ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 18.dp)
@@ -235,6 +248,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
             }
         }
     }
+    }
 }
 
 // ═══════════════════════════════════════════════
@@ -242,7 +256,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
 // ═══════════════════════════════════════════════
 @Composable
 private fun HeaderSection(visible: Boolean) {
-    val isDark = MaterialTheme.colorScheme.background == Color(0xFF121212)
+    val isDark = isSystemInDarkTheme()
     val gradient = Brush.horizontalGradient(
         colors = listOf(
             if (isDark) HeaderGradients.darkStart else HeaderGradients.lightStart,
@@ -465,33 +479,33 @@ private fun SuccessCard(result: com.example.devicecontrol.data.UnlockResult, onD
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+        colors = CardDefaults.cardColors(containerColor = successContainerColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.CheckCircle, null, tint = onSuccessContainerColor(), modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("开机成功", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFF2E7D32))
+                Text("开机成功", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = onSuccessContainerColor())
             }
             Spacer(Modifier.height(10.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("订单原价", style = MaterialTheme.typography.bodySmall, color = Color(0xFF558B2F))
-                Text(result.originPrice, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF2E7D32))
+                Text("订单原价", style = MaterialTheme.typography.bodySmall, color = onSuccessContainerColor().copy(alpha = 0.8f))
+                Text(result.originPrice, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = onSuccessContainerColor())
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("花费小票", style = MaterialTheme.typography.bodySmall, color = Color(0xFF558B2F))
-                Text(result.ticketCost, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF2E7D32))
+                Text("花费小票", style = MaterialTheme.typography.bodySmall, color = onSuccessContainerColor().copy(alpha = 0.8f))
+                Text(result.ticketCost, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = onSuccessContainerColor())
             }
             if (result.integralCost != "-") {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("积分抵扣", style = MaterialTheme.typography.bodySmall, color = Color(0xFF558B2F))
-                    Text(result.integralCost, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = Color(0xFF2E7D32))
+                    Text("积分抵扣", style = MaterialTheme.typography.bodySmall, color = onSuccessContainerColor().copy(alpha = 0.8f))
+                    Text(result.integralCost, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = onSuccessContainerColor())
                 }
             }
             Spacer(Modifier.height(10.dp))
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                Text("关闭", color = Color(0xFF4CAF50))
+                Text("关闭", color = onSuccessContainerColor())
             }
         }
     }
@@ -503,23 +517,23 @@ private fun FailedCard(message: String, step: String, rawError: String, suggesti
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+        colors = CardDefaults.cardColors(containerColor = warningContainerColor()),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Error, null, tint = Color(0xFFE65100), modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.Error, null, tint = onWarningContainerColor(), modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(10.dp))
-                Text("开机失败", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFBF360C))
+                Text("开机失败", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = onWarningContainerColor())
             }
             Spacer(Modifier.height(8.dp))
-            Text(message, style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4E342E), fontWeight = FontWeight.Medium)
+            Text(message, style = MaterialTheme.typography.bodyMedium, color = onWarningContainerColor(), fontWeight = FontWeight.Medium)
             if (suggestions.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 suggestions.forEach { s ->
                     Row(modifier = Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
-                        Text("• ", style = MaterialTheme.typography.bodySmall, color = Color(0xFF8D6E63))
-                        Text(s, style = MaterialTheme.typography.bodySmall, color = Color(0xFF8D6E63))
+                        Text("• ", style = MaterialTheme.typography.bodySmall, color = onWarningContainerColor().copy(alpha = 0.8f))
+                        Text(s, style = MaterialTheme.typography.bodySmall, color = onWarningContainerColor().copy(alpha = 0.8f))
                     }
                 }
             }
@@ -536,17 +550,17 @@ private fun FailedCard(message: String, step: String, rawError: String, suggesti
             AnimatedVisibility(visible = expanded) {
                 Column {
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("失败步骤", style = MaterialTheme.typography.labelSmall, color = Color(0xFFA1887F))
-                        Text(step, style = MaterialTheme.typography.bodySmall, color = Color(0xFF6D4C41))
+                        Text("失败步骤", style = MaterialTheme.typography.labelSmall, color = onWarningContainerColor().copy(alpha = 0.6f))
+                        Text(step, style = MaterialTheme.typography.bodySmall, color = onWarningContainerColor())
                     }
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("原始错误", style = MaterialTheme.typography.labelSmall, color = Color(0xFFA1887F))
-                        Text(rawError, style = MaterialTheme.typography.bodySmall, color = Color(0xFF6D4C41))
+                        Text("原始错误", style = MaterialTheme.typography.labelSmall, color = onWarningContainerColor().copy(alpha = 0.6f))
+                        Text(rawError, style = MaterialTheme.typography.bodySmall, color = onWarningContainerColor())
                     }
                 }
             }
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                Text("关闭", color = Color(0xFFE65100))
+                Text("关闭", color = onWarningContainerColor())
             }
         }
     }

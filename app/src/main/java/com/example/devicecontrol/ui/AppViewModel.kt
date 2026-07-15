@@ -19,6 +19,7 @@ import com.example.devicecontrol.data.RestoreCounts
 import com.example.devicecontrol.data.TaskCancelledException
 import com.example.devicecontrol.ui.theme.ThemeMode
 import com.example.devicecontrol.ui.theme.ThemePreferences
+import androidx.compose.runtime.mutableStateListOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -472,7 +473,7 @@ class AppViewModel(
             todayWaterAmount = "0.00",
             totalWaterCount = 0,
             orderHistory = emptyList(),
-            pointsLogs = emptyList(),
+            pointsLogs = mutableStateListOf(),
             totalPointsEarned = 0,
             totalPointsDeducted = "0.00",
         )}

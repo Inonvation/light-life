@@ -1,5 +1,8 @@
 package com.example.devicecontrol.ui.theme
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -70,4 +73,25 @@ object TimelineColors {
     val active = Color(0xFF2196F3)
     val pending = Color(0xFF9E9E9E)
     val activeSurface = Color(0xFF2196F3).copy(alpha = 0.12f)
+}
+
+// 语义化颜色扩展，适配暗色模式
+@Composable
+fun successContainerColor(): Color {
+    return if (isSystemInDarkTheme()) Color(0xFF1B3A1B) else Color(0xFFE8F5E9)
+}
+
+@Composable
+fun onSuccessContainerColor(): Color {
+    return if (isSystemInDarkTheme()) Color(0xFF81C784) else Color(0xFF2E7D32)
+}
+
+@Composable
+fun warningContainerColor(): Color {
+    return if (isSystemInDarkTheme()) Color(0xFF3A2A1B) else Color(0xFFFFF3E0)
+}
+
+@Composable
+fun onWarningContainerColor(): Color {
+    return if (isSystemInDarkTheme()) Color(0xFFFFCC80) else Color(0xFFE65100)
 }

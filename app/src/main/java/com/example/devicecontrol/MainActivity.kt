@@ -12,7 +12,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -158,10 +156,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
 
     state.orderDetail?.let { OrderDetailDialog(detail = it, onDismiss = vm::dismissOrderDetail) }
 
-    // 从 SharedPreferences 直接读取简洁模式状态（非响应式），仅在应用启动时生效
-    val store = remember { PointsTaskStateStore(context) }
-    val simpleModeActive = remember { store.isSimpleModeEnabled() }
-
 
     // 退出登录确认对话框（简洁/普通模式共用）
     if (state.showLogoutConfirm) {
@@ -207,32 +201,27 @@ private fun DeviceControlApp(vm: AppViewModel) {
                         fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                }
-            },
-            confirmButton = {
-                Row(modifier = Modifier, verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { vm.dismissLogoutConfirm(); vm.logout() }) {
-                        Text("确定退出", color = MaterialTheme.colorScheme.error)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { vm.dismissLogoutConfirm() }) {
-                        Text("取消")
-                    }
-                }
-            },
-            dismissButton = {
-                Column {
                     TextButton(
                         onClick = {
                             val fileName = "LightLife_backup_" + java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.CHINA).format(java.util.Date()) + ".lif"
                             exportLauncher.launch(fileName)
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
                     ) {
                         Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("先去备份", style = MaterialTheme.typography.labelMedium)
                     }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.dismissLogoutConfirm(); vm.logout() }) {
+                    Text("确定退出", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.dismissLogoutConfirm() }) {
+                    Text("取消")
                 }
             },
             shape = RoundedCornerShape(8.dp),
@@ -257,7 +246,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
         )
     }
 
-    if (simpleModeActive) {
+    if (state.simpleModeEnabled) {
         // 简洁模式：仅显示 SimpleScreen
         Box(modifier = Modifier.fillMaxSize()) {
             SimpleScreen(state = state, vm = vm)
@@ -334,30 +323,9 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier
-                        .weight(1f)
-                        .pointerInput(pagerState) {
-                            // 左右滑动检测：检测到滑动方向后通过 animateScrollToPage 切页
-                            var totalDrag = 0f
-                            detectHorizontalDragGestures(
-                                onDragStart = { totalDrag = 0f },
-                                onHorizontalDrag = { change, dragAmount ->
-                                    //change consumed
-                                    totalDrag += dragAmount
-                                },
-                                onDragEnd = {
-                                    val threshold = 60f
-                                    val cp = pagerState.currentPage
-                                    if (totalDrag < -threshold && cp < TAB_LIST.size - 1) {
-                                        vm.selectTab(TAB_LIST[cp + 1])
-                                    } else if (totalDrag > threshold && cp > 0) {
-                                        vm.selectTab(TAB_LIST[cp - 1])
-                                    }
-                                },
-                                onDragCancel = { }
-                            )
-                        },
+                        .weight(1f),
                     beyondViewportPageCount = 1,
-                    userScrollEnabled = false,
+                    userScrollEnabled = true,
                 ) { page ->
                     when (TAB_LIST[page]) {
                         DeviceTab.Control -> ControlScreen(state, vm)
@@ -378,8 +346,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 .fillMaxSize()
                 .graphicsLayer {
                     translationX = settingsOffset * size.width
-                    // 透明度使用平滑过渡，而不是在 0.5 处跳变
-                    alpha = 1f - settingsOffset
+                    // alpha = 1f - settingsOffset // 移除透明度变化，仅保留平移
                 }
         ) {
             SettingsScreen(state = state, vm = vm)
