@@ -84,6 +84,9 @@ class PointsTaskRunner(
         if (!signInDone) {
             checkPause(); signIn(token, userAgent, log); checkPause()
         }
+        // 屏蔽资源查询 + 首页浏览：服务端前置校验，必须在广告任务前调用
+        shieldingQuery(token, userAgent, log)
+        queryByType(token, userAgent, log)
         if (!taskListDone) {
             delay(1000); checkPause(); runTaskList(token, userAgent, log); checkPause()
         }
@@ -107,6 +110,32 @@ class PointsTaskRunner(
             0 -> { log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}"); stateStore?.setSignInDone(true) }
             33001 -> { log("签到：今日已完成"); stateStore?.setSignInDone(true) }
             else -> log("签到失败（code: ${res.codeInt()}）")
+        }
+    }
+
+    private suspend fun shieldingQuery(token: String, ua: String, log: suspend (String) -> Unit) {
+        log("▶ 屏蔽资源查询...")
+        val res = request(
+            url = "https://userapi.qiekj.com/shielding/query",
+            token = token,
+            userAgent = ua,
+            fields = mapOf("shieldingResourceType" to "1", "token" to token),
+        )
+        log("屏蔽资源查询完成（code: ${res.codeInt()}）")
+    }
+
+    private suspend fun queryByType(token: String, ua: String, log: suspend (String) -> Unit) {
+        log("▶ 首页浏览任务...")
+        val res = request(
+            url = "https://userapi.qiekj.com/task/queryByType",
+            token = token,
+            userAgent = ua,
+            fields = mapOf("taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a", "token" to token),
+        )
+        if (res.codeInt() == 0 && res["data"] == true) {
+            log("首页浏览成功，获得积分")
+        } else {
+            log("首页浏览完成（code: ${res.codeInt()}, data: ${res["data"]}）")
         }
     }
 
@@ -158,14 +187,40 @@ class PointsTaskRunner(
         }
         stateStore?.setTaskListDone(true)
     }
+
+
+    private suspend fun findVideoAdTaskCode(token: String, ua: String, keywords: List<String>, log: suspend (String) -> Unit): String? {
+        val res = request("https://userapi.qiekj.com/task/list", token, ua, mapOf("token" to token))
+        if (res.codeInt() != 0) return null
+        val items = (res.dataMap()["items"] as? List<*>)?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
+        for ((idx, item) in items.withIndex()) {
+            val title = item["title"]?.toString().orEmpty()
+            val taskCode = item["taskCode"]?.toString() ?: "?"
+            val limit = ((item["dailyTaskLimit"] as? Number)?.toInt() ?: 1)
+            val completed = (item["completedStatus"] as? Number)?.toInt() ?: -1
+            log("  [task$idx] $title | code=$taskCode | limit=$limit | done=$completed")
+        }
+        for (item in items) {
+            val title = item["title"]?.toString().orEmpty()
+            val taskCode = item["taskCode"]?.toString() ?: continue
+            if (taskCode in NOT_FINISH_TASKS) continue
+            val limit = ((item["dailyTaskLimit"] as? Number)?.toInt() ?: 1)
+            if (keywords.any { title.contains(it) }) {
+                return taskCode
+            }
+        }
+        return null
+    }
     private suspend fun runAppVideos(token: String, ua: String, log: suspend (String) -> Unit) {
+        val taskCode = findVideoAdTaskCode(token, ua, listOf("广告"), log) ?: "2"
+        log("APP 广告使用 taskCode: $taskCode")
         val startFrom = stateStore?.getAppVideoCount() ?: 0
         if (startFrom > 0) log("→ 已观看过 $startFrom 次，从第 ${startFrom + 1} 次继续")
         log("→ 开始观看 APP 广告（共 20 次）")
         for (i in startFrom until 20) {
             checkPause()
             reportProgress("APP 广告", i + 1, 20)
-            val res = runCatching { completeTask(token, ua, 2) }.getOrElse {
+            val res = runCatching { completeTask(token, ua, taskCode) }.getOrElse {
                 log("  广告 #${i + 1}：网络异常，结束广告阶段")
                 return
             }
@@ -184,6 +239,8 @@ class PointsTaskRunner(
         log("APP 广告 20 次全部完成")
     }
     private suspend fun runAlipayVideos(token: String, ua: String, log: suspend (String) -> Unit) {
+        val aliTaskCode = findVideoAdTaskCode(token, ua, listOf("支付宝"), log) ?: "9"
+        log("支付宝广告使用 taskCode: $aliTaskCode")
         val startFrom = stateStore?.getAlipayVideoCount() ?: 0
         if (startFrom > 0) log("→ 已观看过 $startFrom 次，从第 ${startFrom + 1} 次继续")
         log("→ 开始观看支付宝广告（共 50 次）")
@@ -195,7 +252,7 @@ class PointsTaskRunner(
                     url = "https://userapi.qiekj.com/task/completed",
                     token = token,
                     userAgent = ua,
-                    fields = mapOf("taskCode" to "9", "token" to token),
+                    fields = mapOf("taskCode" to aliTaskCode, "token" to token),
                     channel = "alipay",
                 )
             }.getOrElse {
