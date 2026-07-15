@@ -57,7 +57,12 @@ data class LogEntry(
     val message: String,
     val level: LogLevel = LogLevel.INFO,
     val collapsed: Boolean = false,
-)
+    val id: Long = logIdCounter.getAndIncrement(),
+) {
+    companion object {
+        private val logIdCounter = java.util.concurrent.atomic.AtomicLong(0)
+    }
+}
 
 data class AppUiState(
     val currentTab: DeviceTab = DeviceTab.Control,
@@ -577,6 +582,11 @@ class AppViewModel(
         logStore?.clearAll()
         taskStateStore?.reset()
         _state.update { it.copy(archivedLogs = emptyList()) }
+    }
+
+    fun deleteArchivedLog(name: String) {
+        logStore?.deleteFile(name)
+        _state.update { it.copy(archivedLogs = it.archivedLogs.filter { it.first != name }) }
     }
 
     fun showCurrentToken() {
