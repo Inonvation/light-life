@@ -152,6 +152,15 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("剩余小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(
+                                    "${state.balance?.ticketText?.let { "¥$it" } ?: "-"}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -394,15 +403,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                             }
                         }
 
-                        // 进度提示
-                        state.pointsProgress?.let { progress ->
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "${progress.phase} (${progress.step}/${progress.total})",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+
 
                         Spacer(Modifier.height(10.dp))
 
