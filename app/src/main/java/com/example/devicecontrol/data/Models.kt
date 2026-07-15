@@ -109,3 +109,19 @@ class UnlockException(
     cause: Throwable? = null,
 ) : Exception(message, cause)
 
+class TokenExpiredException(
+    message: String = "Token 已过期",
+) : Exception(message) {
+    companion object {
+        private val EXPIRED_CODES = setOf(10001, 20001, 30001, 40001, 50001)
+
+        fun isTokenExpired(code: Int?, msg: String?): Boolean {
+            if (code != null && code in EXPIRED_CODES) return true
+            if (msg != null) {
+                val lower = msg.lowercase()
+                if (lower.contains("token") && (lower.contains("expir") || lower.contains("invalid") || lower.contains("非法"))) return true
+            }
+            return false
+        }
+    }
+}

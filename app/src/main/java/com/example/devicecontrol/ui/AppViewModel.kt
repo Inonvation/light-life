@@ -322,6 +322,7 @@ class AppViewModel(
         if (state.value.runningPointsTask) return@launch
         pointsTaskRunner.paused = false
         pointsTaskRunner.cancelled = false
+        val detailLogs = mutableListOf<String>()
         runCatching {
             _state.update {
                 it.copy(
@@ -332,6 +333,9 @@ class AppViewModel(
                 )
             }
             taskStateStore?.setUserAgent(userAgent)
+            pointsTaskRunner.setOnDetailLog { line ->
+                detailLogs.add(line)
+            }
             pointsTaskRunner.setOnProgress { phase, step, total ->
                 _state.update { it.copy(pointsProgress = PointsProgress(phase, step, total)) }
             }
@@ -367,13 +371,17 @@ class AppViewModel(
             }
         }.onFailure { e ->
             val errMsg = e.message ?: "未知错误"
-            if (errMsg.contains("用户已取消任务")) {
+            if (e is TaskCancelledException) {
                 appendPointLog("任务已终止")
             } else {
                 appendPointLog("任务失败：$errMsg")
             }
             // 失败时也保存日志
-            logStore?.save(state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" })
+            val failLogContent = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
+            val failFull = if (detailLogs.isNotEmpty()) {
+                    failLogContent + "\n\n--- 详细日志（仅文件记录）---\n" + detailLogs.joinToString("\n")
+                } else failLogContent
+            logStore?.save(failFull)
         }
         _state.update { it.copy(runningPointsTask = false, pointsProgress = null) }
     }

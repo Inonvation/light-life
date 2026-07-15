@@ -28,6 +28,8 @@ class PointsTaskRunner(
     var cancelled = false
     private var onProgress: (suspend (String, Int, Int) -> Unit)? = null
     fun setOnProgress(callback: (suspend (String, Int, Int) -> Unit)?) { onProgress = callback }
+    private var detailLog: (suspend (String) -> Unit)? = null
+    fun setOnDetailLog(callback: (suspend (String) -> Unit)?) { detailLog = callback }
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -72,6 +74,7 @@ class PointsTaskRunner(
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
         log("已读取登录凭证")
         log("已获取设备信息")
+        detailLog = null
         val signInDone = stateStore?.isSignInDone() ?: false
         val taskListDone = stateStore?.isTaskListDone() ?: false
         val appVideoCount = stateStore?.getAppVideoCount() ?: 0
@@ -255,6 +258,7 @@ class PointsTaskRunner(
     private suspend fun runAppVideos(token: String, ua: String, log: suspend (String) -> Unit) {
         val taskCode = findVideoAdTaskCode(token, ua, listOf("广告"), log) ?: "2"
         log("APP 广告使用 taskCode: " + taskCode)
+        detailLog?.invoke("[TASK] APP 广告匹配结果: $taskCode")
         val startFrom = stateStore?.getAppVideoCount() ?: 0
         if (startFrom > 0) log("→ 已观看过 " + startFrom + " 次，从第 " + (startFrom + 1) + " 次继续")
         log("→ 开始观看 APP 广告（共 20 次）")
@@ -287,6 +291,7 @@ class PointsTaskRunner(
     private suspend fun runAlipayVideos(token: String, ua: String, log: suspend (String) -> Unit) {
         val aliTaskCode = findVideoAdTaskCode(token, ua, listOf("支付宝"), log) ?: "9"
         log("支付宝广告使用 taskCode: " + aliTaskCode)
+        detailLog?.invoke("[TASK] 支付宝广告匹配结果: $aliTaskCode")
         val startFrom = stateStore?.getAlipayVideoCount() ?: 0
         if (startFrom > 0) log("→ 已观看过 " + startFrom + " 次，从第 " + (startFrom + 1) + " 次继续")
         log("→ 开始观看支付宝广告（共 50 次）")
