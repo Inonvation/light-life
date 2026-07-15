@@ -315,7 +315,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                 onClick = { vm.clearPointsLogs() },
                                 modifier = Modifier.height(32.dp),
                                 shape = RoundedCornerShape(6.dp)
-                            ) { Text("清空日志", style = MaterialTheme.typography.labelSmall) }
+                            ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
                         }
                     }
 

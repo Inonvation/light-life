@@ -135,7 +135,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("执行日志", style = MaterialTheme.typography.labelLarge)
+                    Text("执行进度", style = MaterialTheme.typography.labelLarge)
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacings.xs)) {
                         if (state.pointsLogs.isNotEmpty()) {
                             OutlinedButton(

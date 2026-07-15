@@ -13,6 +13,7 @@ import com.example.devicecontrol.data.TaskLogStore
 import com.example.devicecontrol.data.PointsStatsStore
 import com.example.devicecontrol.data.UnlockResult
 import com.example.devicecontrol.data.BackupData
+import com.example.devicecontrol.data.DebugLogStore
 import com.example.devicecontrol.data.BackupManager
 import com.example.devicecontrol.data.RestoreCounts
 import com.example.devicecontrol.data.TaskCancelledException
@@ -114,6 +115,9 @@ data class AppUiState(
     val showSettings: Boolean = false,
     val userAgent: String = "",
     val deviceInfoDialogText: String? = null,
+    val debugLogEnabled: Boolean = false,
+    val showDebugLogs: Boolean = false,
+    val debugLogs: List<Pair<String, String>> = emptyList(),
 )
 
 class AppViewModel(
@@ -124,9 +128,10 @@ class AppViewModel(
     private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
     private val backupManager: BackupManager? = null,
+    private val debugLogStore: DebugLogStore? = null,
 ) : ViewModel() {
     private var pendingBackup: BackupData? = null
-    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore)
+    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore).also { it.setDebugLog(debugLogStore) }
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private var unlockTimerJob: Job? = null
     private val _state = MutableStateFlow(
@@ -146,6 +151,7 @@ class AppViewModel(
                 autoCleanLogsEnabled = it.isAutoCleanLogsEnabled(),
                 simpleModeEnabled = it.isSimpleModeEnabled(),
                 backupPrivacySafe = it.isBackupPrivacySafe(),
+                debugLogEnabled = debugLogStore?.isEnabled() ?: false,
                 userAgent = it.getUserAgent(),
             ) }
         }
@@ -337,6 +343,8 @@ class AppViewModel(
         pointsTaskRunner.paused = false
         pointsTaskRunner.cancelled = false
         val detailLogs = mutableListOf<String>()
+        // 标记调试日志会话起始点
+        debugLogStore?.markSessionStart()
         runCatching {
             _state.update {
                 it.copy(
@@ -376,8 +384,13 @@ class AppViewModel(
                 )}
             }
             refreshBalance()
-            // 保存本次执行日志到文件
-            logStore?.save(state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" })
+            // 保存本次执行日志到文件（包含简洁进度和调试日志）
+            val simpleLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
+            val debugContent = debugLogStore?.getSessionContent() ?: ""
+            val fullLog = if (debugContent.isNotBlank()) {
+                simpleLog + "\n\n--- 调试日志 ---\n" + debugContent
+            } else simpleLog
+            logStore?.save(fullLog)
             // 完成后自动清除当天归档日志
             if (state.value.autoCleanLogsEnabled) {
                 logStore?.clearToday()
@@ -392,9 +405,18 @@ class AppViewModel(
             }
             // 失败时也保存日志
             val failLogContent = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
-            val failFull = if (detailLogs.isNotEmpty()) {
-                    failLogContent + "\n\n--- 详细日志（仅文件记录）---\n" + detailLogs.joinToString("\n")
-                } else failLogContent
+            val debugContent = debugLogStore?.getSessionContent() ?: ""
+            val failFull = buildString {
+                append(failLogContent)
+                if (detailLogs.isNotEmpty()) {
+                    append("\n\n--- 详细日志（仅文件记录）---\n")
+                    append(detailLogs.joinToString("\n"))
+                }
+                if (debugContent.isNotBlank()) {
+                    append("\n\n--- 调试日志 ---\n")
+                    append(debugContent)
+                }
+            }
             logStore?.save(failFull)
         }
         _state.update { it.copy(runningPointsTask = false, pointsProgress = null) }
@@ -417,7 +439,12 @@ class AppViewModel(
         pointsTaskRunner.paused = false
         _state.update { it.copy(pointsTaskPaused = false, runningPointsTask = false) }
         appendPointLog("用户已结束任务")
-        logStore?.save(state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" })
+        val simpleLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
+        val debugContent = debugLogStore?.getSessionContent() ?: ""
+        val fullLog = if (debugContent.isNotBlank()) {
+            simpleLog + "\n\n--- 调试日志 ---\n" + debugContent
+        } else simpleLog
+        logStore?.save(fullLog)
     }
 
     fun clearPointsLogs() {
@@ -473,7 +500,37 @@ class AppViewModel(
         _state.update { it.copy(logCompactEnabled = v) }
     }
 
+    fun toggleDebugLog() {
+        val v = !state.value.debugLogEnabled
+        debugLogStore?.setEnabled(v)
+        _state.update { it.copy(debugLogEnabled = v) }
+        if (v) debugLogStore?.d("VM", "Debug logging enabled")
+    }
+
+    fun showDebugLogs() {
+        _state.update { it.copy(debugLogs = debugLogStore?.listFiles() ?: emptyList(), showDebugLogs = true) }
+    }
+
+    fun dismissDebugLogs() {
+        _state.update { it.copy(showDebugLogs = false) }
+    }
+
+    fun clearDebugLogs() {
+        debugLogStore?.clearAll()
+        _state.update { it.copy(debugLogs = emptyList()) }
+    }
+
+    fun deleteDebugLog(name: String) {
+        debugLogStore?.deleteFile(name)
+        _state.update { it.copy(debugLogs = it.debugLogs.filter { it.first != name }) }
+    }
+
+    fun getDebugLogContent(): String {
+        return debugLogStore?.getLatestContent() ?: ""
+    }
+
     fun toggleBackupPrivacySafe() {
+        debugLogStore?.d("VM", "toggleBackupPrivacySafe")
         val v = !state.value.backupPrivacySafe
         taskStateStore?.setBackupPrivacySafe(v)
         _state.update { it.copy(backupPrivacySafe = v) }
@@ -520,6 +577,7 @@ class AppViewModel(
     }
 
     fun restoreFromBackupJson(json: String) {
+        debugLogStore?.d("VM", "restoreFromBackupJson: length=${json.length}")
         viewModelScope.launch {
             runCatching {
                 val backup = backupManager?.fromJson(json)
@@ -560,7 +618,7 @@ class AppViewModel(
 
                 // token 有效或备份没有 token，正常恢复
                 val counts = doRestoreBackup(backup)
-                showToast("已恢复 " + counts.orders + " 条订单、" + counts.logs + " 条执行日志")
+                showToast("已恢复 " + counts.orders + " 条订单、" + counts.logs + " 条任务记录")
             }.onFailure { e ->
                 showToast("导入失败：" + (e.message ?: "未知错误"))
             }
@@ -568,6 +626,7 @@ class AppViewModel(
     }
 
     fun confirmBackupImportOrdersOnly() {
+        debugLogStore?.d("VM", "confirmBackupImportOrdersOnly")
         val backup = pendingBackup ?: return
         pendingBackup = null
         _state.update { it.copy(showBackupTokenExpiredDialog = false) }
@@ -753,6 +812,7 @@ class AppViewModel(
     }
 
     private fun handleTokenExpired() {
+        debugLogStore?.d("VM", "handleTokenExpired: clearing token")
         repository.clearToken()
         _state.update { it.copy(
             hasToken = false,
@@ -776,9 +836,10 @@ class AppViewModelFactory(
     private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
     private val backupManager: BackupManager? = null,
+    private val debugLogStore: DebugLogStore? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager) as T
+        return AppViewModel(repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager, debugLogStore) as T
     }
 }
