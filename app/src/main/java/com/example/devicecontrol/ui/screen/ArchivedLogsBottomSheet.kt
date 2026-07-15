@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -172,7 +173,7 @@ fun ArchivedLogsBottomSheet(state: AppUiState, vm: AppViewModel) {
                         // Log entries for this date
                         itemsIndexed(logs, key = { _, (name, _) -> name }) { _, (name, content) ->
                             val isExpanded = expandedIndex == state.archivedLogs.indexOfFirst { it.first == name }
-                            SwipeToDeleteArchivedLog(
+                            ArchivedLogCard(
                                 name = name,
                                 content = content,
                                 isExpanded = isExpanded,
@@ -209,164 +210,36 @@ private fun DateSectionHeader(date: String) {
 }
 
 @Composable
-private fun SwipeToDeleteArchivedLog(
+private fun ArchivedLogCard(
     name: String,
     content: String,
     isExpanded: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val revealWidthPx = with(density) { 72.dp.toPx() }
-    val offsetX = remember { Animatable(0f) }
-    var isRevealed by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    // Reset state when expanded changes
-    LaunchedEffect(isExpanded) {
-        if (isExpanded && offsetX.value != 0f) {
-            offsetX.animateTo(0f, tween(250, easing = FastOutSlowInEasing))
-            isRevealed = false
-            confirmDelete = false
-        }
-    }
-
-    // Reset confirm state when card snaps back
-    LaunchedEffect(isRevealed) {
-        if (!isRevealed) confirmDelete = false
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 3.dp)
-    ) {
-        // Delete action area - positioned to the right, revealed by card sliding left
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min)
-                .padding(start = 56.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            AnimatedVisibility(
-                visible = isRevealed,
-                enter = fadeIn(tween(200)),
-                exit = fadeOut(tween(150))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(
-                            color = if (confirmDelete) Color(0xFFC62828) else Color(0xFFE53935),
-                            shape = CircleShape
-                        )
-                        .clickable(
-                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            if (!confirmDelete) {
-                                confirmDelete = true
-                            } else {
-                                scope.launch {
-                                    offsetX.animateTo(0f, tween(200))
-                                    isRevealed = false
-                                    confirmDelete = false
-                                }
-                                onDelete()
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.animation.AnimatedContent(
-                        targetState = confirmDelete,
-                        transitionSpec = {
-                            fadeIn(tween(200)) + scaleIn(initialScale = 0.8f, animationSpec = tween(200)) togetherWith
-                                    fadeOut(tween(150)) + scaleOut(targetScale = 0.8f, animationSpec = tween(150))
-                        },
-                        label = "deleteBtnContent"
-                    ) { confirming ->
-                        if (confirming) {
-                            Text(
-                                text = "确认删除",
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 10.sp
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Outlined.Delete,
-                                contentDescription = "删除",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
+    // Delete confirmation dialog
+    if (showDeleteConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("确认删除") },
+            text = { Text("确定要删除这条执行日志吗？") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = false; onDelete() }) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text("取消")
                 }
             }
-        }
-
-        // Foreground card
-        androidx.compose.material3.Card(
-            onClick = {},
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .pointerInput(Unit) {
-                    detectHorizontalDragGestures(
-                        onDragEnd = {
-                            scope.launch {
-                                if (offsetX.value < -revealWidthPx * 0.4f) {
-                                    offsetX.animateTo(-revealWidthPx, tween(250, easing = FastOutSlowInEasing))
-                                    isRevealed = true
-                                } else {
-                                    offsetX.animateTo(0f, tween(250, easing = FastOutSlowInEasing))
-                                    isRevealed = false
-                                    confirmDelete = false
-                                }
-                            }
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            scope.launch {
-                                val currentOffset = offsetX.value
-                                val newOffset = (currentOffset + dragAmount).coerceIn(-revealWidthPx, 0f)
-                                offsetX.snapTo(newOffset)
-                            }
-                        }
-                    )
-                }
-                .clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null
-                ) {
-                    if (isRevealed) {
-                        scope.launch {
-                            offsetX.animateTo(0f, tween(250, easing = FastOutSlowInEasing))
-                            isRevealed = false
-                            confirmDelete = false
-                        }
-                    } else {
-                        onClick()
-                    }
-                },
-            shape = RoundedCornerShape(10.dp),
-            colors = androidx.compose.material3.CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            )
-        ) {
-            ArchivedLogCardContent(name = name, content = content, isExpanded = isExpanded)
-        }
+        )
     }
-}
 
-@Composable
-private fun ArchivedLogCardContent(
-    name: String,
-    content: String,
-    isExpanded: Boolean,
-) {
     val logTime = remember(name) {
         try {
             val timePart = name.removePrefix("run_").removeSuffix(".txt")
@@ -385,55 +258,84 @@ private fun ArchivedLogCardContent(
         else -> LogColors.info
     }
 
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (hasError) Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircleOutline,
-                contentDescription = null,
-                tint = statusColor,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(Modifier.width(Spacings.sm))
-            Text(
-                text = logTime,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                contentDescription = if (isExpanded) "折叠" else "展开",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        // Tap to copy when expanded
-        AnimatedVisibility(
-            visible = isExpanded,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            val clipboardManager = LocalClipboardManager.current
-            val context = LocalContext.current
-            Column(
+    androidx.compose.material3.Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        shape = RoundedCornerShape(10.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column {
+            Row(
                 modifier = Modifier
-                    .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
-                    .clickable {
-                        clipboardManager.setText(AnnotatedString(content))
-                        android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
-                    }
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                Spacer(Modifier.height(Spacings.sm))
-                val lines = content.split("\n")
-                lines.forEach { line ->
-                    LogDetailLine(line)
+                Icon(
+                    imageVector = if (hasError) Icons.Outlined.ErrorOutline else Icons.Outlined.CheckCircleOutline,
+                    contentDescription = null,
+                    tint = statusColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(Spacings.sm))
+                Text(
+                    text = logTime,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+                // Delete icon button
+                IconButton(
+                    onClick = { showDeleteConfirm = true },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "删除",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                // Expand/collapse arrow
+                IconButton(
+                    onClick = onClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "折叠" else "展开",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            // Expanded content (same style as order history)
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
+                ) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(Modifier.height(Spacings.sm))
+                    Column(
+                        modifier = Modifier.clickable {
+                            clipboard.setText(AnnotatedString(content))
+                            android.widget.Toast.makeText(context, "日志已复制到剪贴板", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    ) {
+                        val lines = content.split("\n")
+                        lines.forEach { line ->
+                            LogLine(line)
+                        }
+                    }
                 }
             }
         }
@@ -441,7 +343,7 @@ private fun ArchivedLogCardContent(
 }
 
 @Composable
-private fun LogDetailLine(line: String) {
+private fun LogLine(line: String) {
     val color = when {
         line.contains("成功") || line.contains("完成") || line.contains("获得") -> LogColors.success
         line.contains("失败") || line.contains("错误") || line.contains("异常") -> LogColors.error
@@ -463,11 +365,6 @@ private fun LogDetailLine(line: String) {
         )
     }
 }
-
-/**
- * Group archived logs by date for section display.
- * Returns list of (dateHeader, logs) pairs.
- */
 private fun groupLogsByDate(logs: List<Pair<String, String>>): List<Pair<String, List<Pair<String, String>>>> {
     val today = java.text.SimpleDateFormat("MMdd", java.util.Locale.CHINA).format(java.util.Date())
     val calendar = java.util.Calendar.getInstance()
@@ -489,9 +386,7 @@ private fun groupLogsByDate(logs: List<Pair<String, String>>): List<Pair<String,
                 yesterday -> "昨天"
                 else -> "${mm.toInt()}月${dd.toInt()}日"
             }
-        } catch (_: Exception) {
-            "未知日期"
-        }
+        } catch (_: Exception) { "未知日期" }
         grouped.getOrPut(dateHeader) { mutableListOf() }.add(log)
     }
 
