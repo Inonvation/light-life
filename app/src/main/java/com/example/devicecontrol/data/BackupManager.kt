@@ -102,15 +102,20 @@ class BackupManager(private val context: Context) {
                     )
                 },
                 taskLogs = logs?.ifEmpty { null },
-                dailyTaskState = taskStateStore?.let {
-                    DailyTaskStatePayload(
-                        phase = it.getPhase(),
-                        signInDone = it.isSignInDone(),
-                        taskListDone = it.isTaskListDone(),
-                        appVideoCount = it.getAppVideoCount(),
-                        alipayVideoCount = it.getAlipayVideoCount(),
-                        runDate = it.getRunDate(),
-                    )
+                dailyTaskState = run {
+                    val adPrefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
+                    val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA).format(java.util.Date())
+                    val savedDate = adPrefs.getString("signin_done_date", "") ?: ""
+                    if (savedDate == today) {
+                        DailyTaskStatePayload(
+                            phase = "none",
+                            signInDone = adPrefs.getBoolean("signin_done", false),
+                            taskListDone = adPrefs.getBoolean("tasklist_done", false),
+                            appVideoCount = adPrefs.getInt("app_video", 0),
+                            alipayVideoCount = adPrefs.getInt("alipay_video", 0),
+                            runDate = today,
+                        )
+                    } else null
                 },
             ),
         )
@@ -202,16 +207,20 @@ class BackupManager(private val context: Context) {
         payload.dailyTaskState?.let { daily ->
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA).format(java.util.Date())
             if (daily.runDate == today && daily.phase != "none") {
-                taskPrefs.edit()
-                    .putString("phase", daily.phase)
+                val adPrefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
+                adPrefs.edit()
                     .putBoolean("signin_done", daily.signInDone)
+                    .putString("signin_done_date", daily.runDate)
                     .putBoolean("tasklist_done", daily.taskListDone)
+                    .putString("tasklist_done_date", daily.runDate)
                     .putInt("app_video", daily.appVideoCount)
+                    .putString("app_video_date", daily.runDate)
                     .putInt("alipay_video", daily.alipayVideoCount)
-                    .putString("run_date", daily.runDate)
+                    .putString("alipay_video_date", daily.runDate)
                     .apply()
             }
         }
+
 
         return RestoreCounts(orderCount, logCount)
     }
