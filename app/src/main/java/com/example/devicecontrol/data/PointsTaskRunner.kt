@@ -30,6 +30,8 @@ class PointsTaskRunner(
     fun setOnProgress(callback: (suspend (String, Int, Int) -> Unit)?) { onProgress = callback }
     private var detailLog: (suspend (String) -> Unit)? = null
     fun setOnDetailLog(callback: (suspend (String) -> Unit)?) { detailLog = callback }
+    private var debugLog: DebugLogStore? = null
+    fun setDebugLog(log: DebugLogStore?) { debugLog = log }
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -68,6 +70,7 @@ class PointsTaskRunner(
     }
 
     suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
+        debugLog?.d("Runner", "run: start, userAgent=${userAgent.take(50)}")
         val runDate = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
         stateStore?.setSessionDate(runDate)
 
@@ -87,6 +90,7 @@ class PointsTaskRunner(
         log(lb.toString())
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
         val userName = user.dataMap()["userName"]?.toString()
+        debugLog?.d("Runner", "userInfo: code=${user.codeInt()}, userName=$userName")
         log(if (userName.isNullOrBlank()) "当前账号未设置昵称" else "当前账号：" + userName)
         val before = balance(token, userAgent)
         log("当前积分：" + (before ?: "-"))
@@ -131,6 +135,7 @@ class PointsTaskRunner(
             userAgent = ua,
             fields = mapOf("activityId" to "600001", "token" to token),
         )
+        debugLog?.d("Runner", "signIn: code=${res.codeInt()}, msg=${res.messageText()}")
         when (res.codeInt()) {
             0 -> {
                 val total = res.dataMap()["totalIntegral"] ?: "-"
@@ -363,10 +368,12 @@ class PointsTaskRunner(
             .post(form)
             .headers(headers(url, token, userAgent, timestamp, channel))
             .build()
+        debugLog?.d("Runner", "request: ${url.substringAfterLast("/")} channel=$channel")
         return withContext(Dispatchers.IO) {
             client.newCall(req).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    debugLog?.e("Runner", "HTTP ${response.code}: ${url.substringAfterLast("/")}, body=${body.take(300)}")
                     if (response.code == 401 || response.code == 403) {
                         throw TokenExpiredException()
                     }
