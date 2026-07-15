@@ -63,9 +63,9 @@ class PointsTaskRunner(
 
         suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
-        val phase = stateStore?.getPhase() ?: "none"
-        if (phase == "complete") stateStore?.reset()
-        if (phase == "none" || phase == "complete") stateStore?.setPhase("start")
+        var phase = stateStore?.getPhase() ?: "none"
+        if (phase == "complete") { stateStore?.reset(); phase = "none" }
+        if (phase == "none") stateStore?.setPhase("start")
         log("已读取登录凭证")
         log("已获取设备信息")
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
