@@ -155,7 +155,11 @@ private fun DeviceControlApp(vm: AppViewModel) {
 
     state.orderDetail?.let { OrderDetailDialog(detail = it, onDismiss = vm::dismissOrderDetail) }
 
-    if (state.simpleModeEnabled) {
+    // 从 SharedPreferences 直接读取简洁模式状态（非响应式），仅在应用启动时生效
+    val store = remember { PointsTaskStateStore(context) }
+    val simpleModeActive = remember { store.isSimpleModeEnabled() }
+
+    if (simpleModeActive) {
         // 简洁模式：仅显示 SimpleScreen
         Box(modifier = Modifier.fillMaxSize()) {
             SimpleScreen(state = state, vm = vm)

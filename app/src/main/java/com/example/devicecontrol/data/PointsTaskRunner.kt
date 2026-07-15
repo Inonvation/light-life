@@ -57,39 +57,45 @@ class PointsTaskRunner(
     private fun isQuotaExhausted(res: Map<String, Any?>): Boolean {
         val code = res.codeInt()
         val data = res["data"]
-        // code 非 0，或 code=0 但 data 不为 true，都视为额度耗尽
-        return (code != null && code != 0) || data != true
+        // 仅 code=0 但 data 非 true 时视为额度耗尽
+        // 其他 code（如服务器错误）不视为额度耗尽，避免误标导致当天广告全部跳过
+        return code == 0 && data != true
     }
 
-        suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
+    suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
-        var phase = stateStore?.getPhase() ?: "none"
-        if (phase == "complete") { stateStore?.reset(); phase = "none" }
-        if (phase == "none") stateStore?.setPhase("start")
         log("已读取登录凭证")
         log("已获取设备信息")
+        val signInDone = stateStore?.isSignInDone() ?: false
+        val taskListDone = stateStore?.isTaskListDone() ?: false
+        val appVideoCount = stateStore?.getAppVideoCount() ?: 0
+        val alipayVideoCount = stateStore?.getAlipayVideoCount() ?: 0
+        log("已读取本地断点")
+        val lb = StringBuilder("断点: ")
+        if (signInDone) lb.append("签到 ") else lb.append("签到✗ ")
+        if (taskListDone) lb.append("任务 ") else lb.append("任务✗ ")
+        lb.append("APP广告${appVideoCount}/20 支付宝广告${alipayVideoCount}/50")
+        log(lb.toString())
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
         val userName = user.dataMap()["userName"]?.toString()
         log(if (userName.isNullOrBlank()) "当前账号未设置昵称" else "当前账号：$userName")
         val before = balance(token, userAgent)
         log("当前积分：${before ?: "-"}")
-        if (phase in listOf("none", "start")) {
-            checkPause(); signIn(token, userAgent, log); stateStore?.setPhase("signin_done"); checkPause()
+        if (!signInDone) {
+            checkPause(); signIn(token, userAgent, log); checkPause()
         }
-        if (phase in listOf("none", "start", "signin_done")) {
-            checkPause(); shieldingQuery(token, userAgent, log); log("▶ 执行浏览任务"); queryByType(token, userAgent, log); stateStore?.setPhase("browse_done"); checkPause()
+        if (!taskListDone) {
+            delay(1000); checkPause(); runTaskList(token, userAgent, log); checkPause()
         }
-        if (phase in listOf("none", "start", "signin_done", "browse_done")) {
-            delay(1000); checkPause(); runTaskList(token, userAgent, log); stateStore?.setPhase("tasks_done"); checkPause()
-        }
-        if ((stateStore?.getAppVideoCount() ?: 0) < 20) { runAppVideos(token, userAgent, log); stateStore?.setPhase("app_videos_done"); checkPause() }
-        if ((stateStore?.getAlipayVideoCount() ?: 0) < 50) { runAlipayVideos(token, userAgent, log); stateStore?.setPhase("ali_videos_done"); checkPause() }
+        if (appVideoCount < 20) { runAppVideos(token, userAgent, log); checkPause() }
+        if (alipayVideoCount < 50) { runAlipayVideos(token, userAgent, log); checkPause() }
         delay(3000)
         val after = balance(token, userAgent); val gained = after?.let { a -> before?.let { b -> a - b } }
         log("总积分：${after ?: "-"}")
         val conclusion = when { gained != null && gained > 0 -> "本次获得 $gained 积分"; gained == 0 -> "积分未变化，广告次数可能已达上限"; else -> "无法获取积分数据" }
-        log(conclusion); stateStore?.setPhase("complete")
-    }private suspend fun signIn(token: String, ua: String, log: suspend (String) -> Unit) {
+        log(conclusion)
+    }
+    private suspend fun signIn(token: String, ua: String, log: suspend (String) -> Unit) {
         log("▶ 签到...")
         val res = request(
             url = "https://userapi.qiekj.com/signin/doUserSignIn",
@@ -98,33 +104,9 @@ class PointsTaskRunner(
             fields = mapOf("activityId" to "600001", "token" to token),
         )
         when (res.codeInt()) {
-            0 -> log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}")
-            33001 -> log("签到：今日已完成")
+            0 -> { log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}"); stateStore?.setSignInDone(true) }
+            33001 -> { log("签到：今日已完成"); stateStore?.setSignInDone(true) }
             else -> log("签到失败（code: ${res.codeInt()}）")
-        }
-    }
-
-    private suspend fun shieldingQuery(token: String, ua: String, log: suspend (String) -> Unit) {
-        val res = request(
-            url = "https://userapi.qiekj.com/shielding/query",
-            token = token,
-            userAgent = ua,
-            fields = mapOf("shieldingResourceType" to "1", "token" to token),
-        )
-        log("环境检查完成")
-    }
-
-    private suspend fun queryByType(token: String, ua: String, log: suspend (String) -> Unit) {
-        val res = request(
-            url = "https://userapi.qiekj.com/task/queryByType",
-            token = token,
-            userAgent = ua,
-            fields = mapOf("taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a", "token" to token),
-        )
-        if (res.codeInt() == 0 && res["data"] == true) {
-            log("浏览任务已触发")
-        } else {
-            log("浏览任务触发失败（code: ${res.codeInt()}）")
         }
     }
 
@@ -138,6 +120,7 @@ class PointsTaskRunner(
         val items = (res.dataMap()["items"] as? List<*>)?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
         if (items.isEmpty()) {
             log("无可执行任务，跳过")
+            stateStore?.setTaskListDone(true)
             return
         }
         var executedCount = 0
@@ -155,7 +138,7 @@ class PointsTaskRunner(
                 if (taskFailed) return@repeat
                 reportProgress(title, index + 1, limit)
                 val taskRes = completeTask(token, ua, taskCode)
-                val ok = taskRes.codeInt() == 0 && taskRes["data"] == true
+                val ok = taskRes.codeInt() == 0 && taskRes.isDataTrue()
                 val seq = if (limit > 1) "（${index + 1}/$limit）" else ""
                 if (ok) {
                     log("$title$seq 完成")
@@ -173,6 +156,7 @@ class PointsTaskRunner(
         } else {
             log("任务列表执行完毕")
         }
+        stateStore?.setTaskListDone(true)
     }
     private suspend fun runAppVideos(token: String, ua: String, log: suspend (String) -> Unit) {
         val startFrom = stateStore?.getAppVideoCount() ?: 0
@@ -185,8 +169,7 @@ class PointsTaskRunner(
                 log("  广告 #${i + 1}：网络异常，结束广告阶段")
                 return
             }
-            if (res.codeInt() == 0 && res["data"] == true) {
-                log("  ✓ 广告 #${i + 1}/20 完成")
+            if (res.codeInt() == 0 && res.isDataTrue()) {
                 stateStore?.setAppVideoCount(i + 1)
                 cancellableDelay(15000)
             } else if (isQuotaExhausted(res)) {
@@ -194,7 +177,7 @@ class PointsTaskRunner(
                 stateStore?.setAppVideoCount(20)
                 return
             } else {
-                log("  广告 #${i + 1}/20 失败（code: ${res.codeInt()}），结束广告阶段")
+                log("  广告 #${i + 1}/20 失败（code: ${res.codeInt()}, data: ${res["data"]}），结束广告阶段")
                 return
             }
         }
@@ -219,7 +202,7 @@ class PointsTaskRunner(
                 log("  支付宝广告 #${i + 1}：网络异常，结束广告阶段")
                 return
             }
-            if (res.codeInt() == 0 && res["data"] == true) {
+            if (res.codeInt() == 0 && res.isDataTrue()) {
                 log("  ✓ 支付宝广告 #${i + 1}/50 完成")
                 stateStore?.setAlipayVideoCount(i + 1)
                 cancellableDelay(15000)
@@ -228,7 +211,7 @@ class PointsTaskRunner(
                 stateStore?.setAlipayVideoCount(50)
                 return
             } else {
-                log("  支付宝广告 #${i + 1}/50 失败（code: ${res.codeInt()}），结束广告阶段")
+                log("  支付宝广告 #${i + 1}/50 失败（code: ${res.codeInt()}, data: ${res["data"]}），结束广告阶段")
                 return
             }
         }
@@ -314,6 +297,15 @@ class PointsTaskRunner(
 
     private fun Map<String, Any?>.codeInt(): Int? = (this["code"] as? Number)?.toInt()
     private fun Map<String, Any?>.dataMap(): Map<String, Any?> = this["data"] as? Map<String, Any?> ?: emptyMap()
+    // 安全比较 data 是否为 true，处理服务端返回 1、"true"、true 等不同格式
+    private fun Map<String, Any?>.isDataTrue(): Boolean {
+        val d = this["data"] ?: return false
+        return when (d) {
+            is Boolean -> d
+            is Number -> d.toInt() == 1
+            else -> d.toString().toBooleanStrictOrNull() ?: false
+        }
+    }
 
     private companion object {
         const val VERSION = ApiConfig.VERSION

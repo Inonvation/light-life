@@ -83,7 +83,6 @@ private data class TaskPhase(val key: String, val label: String)
 
 private val PHASES = listOf(
     TaskPhase("signin", "签到"),
-    TaskPhase("browse", "浏览任务"),
     TaskPhase("tasklist", "任务列表"),
     TaskPhase("app_video", "APP 视频广告"),
     TaskPhase("ali_video", "支付宝视频广告"),
@@ -92,10 +91,9 @@ private val PHASES = listOf(
 private fun phaseToIndex(phase: String): Int = when (phase) {
     "none", "start" -> 0
     "signin_done" -> 1
-    "browse_done" -> 2
-    "tasks_done" -> 3
-    "app_videos_done" -> 4
-    "ali_videos_done", "complete" -> 5
+    "tasks_done" -> 2
+    "app_videos_done" -> 3
+    "ali_videos_done", "complete" -> 4
     else -> -1
 }
 

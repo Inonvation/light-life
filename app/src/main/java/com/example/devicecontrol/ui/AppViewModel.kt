@@ -455,6 +455,8 @@ class AppViewModel(
         val v = !state.value.simpleModeEnabled
         taskStateStore?.setSimpleModeEnabled(v)
         _state.update { it.copy(simpleModeEnabled = v) }
+        if (v) showToast("简洁模式将在下次启动 App 时生效")
+        else showToast("完整模式将在下次启动 App 时生效")
     }
 
         fun updateThemeMode(mode: ThemeMode) {
