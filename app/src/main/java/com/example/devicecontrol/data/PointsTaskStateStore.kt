@@ -19,7 +19,11 @@ class PointsTaskStateStore(context: Context) {
     fun getAlipayVideoCount(): Int = if (isToday()) prefs.getInt("alipay_video", 0) else 0
     fun setAlipayVideoCount(n: Int) { prefs.edit().putInt("alipay_video", n).putString("run_date", today()).apply() }
 
+    fun isSignInDone(): Boolean = isToday() && prefs.getBoolean("signin_done", false)
+    fun setSignInDone(v: Boolean) { prefs.edit().putBoolean("signin_done", v).putString("run_date", today()).apply() }
 
+    fun isTaskListDone(): Boolean = isToday() && prefs.getBoolean("tasklist_done", false)
+    fun setTaskListDone(v: Boolean) { prefs.edit().putBoolean("tasklist_done", v).putString("run_date", today()).apply() }
 
     fun isLogCompactEnabled(): Boolean = prefs.getBoolean("log_compact", true)
     fun setLogCompactEnabled(v: Boolean) { prefs.edit().putBoolean("log_compact", v).apply() }
@@ -29,6 +33,9 @@ class PointsTaskStateStore(context: Context) {
 
     fun isAutoCleanLogsEnabled(): Boolean = prefs.getBoolean("auto_clean_logs", false)
     fun setAutoCleanLogsEnabled(v: Boolean) { prefs.edit().putBoolean("auto_clean_logs", v).apply() }
+
+    fun isSimpleModeEnabled(): Boolean = prefs.getBoolean("simple_mode", false)
+    fun setSimpleModeEnabled(v: Boolean) { prefs.edit().putBoolean("simple_mode", v).apply() }
 
     fun getPhase(): String {
         if (!isToday()) {
@@ -45,7 +52,7 @@ class PointsTaskStateStore(context: Context) {
     fun reset() {
         val editor = prefs.edit()
         // 只删除任务运行状态，保留用户偏好设置
-        listOf("run_date", "app_video", "alipay_video", "task_codes", "phase").forEach { editor.remove(it) }
+        listOf("run_date", "app_video", "alipay_video", "signin_done", "tasklist_done", "task_codes", "phase").forEach { editor.remove(it) }
         editor.apply()
     }
 }

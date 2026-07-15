@@ -20,6 +20,7 @@ data class BackupPayload(
     val logCompactEnabled: Boolean? = null,
     val autoCleanLogsEnabled: Boolean? = null,
     val userAgent: String? = null,
+    val simpleModeEnabled: Boolean? = null,
     val orderHistory: List<OrderHistoryItem>? = null,
     val pointsStats: PointsStatsPayload? = null,
     val taskLogs: List<TaskLogPayload>? = null,
@@ -40,6 +41,8 @@ data class TaskLogPayload(
 
 data class DailyTaskStatePayload(
     val phase: String = "none",
+    val signInDone: Boolean = false,
+    val taskListDone: Boolean = false,
     val appVideoCount: Int = 0,
     val alipayVideoCount: Int = 0,
     val runDate: String = "",
@@ -73,6 +76,7 @@ class BackupManager(private val context: Context) {
         logCompactEnabled: Boolean,
         autoCleanLogsEnabled: Boolean,
         userAgent: String,
+        simpleModeEnabled: Boolean,
         taskStateStore: PointsTaskStateStore? = null,
     ): BackupData {
         val logs = taskLogStore?.let { store ->
@@ -89,6 +93,7 @@ class BackupManager(private val context: Context) {
                 logCompactEnabled = logCompactEnabled,
                 autoCleanLogsEnabled = autoCleanLogsEnabled,
                 userAgent = userAgent,
+                simpleModeEnabled = simpleModeEnabled,
                 orderHistory = orderHistory.ifEmpty { null },
                 pointsStats = pointsStats?.let {
                     PointsStatsPayload(
@@ -100,6 +105,8 @@ class BackupManager(private val context: Context) {
                 dailyTaskState = taskStateStore?.let {
                     DailyTaskStatePayload(
                         phase = it.getPhase(),
+                        signInDone = it.isSignInDone(),
+                        taskListDone = it.isTaskListDone(),
                         appVideoCount = it.getAppVideoCount(),
                         alipayVideoCount = it.getAlipayVideoCount(),
                         runDate = it.getRunDate(),
@@ -183,6 +190,7 @@ class BackupManager(private val context: Context) {
         payload.logCompactEnabled?.let { taskPrefs.edit().putBoolean("log_compact", it).apply() }
         payload.autoCleanLogsEnabled?.let { taskPrefs.edit().putBoolean("auto_clean_logs", it).apply() }
         payload.userAgent?.let { if (it.isNotBlank()) taskPrefs.edit().putString("user_agent", it).apply() }
+        payload.simpleModeEnabled?.let { taskPrefs.edit().putBoolean("simple_mode", it).apply() }
 
         // 恢复 Token（需要通过 TokenStore 写入 EncryptedSharedPreferences）
         payload.token?.let { token ->
@@ -196,6 +204,8 @@ class BackupManager(private val context: Context) {
             if (daily.runDate == today && daily.phase != "none") {
                 taskPrefs.edit()
                     .putString("phase", daily.phase)
+                    .putBoolean("signin_done", daily.signInDone)
+                    .putBoolean("tasklist_done", daily.taskListDone)
                     .putInt("app_video", daily.appVideoCount)
                     .putInt("alipay_video", daily.alipayVideoCount)
                     .putString("run_date", daily.runDate)
