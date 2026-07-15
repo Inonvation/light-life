@@ -40,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -98,7 +99,7 @@ class MainActivity : ComponentActivity() {
         val debugLogStore = DebugLogStore(applicationContext)
         setContent {
             val vm: AppViewModel = viewModel(
-                factory = AppViewModelFactory(repository, (packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"), statsStore, taskStateStore, taskLogStore, themePrefs, BackupManager(applicationContext), debugLogStore),
+                factory = AppViewModelFactory(applicationContext, repository, (packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown"), statsStore, taskStateStore, taskLogStore, themePrefs, BackupManager(applicationContext), debugLogStore),
             )
             val uiState by vm.state.collectAsState()
             DeviceControlTheme(
@@ -279,6 +280,17 @@ private fun DeviceControlApp(vm: AppViewModel) {
         if (target >= 0 && pagerState.currentPage != target) {
             pagerState.animateScrollToPage(target, animationSpec = tween(300, easing = FastOutSlowInEasing))
         }
+    }
+
+    // 滑动 pager 时同步更新 currentTab（反向同步）
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.currentPage }
+            .collect { page ->
+                val newTab = TAB_LIST[page]
+                if (newTab != state.currentTab) {
+                    vm.selectTab(newTab)
+                }
+            }
     }
 
     Scaffold(

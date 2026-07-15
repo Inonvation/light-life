@@ -1,5 +1,6 @@
-﻿package com.example.devicecontrol.data
+package com.example.devicecontrol.data
 
+import android.content.Context
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -9,165 +10,126 @@ import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import kotlin.jvm.Volatile
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.jvm.Volatile
 
 class TaskCancelledException : Exception()
 
 class PointsTaskRunner(
     private val tokenProvider: () -> String?,
-    private val stateStore: PointsTaskStateStore? = null,
+    private val context: Context? = null,
 ) {
     @Volatile
-    var paused = false
-    @Volatile
     var cancelled = false
-    private var onProgress: (suspend (String, Int, Int) -> Unit)? = null
-    fun setOnProgress(callback: (suspend (String, Int, Int) -> Unit)?) { onProgress = callback }
-    private var onPhaseResult: (suspend (String, String) -> Unit)? = null
-    fun setOnPhaseResult(callback: (suspend (String, String) -> Unit)?) { onPhaseResult = callback }
-    private var detailLog: (suspend (String) -> Unit)? = null
-    fun setOnDetailLog(callback: (suspend (String) -> Unit)?) { detailLog = callback }
-    private var debugLog: DebugLogStore? = null
-    fun setDebugLog(log: DebugLogStore?) { debugLog = log }
+
     private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .writeTimeout(10, TimeUnit.SECONDS)
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
+        .writeTimeout(20, TimeUnit.SECONDS)
         .build()
 
     private val jsonAdapter: JsonAdapter<Map<String, Any?>> = Moshi.Builder()
         .build()
         .adapter(Types.newParameterizedType(Map::class.java, String::class.java, Any::class.java))
 
-    private suspend fun checkPause() {
-        while (paused) {
-            if (cancelled) throw TaskCancelledException()
-            delay(500)
-        }
+    private val statePrefs by lazy {
+        context?.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
+    }
+
+    private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+
+    /** 读取今天某个广告任务已完成的次数，跨天自动归零 */
+    private fun getAdCount(key: String): Int {
+        val prefs = statePrefs ?: return 0
+        val savedDate = prefs.getString("${key}_date", "") ?: ""
+        if (savedDate != today()) return 0
+        return prefs.getInt(key, 0)
+    }
+
+    /** 写入今天某个广告任务的完成次数 */
+    private fun setAdCount(key: String, count: Int) {
+        val prefs = statePrefs ?: return
+        prefs.edit()
+            .putInt(key, count)
+            .putString("${key}_date", today())
+            .apply()
+    }
+
+    /** 读取布尔状态（如签到、首页浏览是否完成），跨天自动归零 */
+    private fun getState(key: String): Boolean {
+        val prefs = statePrefs ?: return false
+        val savedDate = prefs.getString("${key}_date", "") ?: ""
+        if (savedDate != today()) return false
+        return prefs.getBoolean(key, false)
+    }
+
+    /** 写入布尔状态 */
+    private fun setState(key: String, value: Boolean) {
+        val prefs = statePrefs ?: return
+        prefs.edit()
+            .putBoolean(key, value)
+            .putString("${key}_date", today())
+            .apply()
+    }
+
+
+    private fun checkCancelled() {
         if (cancelled) throw TaskCancelledException()
     }
 
-    private suspend fun cancellableDelay(ms: Long) {
-        var remaining = ms
-        while (remaining > 0) {
-            checkPause()
-            delay(minOf(500L, remaining))
-            remaining -= 500L
-        }
-    }
-
-    private suspend fun reportProgress(phase: String, step: Int, total: Int) {
-        onProgress?.invoke(phase, step, total)
-    }
-
-    private fun isQuotaExhausted(res: Map<String, Any?>): Boolean {
-        val code = res.codeInt()
-        val data = res["data"]
-        return code == 0 && data is Boolean && data == false
-    }
-
     suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
-        debugLog?.d("Runner", "run: start, userAgent=${userAgent.take(50)}")
-        val runDate = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
-        stateStore?.setSessionDate(runDate)
-
+        checkCancelled()
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
-        detailLog = null
-        val signInDone = stateStore?.isSignInDone() ?: false
-        val taskListDone = stateStore?.isTaskListDone() ?: false
-        val appVideoCount = stateStore?.getAppVideoCount() ?: 0
-        val alipayVideoCount = stateStore?.getAlipayVideoCount() ?: 0
 
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
         val userName = user.dataMap()["userName"]?.toString()
-        debugLog?.d("Runner", "userInfo: code=${user.codeInt()}, userName=$userName")
-        log(if (userName.isNullOrBlank()) "账号：未设置昵称" else "账号：" + userName)
+        log(if (userName.isNullOrBlank()) "当前账号未设置昵称" else "当前账号：$userName")
 
-        var pts = balance(token, userAgent) ?: 0
-        val startPts = pts
-        log("初始积分：$pts")
+        val before = balance(token, userAgent)
+        log("任务前积分：${before ?: "-"}")
 
-        val lb = StringBuilder()
-        if (signInDone) lb.append("签到✓ ") else lb.append("签到○ ")
-        if (taskListDone) lb.append("任务✓ ") else lb.append("任务○ ")
-        lb.append("APP广告${appVideoCount}/20 支付宝广告${alipayVideoCount}/50")
-        log(lb.toString())
-
-        suspend fun refreshPts(label: String) {
-            val newPts = balance(token, userAgent) ?: return
-            val d = newPts - pts
-            if (d != 0) {
-                log("  └ $label：${if (d > 0) "+$d" else "$d"} 积分（累计 $newPts）")
-                pts = newPts
-            }
-        }
-        if (!signInDone) {
-            checkPause(); signIn(token, userAgent, log); checkPause()
-            refreshPts("签到")
-        }
-        onPhaseResult?.invoke("signin", "done")
+        checkCancelled()
+        signIn(token, userAgent, log)
+        checkCancelled()
         shieldingQuery(token, userAgent, log)
+        log("开始执行首页浏览任务")
         queryByType(token, userAgent, log)
-        if (!taskListDone) {
-            cancellableDelay(1000); checkPause(); runTaskList(token, userAgent, log); checkPause()
-            refreshPts("任务列表")
-        }
-        onPhaseResult?.invoke("tasklist", "done")
-        if (appVideoCount < 20) { runAppVideos(token, userAgent, log); checkPause() }
-        if (alipayVideoCount < 50) { runAlipayVideos(token, userAgent, log); checkPause() }
-        cancellableDelay(2000)
-        val after = balance(token, userAgent) ?: pts
-        val gained = after - startPts
-        log("最终积分：$after")
-        val conclusion = when {
-            gained > 0 -> "本次获得 $gained 积分"
-            gained == 0 -> "积分未变化，广告次数可能已达上限"
-            else -> "无法获取积分数据"
-        }
-        log(conclusion)
-    }
 
-    private suspend fun <T> withRetry(maxRetries: Int = 2, block: suspend () -> T): T {
-        repeat(maxRetries) { attempt ->
-            try {
-                return block()
-            } catch (e: TaskCancelledException) {
-                throw e
-            } catch (e: TokenExpiredException) {
-                throw e
-            } catch (e: Exception) {
-                if (attempt == maxRetries - 1) throw e
-                delay(3000L * (attempt + 1))
-            }
-        }
-        return block()
+        checkCancelled()
+        delay(1000)
+        runTaskList(token, userAgent, log)
+        checkCancelled()
+        runAppVideos(token, userAgent, log)
+        checkCancelled()
+        runAlipayVideos(token, userAgent, log)
+
+        checkCancelled()
+        delay(3000)
+        val after = balance(token, userAgent)
+        val gained = after?.let { a -> before?.let { b -> a - b } }
+        log("总积分：${after ?: "-"}，今日积分：${gained ?: "-"}")
+        log("所有任务均已完成")
     }
 
     private suspend fun signIn(token: String, ua: String, log: suspend (String) -> Unit) {
-        log("▶ 签到")
+        if (getState("signin_done")) { log("签到：本地已记录，跳过"); return }
+        log("开始执行签到...")
         val res = request(
             url = "https://userapi.qiekj.com/signin/doUserSignIn",
             token = token,
             userAgent = ua,
             fields = mapOf("activityId" to "600001", "token" to token),
         )
-        debugLog?.d("Runner", "signIn: code=${res.codeInt()}, msg=${res.messageText()}")
         when (res.codeInt()) {
-            0 -> {
-                val total = res.dataMap()["totalIntegral"] ?: "-"
-                log("  ✓ 签到成功")
-                stateStore?.setSignInDone(true)
+            0 -> { log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}")
+                setState("signin_done", true)
             }
-            33001 -> {
-                log("  ✓ 今天已签到")
-                stateStore?.setSignInDone(true)
-            }
-            else -> log("签到失败：" + res.messageText())
+            33001 -> log("今天已经签到过")
+            else -> log("签到失败：${res.messageText()}")
         }
     }
 
@@ -178,201 +140,127 @@ class PointsTaskRunner(
             userAgent = ua,
             fields = mapOf("shieldingResourceType" to "1", "token" to token),
         )
-        log("▶ 环境检查完成")
+        log("屏蔽资源查询完成：${res.messageText()}")
     }
 
     private suspend fun queryByType(token: String, ua: String, log: suspend (String) -> Unit) {
-        log("▶ 首页浏览")
+        if (getState("homepage_done")) { log("首页浏览：本地已记录，跳过"); return }
         val res = request(
             url = "https://userapi.qiekj.com/task/queryByType",
             token = token,
             userAgent = ua,
             fields = mapOf("taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a", "token" to token),
         )
-        val completedStatus = (res.dataMap()["completedStatus"] as? Number)?.toInt()
-        if (completedStatus == 1) {
-            log("  ✓ 今日已完成")
+        if (res.codeInt() == 0 && res["data"] == true) {
+            log("首页浏览成功，获得积分")
+            setState("homepage_done", true)
         } else {
-            log("  ✓ 首页浏览完成")
+            log("首页浏览失败：${res.messageText()}")
         }
     }
 
     private suspend fun runTaskList(token: String, ua: String, log: suspend (String) -> Unit) {
-        log("▶ 任务列表")
+        if (getState("tasklist_done")) { log("任务列表：本地已记录，跳过"); return }
+        log("开始获取任务列表")
         val res = request("https://userapi.qiekj.com/task/list", token, ua, mapOf("token" to token))
         if (res.codeInt() != 0) {
-            log("  ✗ 获取失败：" + res.messageText())
+            log("获取任务列表失败：${res.messageText()}")
             return
         }
         val items = (res.dataMap()["items"] as? List<*>)?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
-        val completedCodes = stateStore?.getCompletedTaskCodes() ?: emptySet()
-        var executedCount = 0
         for (item in items) {
+            checkCancelled()
             val completed = (item["completedStatus"] as? Number)?.toInt() ?: -1
-            val taskCode = item["taskCode"]?.toString() ?: continue
-            if (taskCode in NOT_FINISH_TASKS) continue
-            if (completed != 0 || taskCode in completedCodes) continue
+            val taskCode = item["taskCode"] ?: continue
+            if (completed != 0 || taskCode.toString() in NOT_FINISH_TASKS) continue
 
             val title = item["title"]?.toString().orEmpty().ifBlank { "未命名任务" }
-            // 广告类任务留给专门的广告函数处理，避免重复消费
-            val isAdTask = title.contains("广告") || title.contains("视频") || title.contains("支付宝")
-            if (isAdTask) continue
             val limit = (item["dailyTaskLimit"] as? Number)?.toInt() ?: 1
-            log("  ▸ " + title)
-            var taskOk = true
+            log("开始执行任务：$title")
             repeat(limit) { index ->
-                checkPause()
-                val taskRes = try {
-                    completeTask(token, ua, taskCode)
-                } catch (e: TokenExpiredException) {
-                    throw e
-                } catch (e: Exception) {
-                    if (e is TokenExpiredException) throw e
-                    log("    ✗ 第" + (index + 1) + "次：" + (e.message ?: "未知错误") + "，跳过")
-                    taskOk = false
-                    return@repeat
-                }
+                checkCancelled()
+                val taskRes = completeTask(token, ua, taskCode)
                 if (taskRes.codeInt() == 0 && taskRes["data"] == true) {
-                    log("    ✓ 第" + (index + 1) + "次完成")
+                    log("$title 第${index + 1}次完成")
                 } else {
-                    log("    ✗ 第" + (index + 1) + "次：" + taskRes.messageText())
-                    taskOk = false
+                    log("$title 第${index + 1}次失败：${taskRes.messageText()}")
                     return@repeat
                 }
-                if (index < limit - 1) cancellableDelay(10000)
+                if (index < limit - 1) delay(10_000)
             }
-            if (taskOk) {
-                stateStore?.addCompletedTaskCode(taskCode)
-                executedCount++
-            }
-            cancellableDelay(5000)
+            delay(5_000)
         }
-        if (executedCount == 0) {
-            log("  所有任务已完成")
-        } else {
-            log("  任务列表执行完毕")
-        }
-        val remaining = items.count { item ->
-            val completed = (item["completedStatus"] as? Number)?.toInt() ?: -1
-            val code = item["taskCode"]?.toString() ?: ""
-            code !in NOT_FINISH_TASKS && completed == 0 && code !in (stateStore?.getCompletedTaskCodes() ?: emptySet())
-        }
-        if (remaining == 0) {
-            stateStore?.setTaskListDone(true)
-        }
-    }
-
-    private suspend fun findVideoAdTaskCode(token: String, ua: String, keywords: List<String>, log: suspend (String) -> Unit): String? {
-        val res = request("https://userapi.qiekj.com/task/list", token, ua, mapOf("token" to token))
-        if (res.codeInt() != 0) return null
-        val items = (res.dataMap()["items"] as? List<*>)?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
-        for (item in items) {
-            val title = item["title"]?.toString().orEmpty()
-            val taskCode = item["taskCode"]?.toString() ?: continue
-            if (taskCode in NOT_FINISH_TASKS) continue
-            val completed = (item["completedStatus"] as? Number)?.toInt() ?: -1
-            val limit = ((item["dailyTaskLimit"] as? Number)?.toInt() ?: 1)
-            if (keywords.any { title.contains(it) } && completed < limit) {
-                return taskCode
-            }
-        }
-        return null
+        setState("tasklist_done", true)
     }
 
     private suspend fun runAppVideos(token: String, ua: String, log: suspend (String) -> Unit) {
-        val taskCode = findVideoAdTaskCode(token, ua, listOf("广告", "视频"), log)
-        if (taskCode == null) { log("▶ APP 广告：无可用任务，跳过"); onPhaseResult?.invoke("app_video", "done"); return }
-        log("▶ APP 广告（code=$taskCode）")
-        detailLog?.invoke("[TASK] APP 广告匹配结果: $taskCode")
-        val startFrom = stateStore?.getAppVideoCount() ?: 0
-        if (startFrom > 0) log("  续跑，已完成 $startFrom/20")
-        for (i in startFrom until 20) {
-            checkPause()
-            reportProgress("APP 广告", i + 1, 20)
-            val res = try {
-                withRetry { completeTask(token, ua, taskCode) }
-            } catch (e: TokenExpiredException) {
-                throw e
-            } catch (e: Exception) {
-                if (e is TokenExpiredException) throw e
-                log("  ✗ #${i + 1}/20：" + (e.message ?: "未知错误") + "，结束")
-                onPhaseResult?.invoke("app_video", "fail")
-                return
-            }
-            if (res.codeInt() == 0 && res.isDataTrue()) {
-                log("  ✓ #${i + 1}/20")
-                stateStore?.setAppVideoCount(i + 1)
-                cancellableDelay(15000)
-            } else if (isQuotaExhausted(res)) {
-                log("  ─ 今日已达上限")
-                stateStore?.setAppVideoCount(20)
-                onPhaseResult?.invoke("app_video", "done")
-                return
+        val total = 20
+        val startFrom = getAdCount("app_video")
+        if (startFrom >= total) {
+            log("APP 视频任务：今日已完成 $startFrom/$total，跳过")
+            return
+        }
+        if (startFrom > 0) {
+            log("APP 视频任务：从第${startFrom + 1}次开始（已完成 $startFrom/$total）")
+        } else {
+            log("开始执行 APP 视频任务")
+        }
+        for (index in startFrom until total) {
+            checkCancelled()
+            val res = completeTask(token, ua, 2)
+            if (res.codeInt() == 0 && res["data"] == true) {
+                log("第${index + 1}次 APP 视频任务完成")
+                setAdCount("app_video", index + 1)
+                delay(15_000)
             } else {
-                log("  ✗ #${i + 1}/20 失败（code=${res.codeInt() ?: -1}），结束")
-                onPhaseResult?.invoke("app_video", "fail")
+                log("APP 视频任务停止：${res.messageText()}")
                 return
             }
         }
-        log("  ✓ APP 广告 20 次全部完成")
-        onPhaseResult?.invoke("app_video", "done")
     }
 
     private suspend fun runAlipayVideos(token: String, ua: String, log: suspend (String) -> Unit) {
-        val aliTaskCode = findVideoAdTaskCode(token, ua, listOf("支付宝"), log)
-        if (aliTaskCode == null) { log("▶ 支付宝广告：无可用任务，跳过"); onPhaseResult?.invoke("ali_video", "done"); return }
-        log("▶ 支付宝广告（code=$aliTaskCode）")
-        detailLog?.invoke("[TASK] 支付宝广告匹配结果: $aliTaskCode")
-        val startFrom = stateStore?.getAlipayVideoCount() ?: 0
-        if (startFrom > 0) log("  续跑，已完成 $startFrom/50")
-        for (i in startFrom until 50) {
-            checkPause()
-            reportProgress("支付宝广告", i + 1, 50)
-            val res = try {
-                withRetry { completeTask(token, ua, taskCode = aliTaskCode, channel = "alipay") }
-            } catch (e: TokenExpiredException) {
-                throw e
-            } catch (e: Exception) {
-                if (e is TokenExpiredException) throw e
-                log("  ✗ #${i + 1}/50：" + (e.message ?: "未知错误") + "，结束")
-                onPhaseResult?.invoke("ali_video", "fail")
-                return
-            }
-            if (res.codeInt() == 0 && res.isDataTrue()) {
-                log("  ✓ #${i + 1}/50")
-                stateStore?.setAlipayVideoCount(i + 1)
-                cancellableDelay(15000)
-            } else if (isQuotaExhausted(res)) {
-                log("  ─ 今日已达上限")
-                stateStore?.setAlipayVideoCount(50)
-                onPhaseResult?.invoke("ali_video", "done")
-                return
+        val total = 50
+        val startFrom = getAdCount("alipay_video")
+        if (startFrom >= total) {
+            log("支付宝视频任务：今日已完成 $startFrom/$total，跳过")
+            return
+        }
+        if (startFrom > 0) {
+            log("支付宝视频任务：从第${startFrom + 1}次开始（已完成 $startFrom/$total）")
+        } else {
+            log("开始执行支付宝视频任务")
+        }
+        for (index in startFrom until total) {
+            checkCancelled()
+            val res = request(
+                url = "https://userapi.qiekj.com/task/completed",
+                token = token,
+                userAgent = ua,
+                fields = mapOf("taskCode" to "9", "token" to token),
+                channel = "alipay",
+            )
+            if (res.codeInt() == 0 && res["data"] == true) {
+                log("第${index + 1}次支付宝视频任务完成")
+                setAdCount("alipay_video", index + 1)
+                delay(15_000)
             } else {
-                log("  ✗ #${i + 1}/50 失败（code=${res.codeInt() ?: -1}），结束")
-                onPhaseResult?.invoke("ali_video", "fail")
+                log("支付宝视频任务停止：${res.messageText()}")
                 return
             }
         }
-        log("  ✓ 支付宝广告 50 次全部完成")
-        onPhaseResult?.invoke("ali_video", "done")
     }
 
-    private suspend fun completeTask(token: String, ua: String, taskCode: Any, channel: String = "android_app"): Map<String, Any?> {
-        val fields = mapOf("taskCode" to taskCode.toString(), "token" to token)
-        val getRes = request("https://userapi.qiekj.com/task/completed", token, ua, fields, channel = channel, method = "GET")
-        if (getRes.codeInt() != -1) return getRes
-        debugLog?.d("Runner", "completeTask: GET code=-1 for $taskCode, retry POST")
-        return request("https://userapi.qiekj.com/task/completed", token, ua, fields, channel = channel, method = "POST")
-    }
+    private suspend fun completeTask(token: String, ua: String, taskCode: Any): Map<String, Any?> = request(
+        url = "https://userapi.qiekj.com/task/completed",
+        token = token,
+        userAgent = ua,
+        fields = mapOf("taskCode" to taskCode.toString(), "token" to token),
+    )
 
     private suspend fun balance(token: String, ua: String): Int? {
         val res = request("https://userapi.qiekj.com/user/balance", token, ua, mapOf("token" to token))
-        val integral = res.dataMap()["integral"]
-        return when (integral) {
-            is Number -> integral.toInt()
-            is String -> integral.toDoubleOrNull()?.toInt()
-            else -> null
-        }
+        return (res.dataMap()["integral"] as? Number)?.toInt()
     }
 
     private suspend fun request(
@@ -381,50 +269,22 @@ class PointsTaskRunner(
         userAgent: String,
         fields: Map<String, String>,
         channel: String = "android_app",
-        method: String = "POST",
     ): Map<String, Any?> {
         val timestamp = System.currentTimeMillis().toString()
-        val isGet = method.equals("GET", ignoreCase = true)
-        val signUrl: String
-        val req: Request
-        if (isGet) {
-            signUrl = url
-            val queryParts = fields.entries.joinToString("&") { "${it.key}=${it.value}" }
-            req = Request.Builder()
-                .url("$url?$queryParts")
-                .get()
-                .headers(headers(signUrl, token, userAgent, timestamp, channel))
-                .build()
-        } else {
-            signUrl = url
-            val form = FormBody.Builder().apply {
-                fields.forEach { (key, value) -> add(key, value) }
-            }.build()
-            req = Request.Builder()
-                .url(url)
-                .post(form)
-                .headers(headers(signUrl, token, userAgent, timestamp, channel))
-                .build()
-        }
-        debugLog?.d("Runner", "request: ${url.substringAfterLast("/")} channel=$channel method=$method")
+        val form = FormBody.Builder().apply {
+            fields.forEach { (key, value) -> add(key, value) }
+        }.build()
+        val req = Request.Builder()
+            .url(url)
+            .post(form)
+            .headers(headers(url, token, userAgent, timestamp, channel))
+            .build()
         return withContext(Dispatchers.IO) {
             client.newCall(req).execute().use { response ->
                 val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) {
-                    debugLog?.e("Runner", "HTTP ${response.code}: ${url.substringAfterLast("/")}, body=${body.take(300)}")
-                    if (response.code == 401 || response.code == 403) {
-                        throw TokenExpiredException()
-                    }
-                    error("HTTP " + response.code + ": " + body.take(300))
-                }
-                val result = runCatching { jsonAdapter.fromJson(body).orEmpty() }
-                    .getOrElse { error("响应解析失败：" + (it.message ?: body.take(300))) }
-                val resCode = result.codeInt()
-                val resMsg = result.messageText()
-                if (TokenExpiredException.isTokenExpired(resCode, resMsg)) {
-                    throw TokenExpiredException(resMsg)
-                }
-                result
+                if (!response.isSuccessful) error("HTTP ${response.code}: ${body.take(300)}")
+                runCatching { jsonAdapter.fromJson(body).orEmpty() }
+                    .getOrElse { error("响应解析失败：${it.message ?: body.take(300)}") }
             }
         }
     }
@@ -444,21 +304,19 @@ class PointsTaskRunner(
             .add("phoneBrand", "Redmi")
             .add("timestamp", timestamp)
             .add("sign", sign)
-            .add("token", token)
             .add("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8")
             .add("Host", "userapi.qiekj.com")
             .add("Connection", "Keep-Alive")
-            .add("Accept-Encoding", "gzip")
             .add("User-Agent", userAgent)
             .build()
     }
 
     private fun sign(timestamp: String, url: String, token: String): String = sha256(
-        "appSecret=" + ANDROID_SECRET + "&channel=android_app&timestamp=" + timestamp + "&token=" + token + "&version=" + ApiConfig.VERSION + "&" + url.drop(25),
+        "appSecret=$ANDROID_SECRET&channel=android_app&timestamp=$timestamp&token=$token&version=$VERSION&${url.drop(25)}",
     )
 
     private fun signzfb(timestamp: String, url: String, token: String): String = sha256(
-        "appSecret=" + ALIPAY_SECRET + "&channel=alipay&timestamp=" + timestamp + "&token=" + token + "&version=" + VERSION + "&" + url.drop(25),
+        "appSecret=$ALIPAY_SECRET&channel=alipay&timestamp=$timestamp&token=$token&version=$VERSION&${url.drop(25)}",
     )
 
     private fun sha256(value: String): String {
@@ -469,14 +327,6 @@ class PointsTaskRunner(
     private fun Map<String, Any?>.codeInt(): Int? = (this["code"] as? Number)?.toInt()
     private fun Map<String, Any?>.messageText(): String = this["msg"]?.toString() ?: this["message"]?.toString() ?: "未知结果"
     private fun Map<String, Any?>.dataMap(): Map<String, Any?> = this["data"] as? Map<String, Any?> ?: emptyMap()
-    private fun Map<String, Any?>.isDataTrue(): Boolean {
-        val d = this["data"] ?: return false
-        return when (d) {
-            is Boolean -> d
-            is Number -> d.toInt() == 1
-            else -> d.toString().toBooleanStrictOrNull() ?: false
-        }
-    }
 
     private companion object {
         const val VERSION = ApiConfig.VERSION

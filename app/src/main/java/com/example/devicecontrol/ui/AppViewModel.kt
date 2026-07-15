@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import com.example.devicecontrol.data.UnlockException
 import com.example.devicecontrol.data.TokenExpiredException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 
 enum class DeviceTab { Control, Points, Me }
@@ -127,6 +128,7 @@ data class AppUiState(
 )
 
 class AppViewModel(
+    private val context: android.content.Context,
     private val repository: AppRepository,
     private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
@@ -137,7 +139,8 @@ class AppViewModel(
     private val debugLogStore: DebugLogStore? = null,
 ) : ViewModel() {
     private var pendingBackup: BackupData? = null
-    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, taskStateStore).also { it.setDebugLog(debugLogStore) }
+    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, context)
+    private var pointsTaskJob: Job? = null
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private var unlockTimerJob: Job? = null
     private val _state = MutableStateFlow(
@@ -379,116 +382,80 @@ class AppViewModel(
         unlockTimerJob?.cancel()
         _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0) }
     }
-        fun startPointsTask(userAgent: String) = viewModelScope.launch {
-        if (state.value.runningPointsTask) return@launch
-        pointsTaskRunner.paused = false
-        pointsTaskRunner.cancelled = false
-        val detailLogs = mutableListOf<String>()
-        // 标记调试日志会话起始点
-        debugLogStore?.markSessionStart()
-        runCatching {
-            _state.update {
-                it.copy(
-                    runningPointsTask = true,
-                    pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)),
-                    userAgent = userAgent,
-                    pointsProgress = null,
-                    pointsPhaseResults = emptyMap(),
-                )
-            }
-            taskStateStore?.setUserAgent(userAgent)
-            pointsTaskRunner.setOnDetailLog { line ->
-                detailLogs.add(line)
-            }
-            pointsTaskRunner.setOnProgress { phase, step, total ->
-                _state.update { it.copy(pointsProgress = PointsProgress(phase, step, total)) }
-            }
-            pointsTaskRunner.setOnPhaseResult { phase, result ->
-                _state.update { it.copy(pointsPhaseResults = it.pointsPhaseResults + (phase to result)) }
-            }
-            pointsTaskRunner.run(userAgent) { line ->
-                appendPointLog(line)
-            }
-        }.onSuccess {
-            appendPointLog("任务流程结束")
-            // 从日志中解析本次获得积分并保存到统计
-            val gainedPoints = run {
-                val entry = state.value.pointsLogs.findLast { it.message.contains("本次获得") && it.message.contains("积分") }
-                if (entry != null) {
-                    val regex = Regex("本次获得\\s*(\\d+)")
-                    regex.find(entry.message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                } else 0
-            }
-            if (gainedPoints > 0) {
-                pointsStatsStore?.addEarned(gainedPoints)
-            }
-            pointsStatsStore?.let {
-                _state.update { s -> s.copy(
-                    totalPointsEarned = it.getTotalEarned(),
-                    totalPointsDeducted = it.getTotalDeductedAmount(),
-                )}
-            }
-            refreshBalance()
-            // 保存本次执行日志到文件（包含简洁进度和调试日志）
-            val simpleLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
-            val debugContent = debugLogStore?.getSessionContent() ?: ""
-            val fullLog = if (debugContent.isNotBlank()) {
-                simpleLog + "\n\n--- 调试日志 ---\n" + debugContent
-            } else simpleLog
-            logStore?.save(fullLog)
-            // 完成后自动清除当天归档日志
-            if (state.value.autoCleanLogsEnabled) {
-                logStore?.clearToday()
-                taskStateStore?.reset()
-            }
-        }.onFailure { e ->
-            val errMsg = e.message ?: "未知错误"
-            if (e is TaskCancelledException) {
-                appendPointLog("任务已终止")
-            } else {
-                appendPointLog("任务失败：$errMsg")
-            }
-            // 失败时也保存日志
-            val failLogContent = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
-            val debugContent = debugLogStore?.getSessionContent() ?: ""
-            val failFull = buildString {
-                append(failLogContent)
-                if (detailLogs.isNotEmpty()) {
-                    append("\n\n--- 详细日志（仅文件记录）---\n")
-                    append(detailLogs.joinToString("\n"))
+    fun startPointsTask(userAgent: String) {
+        if (state.value.runningPointsTask) return
+        // Cancel old job and wait for it to finish before starting a new one
+        pointsTaskJob?.cancel()
+        pointsTaskJob = viewModelScope.launch {
+            pointsTaskRunner.cancelled = false
+            runCatching {
+                _state.update {
+                    it.copy(
+                        runningPointsTask = true,
+                        pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)),
+                        userAgent = userAgent,
+                    )
                 }
-                if (debugContent.isNotBlank()) {
-                    append("\n\n--- 调试日志 ---\n")
-                    append(debugContent)
+                pointsTaskRunner.run(userAgent) { line ->
+                    appendPointLog(line)
                 }
+            }.onSuccess {
+                appendPointLog("任务流程结束")
+                val gainedPoints = run {
+                    val entry = state.value.pointsLogs.findLast { it.message.contains("今日积分") }
+                    if (entry != null) {
+                        val regex = Regex("今日积分：(\\d+)")
+                        regex.find(entry.message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    } else 0
+                }
+                if (gainedPoints > 0) {
+                    pointsStatsStore?.addEarned(gainedPoints)
+                }
+                pointsStatsStore?.let {
+                    _state.update { s -> s.copy(
+                        totalPointsEarned = it.getTotalEarned(),
+                        totalPointsDeducted = it.getTotalDeductedAmount(),
+                    )}
+                }
+                refreshBalance()
+                val fullLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
+                logStore?.save(fullLog)
+                if (state.value.autoCleanLogsEnabled) {
+                    logStore?.clearToday()
+                    taskStateStore?.reset()
+                }
+            }.onFailure { e ->
+                if (e is CancellationException) return@launch
+                val errMsg = e.message ?: "未知错误"
+                if (e is TaskCancelledException) {
+                    appendPointLog("任务已终止")
+                } else {
+                    appendPointLog("任务失败：$errMsg")
+                }
+                val failLogContent = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
+                logStore?.save(failLogContent)
             }
-            logStore?.save(failFull)
+            _state.update { it.copy(runningPointsTask = false) }
         }
-        _state.update { it.copy(runningPointsTask = false, pointsProgress = null) }
     }
 
     fun pausePointsTask() {
-        pointsTaskRunner.paused = true
         _state.update { it.copy(pointsTaskPaused = true) }
         appendPointLog("任务已暂停")
     }
 
     fun resumePointsTask() {
-        pointsTaskRunner.paused = false
         _state.update { it.copy(pointsTaskPaused = false) }
         appendPointLog("任务已继续")
     }
 
     fun stopPointsTask() {
+        pointsTaskJob?.cancel()
+        pointsTaskJob = null
         pointsTaskRunner.cancelled = true
-        pointsTaskRunner.paused = false
         _state.update { it.copy(pointsTaskPaused = false, runningPointsTask = false) }
         appendPointLog("用户已结束任务")
-        val simpleLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
-        val debugContent = debugLogStore?.getSessionContent() ?: ""
-        val fullLog = if (debugContent.isNotBlank()) {
-            simpleLog + "\n\n--- 调试日志 ---\n" + debugContent
-        } else simpleLog
+        val fullLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
         logStore?.save(fullLog)
     }
 
@@ -892,6 +859,7 @@ class AppViewModel(
 }
 
 class AppViewModelFactory(
+    private val context: android.content.Context,
     private val repository: AppRepository,
     private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
@@ -903,6 +871,6 @@ class AppViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager, debugLogStore) as T
+        return AppViewModel(context, repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager, debugLogStore) as T
     }
 }
