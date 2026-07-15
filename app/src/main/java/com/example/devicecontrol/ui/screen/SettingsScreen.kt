@@ -175,17 +175,9 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                         val isAtBottom = value >= maxValue
 
                         if (isAtTop && !wasAtTop) {
-                            if (vibrator.hasAmplitudeControl()) {
-                                vibrator.vibrate(VibrationEffect.createOneShot(5, 30))
-                            } else {
-                                vibrator.vibrate(VibrationEffect.createOneShot(5, VibrationEffect.DEFAULT_AMPLITUDE))
-                            }
+                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
                         } else if (isAtBottom && !wasAtBottom) {
-                            if (vibrator.hasAmplitudeControl()) {
-                                vibrator.vibrate(VibrationEffect.createOneShot(5, 30))
-                            } else {
-                                vibrator.vibrate(VibrationEffect.createOneShot(5, VibrationEffect.DEFAULT_AMPLITUDE))
-                            }
+                            vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
                         }
 
                         wasAtTop = isAtTop
