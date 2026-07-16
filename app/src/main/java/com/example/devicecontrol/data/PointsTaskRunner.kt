@@ -300,7 +300,7 @@ class PointsTaskRunner(
                 checkCancelled()
                 if (isAdTask && index < getAdCount("ad_task")) return@repeat
                 val taskRes = completeTask(token, ua, taskCode)
-                // 广告任务先检查是否已全部完成，再判断是否成功
+                // 广告任务先检查是否已全部完成
                 if (isAdTask && isAlreadyCompletedResponse(taskRes)) {
                     log("$title 已全部完成（服务器反馈）")
                     setAdCount("ad_task", adTaskTotal())

@@ -9,7 +9,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -142,6 +145,9 @@ private fun DeviceControlApp(vm: AppViewModel) {
     }
     BackHandler(enabled = state.showSettings) {
         vm.dismissSettings()
+    }
+    BackHandler(enabled = state.showLogCenter) {
+        vm.dismissLogCenter()
     }
 
     LaunchedEffect(state.toastMessage) {
@@ -308,9 +314,9 @@ private fun DeviceControlApp(vm: AppViewModel) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            // 底部导航栏始终渲染以保持 padding 稳定，设置页打开时平滑淡出
+            // 底部导航栏始终渲染以保持 padding 稳定，设置页/日志打开时平滑淡出
             val bottomBarAlpha by animateFloatAsState(
-                targetValue = if (state.showSettings) 0f else 1f,
+                targetValue = if (state.showSettings || state.showLogCenter) 0f else 1f,
                 animationSpec = tween(200, easing = FastOutSlowInEasing),
                 label = "bottomBarAlpha"
             )
@@ -386,8 +392,12 @@ private fun DeviceControlApp(vm: AppViewModel) {
             SettingsScreen(state = state, vm = vm)
         }
 
-        // ═══ 日志中心（独立于设置，可直接在主界面弹出）═══
-        if (state.showLogCenter) {
+        // ═══ 日志中心（带右侧滑入/滑出动画）═══
+        AnimatedVisibility(
+            visible = state.showLogCenter,
+            enter = slideInHorizontally { it },
+            exit = slideOutHorizontally { it },
+        ) {
             LogCenterScreen(state = state, vm = vm)
         }
     }
