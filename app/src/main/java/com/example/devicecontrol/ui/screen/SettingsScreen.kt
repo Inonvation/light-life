@@ -168,19 +168,19 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
         // 滚动到顶部/底部时触发触感反馈
         LaunchedEffect(scrollState) {
             var lastEdgeTrigger = 0L
-            var previouslyAtEdge = false
-            snapshotFlow { scrollState.isScrollInProgress }
-                .collect { inProgress ->
-                    if (inProgress) return@collect
-                    val value = scrollState.value
-                    val max = scrollState.maxValue
-                    if (max <= 0) return@collect
-                    val atEdge = value <= 1 || value >= max - 1
-                    if (atEdge && !previouslyAtEdge && System.currentTimeMillis() - lastEdgeTrigger > 500) {
-                        lastEdgeTrigger = System.currentTimeMillis()
-                        if (vm.state.value.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            var started = false
+            snapshotFlow { scrollState.canScrollBackward to scrollState.canScrollForward }
+                .collect { pair ->
+                    if (!started) { started = true; return@collect }
+                    val atEdge = pair.first == false || pair.second == false
+                    if (atEdge) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastEdgeTrigger > 500) {
+                            lastEdgeTrigger = now
+                            if (vm.state.value.hapticEnabled)
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
                     }
-                    previouslyAtEdge = atEdge
                 }
         }
 
