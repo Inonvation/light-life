@@ -47,44 +47,48 @@ jobs:
 
       - name: 生成 Release 内容
         run: |
-          PREV=$(git tag --sort=-v:refname | sed -n '2p')
-          if [ -z "$PREV" ]; then
-            LOG=$(git log --oneline --no-decorate HEAD)
+          if [ -f RELEASE.md ]; then
+            cp RELEASE.md release_body.md
           else
-            LOG=$(git log --oneline --no-decorate "$PREV"..HEAD)
-          fi
-
-          FEAT=$(echo "$LOG" | grep -iE '^[a-f0-9]+ feat' | sed -E 's/^[a-f0-9]+ feat[：:] *//')
-          FIX=$(echo "$LOG" | grep -iE '^[a-f0-9]+ fix' | sed -E 's/^[a-f0-9]+ fix[：:] *//')
-          REFACTOR=$(echo "$LOG" | grep -iE '^[a-f0-9]+ (refactor|perf)' | sed -E 's/^[a-f0-9]+ (refactor|perf)[：:] *//')
-
-          {
-            echo "## 更新内容"
-            echo ""
-
-            if [ -n "$FEAT" ]; then
-              echo "### ✨ 新增"
-              echo "$FEAT" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
-              echo ""
+            PREV=$(git tag --sort=-v:refname | sed -n '2p')
+            if [ -z "$PREV" ]; then
+              LOG=$(git log --oneline --no-decorate HEAD)
+            else
+              LOG=$(git log --oneline --no-decorate "$PREV"..HEAD)
             fi
 
-            if [ -n "$FIX" ]; then
-              echo "### 🐛 修复"
-              echo "$FIX" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
-              echo ""
-            fi
+            FEAT=$(echo "$LOG" | grep -iE '^[a-f0-9]+ feat' | sed -E 's/^[a-f0-9]+ feat[：:] *//')
+            FIX=$(echo "$LOG" | grep -iE '^[a-f0-9]+ fix' | sed -E 's/^[a-f0-9]+ fix[：:] *//')
+            REFACTOR=$(echo "$LOG" | grep -iE '^[a-f0-9]+ (refactor|perf)' | sed -E 's/^[a-f0-9]+ (refactor|perf)[：:] *//')
 
-            if [ -n "$REFACTOR" ]; then
-              echo "### ⚡ 优化"
-              echo "$REFACTOR" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
+            {
+              echo "## 更新内容"
               echo ""
-            fi
-          } > release_body.md
 
-          if [ ! -s release_body.md ] || [ "$(wc -l < release_body.md)" -le 2 ]; then
-            echo "## 更新内容" > release_body.md
-            echo "" >> release_body.md
-            echo "- 版本升级与构建优化" >> release_body.md
+              if [ -n "$FEAT" ]; then
+                echo "### ✨ 新增"
+                echo "$FEAT" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
+                echo ""
+              fi
+
+              if [ -n "$FIX" ]; then
+                echo "### 🐛 修复"
+                echo "$FIX" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
+                echo ""
+              fi
+
+              if [ -n "$REFACTOR" ]; then
+                echo "### ⚡ 优化"
+                echo "$REFACTOR" | sed '/^$/d' | while IFS= read -r line; do echo "- $line"; done
+                echo ""
+              fi
+            } > release_body.md
+
+            if [ ! -s release_body.md ] || [ "$(wc -l < release_body.md)" -le 2 ]; then
+              echo "## 更新内容" > release_body.md
+              echo "" >> release_body.md
+              echo "- 版本升级与构建优化" >> release_body.md
+            fi
           fi
 
       - name: 上传 APK 到 Release
