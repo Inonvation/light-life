@@ -23,7 +23,14 @@ class TokenStore(context: Context) {
         prefs.edit().remove(KEY_TOKEN).apply()
     }
 
+    fun readPhone(): String? = prefs.getString(KEY_PHONE, null)
+
+    fun savePhone(phone: String) {
+        prefs.edit().putString(KEY_PHONE, phone).apply()
+    }
+
     private companion object {
         const val KEY_TOKEN = "token"
+        const val KEY_PHONE = "phone"
     }
 }

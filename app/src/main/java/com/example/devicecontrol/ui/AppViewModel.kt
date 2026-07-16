@@ -147,6 +147,7 @@ class AppViewModel(
     private val _state = MutableStateFlow(
         AppUiState(
             hasToken = repository.localToken() != null,
+            phone = repository.readPhone() ?: "",
             orderHistory = repository.orderHistory(),
             appVersion = appVersion,
         ),
@@ -270,6 +271,7 @@ class AppViewModel(
         }.onSuccess {
             _state.update { it.copy(hasToken = true, loggingIn = false, phoneError = null) }
             showToast("登录成功")
+            repository.savePhone(phone)
             refreshBalance()
             refreshDevices()
             refreshTodayWater()
@@ -473,6 +475,7 @@ class AppViewModel(
 
     fun logout() {
         repository.clearToken()
+        repository.savePhone("")
         // 清除所有本地数据，避免不同账号数据冲突
         pointsStatsStore?.clearAll()
         repository.clearOrderHistory()
