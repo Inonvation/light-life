@@ -376,8 +376,10 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 }
             }
         }
-        // 设置页平滑滑入（在 Surface 外部，不受底部 padding 限制）
-        val settingsOffset by animateFloatAsState(
+    }
+
+    // 设置页平滑滑入（Scaffold 外部，覆盖全屏包括导航栏）
+    val settingsOffset by animateFloatAsState(
             targetValue = if (state.showSettings) 0f else 1f,
             animationSpec = tween(300, easing = FastOutSlowInEasing),
             label = "settingsSlide"
@@ -400,7 +402,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
         ) {
             LogCenterScreen(state = state, vm = vm)
         }
-    }
 }
 
 

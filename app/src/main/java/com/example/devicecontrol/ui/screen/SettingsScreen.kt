@@ -165,6 +165,21 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
         }
         val scrollState = rememberScrollState()
 
+        // 滚动到顶部/底部时触发触感反馈
+        LaunchedEffect(scrollState) {
+            var lastEdgeTrigger = 0L
+            snapshotFlow { scrollState.value }
+                .collect { value ->
+                    val max = scrollState.maxValue
+                    val now = System.currentTimeMillis()
+                    if (max <= 0) return@collect
+                    if ((value == 0 || value == max) && now - lastEdgeTrigger > 500) {
+                        lastEdgeTrigger = now
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                }
+        }
+
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -438,15 +453,27 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             Text("关于", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(Spacings.sm))
 
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("LightLife", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("版本 ${state.appVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        IconButton(onClick = { uriHandler.openUri(PROJECT_URL) }) {
-                            Icon(painterResource(R.drawable.ic_github), contentDescription = "GitHub", modifier = Modifier.size(24.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = CardShapes.cardCorner,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxWidth().clickable {
+                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    uriHandler.openUri(PROJECT_URL)
+                }) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("LightLife", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("版本 ${state.appVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(PROJECT_URL, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            Icon(painterResource(R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
