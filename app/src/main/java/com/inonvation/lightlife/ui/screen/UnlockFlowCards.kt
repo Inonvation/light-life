@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -30,10 +31,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -70,7 +74,12 @@ internal fun PreCheckingCard() {
 }
 
 @Composable
-internal fun WorkingCard(step: String, elapsed: Int) {
+internal fun WorkingCard(step: String, elapsed: Int, onDismiss: (() -> Unit)? = null) {
+    var showStopButton by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(3000)
+        showStopButton = true
+    }
     val t = rememberInfiniteTransition(label = "pulse")
     val progress by t.animateFloat(
         initialValue = 0f, targetValue = 1f,
@@ -99,6 +108,19 @@ internal fun WorkingCard(step: String, elapsed: Int) {
                 CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp), color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(10.dp))
                 Text("设备工作中", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.weight(1f))
+                AnimatedVisibility(visible = showStopButton && onDismiss != null) {
+                    IconButton(
+                        onClick = { onDismiss?.invoke() },
+                        modifier = Modifier.size(32.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.12f),
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Icon(Icons.Filled.Close, contentDescription = "关闭动画", modifier = Modifier.size(16.dp))
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
             Text(step, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))

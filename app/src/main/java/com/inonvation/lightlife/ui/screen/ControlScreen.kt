@@ -214,12 +214,12 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
         }
 
         // ── 解锁状态卡片 ──
-        if (state.unlockFlowState !is UnlockFlowState.Idle) {
+        if (state.unlockFlowState !is UnlockFlowState.Idle && !state.unlockFlowHidden) {
             item(key = "unlock_status") {
                 Spacer(Modifier.height(8.dp))
                 when (val flow = state.unlockFlowState) {
                     is UnlockFlowState.PreChecking -> PreCheckingCard()
-                    is UnlockFlowState.Working -> WorkingCard(step = flow.step, elapsed = state.unlockElapsedSeconds)
+                    is UnlockFlowState.Working -> WorkingCard(step = flow.step, elapsed = state.unlockElapsedSeconds, onDismiss = { vm.dismissUnlockAnimation() })
                     is UnlockFlowState.Success -> SuccessCard(result = flow.result, onDismiss = { vm.dismissUnlockFlow() })
                     is UnlockFlowState.Failed -> FailedCard(message = flow.message, step = flow.step, rawError = flow.rawError, suggestions = flow.suggestions, onDismiss = { vm.dismissUnlockFlow() })
                     is UnlockFlowState.Idle -> {}
@@ -229,10 +229,6 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
     }
     }
 }
-
-// ═══════════════════════════════════════════════
-//  品牌渐变头部 - 随时间动态问候
-// ═══════════════════════════════════════════════
 @Composable
 private fun HeaderSection(visible: Boolean) {
     val isDark = isSystemInDarkTheme()
@@ -287,10 +283,6 @@ private fun HeaderSection(visible: Boolean) {
         }
     }
 }
-
-// ═══════════════════════════════════════════════
-//  设备卡片
-// ═══════════════════════════════════════════════
 @Composable
 private fun DeviceCard(
     name: String,
