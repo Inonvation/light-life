@@ -30,7 +30,6 @@ data class BackupPayload(
 )
 
 data class PointsStatsPayload(
-    val totalEarned: Int = 0,
     val totalDeducted: String = "0.00",
 )
 
@@ -114,7 +113,6 @@ class BackupManager(private val context: Context) {
                 orderHistory = orderHistory.ifEmpty { null },
                 pointsStats = pointsStats?.let {
                     PointsStatsPayload(
-                        totalEarned = it.getTotalEarned(),
                         totalDeducted = it.getTotalDeductedAmount(),
                     )
                 },
@@ -177,9 +175,9 @@ class BackupManager(private val context: Context) {
             logError?.invoke("备份文件 JSON 解析失败：${e.message}")
             return null
         }
-        // 验证备份版本号
-        if (parsed.backupVersion != BACKUP_VERSION) {
-            logError?.invoke("备份版本不兼容：文件版本 ${parsed.backupVersion}，当前支持版本 $BACKUP_VERSION")
+        // 验证备份版本号（向前兼容：接受小于等于当前版本的备份）
+        if (parsed.backupVersion > BACKUP_VERSION) {
+            logError?.invoke("备份版本过高：文件版本 ${parsed.backupVersion}，当前支持版本 $BACKUP_VERSION")
             return null
         }
         // 验证 data 字段至少有一项备份内容（覆盖所有字段）
@@ -216,7 +214,6 @@ class BackupManager(private val context: Context) {
         payload.pointsStats?.let { stats ->
             val prefs = context.getSharedPreferences("points_stats", Context.MODE_PRIVATE)
             prefs.edit()
-                .putInt("total_earned", stats.totalEarned)
                 .putString("total_deducted", stats.totalDeducted)
                 .apply()
         }

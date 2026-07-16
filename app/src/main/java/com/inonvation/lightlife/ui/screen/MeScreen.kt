@@ -27,7 +27,7 @@ import androidx.compose.material.icons.outlined.ConfirmationNumber
 import androidx.compose.material.icons.outlined.Money
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.TrendingUp
+
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.WaterDrop
@@ -153,10 +153,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp)
         ) {
             item { Spacer(Modifier.height(Spacings.sm)) }
-
-            // ══════════════════════════════════════════
-            //  登录卡片
-            // ══════════════════════════════════════════
             item {
                 AnimatedVisibility(
                     visible = !state.hasToken && cardsVisible,
@@ -331,10 +327,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     }
                 }
             }
-
-            // ══════════════════════════════════════════
-            //  我的资产 — 三列统计卡片
-            // ══════════════════════════════════════════
             item {
                 AnimatedVisibility(
                     visible = state.hasToken && cardsVisible,
@@ -370,10 +362,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
             }
 
             item { Spacer(Modifier.height(Spacings.md)) }
-
-            // ══════════════════════════════════════════
-            //  积分统计卡片 — 带图标行
-            // ══════════════════════════════════════════
             item {
                 AnimatedVisibility(
                     visible = state.hasToken && cardsVisible,
@@ -389,23 +377,16 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                             Text("积分统计", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(Spacings.md))
                             MeStatRow(
-                                icon = Icons.Outlined.TrendingUp,
-                                iconColor = Color(0xFF4CAF50),
-                                label = "累计获得",
-                                value = "${state.totalPointsEarned}"
-                            )
-                            Spacer(Modifier.height(Spacings.sm))
-                            MeStatRow(
                                 icon = Icons.Outlined.Money,
                                 iconColor = Color(0xFFE8A838),
-                                label = "累计抵扣",
+                                label = "累计白嫖金额",
                                 value = "${state.totalPointsDeducted}"
                             )
                             Spacer(Modifier.height(Spacings.sm))
                             MeStatRow(
                                 icon = Icons.Outlined.WaterDrop,
                                 iconColor = Color(0xFF2E7DBA),
-                                label = "累计开水",
+                                label = "累计开水次数",
                                 value = "${state.totalWaterCount} 次"
                             )
                         }
@@ -414,10 +395,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
             }
 
             item { Spacer(Modifier.height(Spacings.md)) }
-
-            // ══════════════════════════════════════════
-            //  订单记录 — 可点击列表项
-            // ══════════════════════════════════════════
             item {
                 AnimatedVisibility(
                     visible = state.hasToken && cardsVisible,
@@ -482,10 +459,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
             }
 
             item { Spacer(Modifier.height(Spacings.xxl)) }
-
-            // ══════════════════════════════════════════
-            //  版本号
-            // ══════════════════════════════════════════
             item {
                 AnimatedVisibility(
                     visible = cardsVisible,
@@ -503,10 +476,6 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
         }
     }
 }
-
-// ═══════════════════════════════════════════════
-//  积分统计行（带图标圆圈）
-// ═══════════════════════════════════════════════
 @Composable
 private fun MeStatRow(
     icon: ImageVector,

@@ -37,7 +37,7 @@ class BackupController(
         val s = state.value
         val backup = backupManager?.collect(
             appVersion = s.appVersion,
-            token = repository.localToken(),
+            token = if (s.backupPrivacySafe) null else repository.localToken(),
             orderHistory = s.orderHistory,
             pointsStats = pointsStatsStore,
             taskLogStore = logStore,
@@ -127,7 +127,6 @@ class BackupController(
         state.update { it.copy(
             hasToken = repository.localToken() != null,
             orderHistory = repository.orderHistory(),
-            totalPointsEarned = pointsStatsStore?.getTotalEarned() ?: 0,
             totalPointsDeducted = pointsStatsStore?.getTotalDeductedAmount() ?: "0.00",
         )}
         backup.data.themeMode?.let { modeName ->

@@ -53,7 +53,20 @@ class AppViewModel(
 
     // ── 内部工具 ──
     private fun showToast(message: String) { _state.update { it.copy(toastMessage = message) } }
-    private fun showError(message: String) { _state.update { it.copy(errorMessage = message) } }
+    private fun showError(message: String) { _state.update { it.copy(errorMessage = friendlyErrorMessage(message)) } }
+
+    private fun friendlyErrorMessage(raw: String): String {
+        val lower = raw.lowercase()
+        return when {
+            "unknownhostexception" in lower || "unable to resolve host" in lower -> "网络连接失败，请检查网络设置"
+            "connectexception" in lower || "failed to connect" in lower -> "无法连接服务器，请稍后再试"
+            "sockettimeoutexception" in lower || "timeout" in lower -> "请求超时，请检查网络后重试"
+            "sslhandshakeexception" in lower -> "网络安全验证失败"
+            "eofexception" in lower -> "数据传输中断，请重试"
+            "请先登录" in raw -> "请先登录"
+            else -> raw.ifBlank { "操作失败，请重试" }
+        }
+    }
 
     private fun clearAdVideoState() {
         context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE).edit().clear().apply()
@@ -138,7 +151,6 @@ class AppViewModel(
         }
         pointsStatsStore?.let {
             _state.update { s -> s.copy(
-                totalPointsEarned = it.getTotalEarned(),
                 totalPointsDeducted = it.getTotalDeductedAmount(),
             )}
         }
@@ -148,10 +160,6 @@ class AppViewModel(
             refreshTodayWater()
         }
     }
-
-    // ══════════════════════════════════════════════
-    //  导航
-    // ══════════════════════════════════════════════
 
     fun selectTab(tab: DeviceTab) {
         _state.update { it.copy(currentTab = tab) }
@@ -165,10 +173,6 @@ class AppViewModel(
     fun showLogCenter() { _state.update { it.copy(showLogCenter = true) } }
     fun dismissLogCenter() { _state.update { it.copy(showLogCenter = false) } }
 
-    // ══════════════════════════════════════════════
-    //  认证 — 委托 AuthController
-    // ══════════════════════════════════════════════
-
     fun updatePhone(value: String) = authController.updatePhone(value)
     fun updateCode(value: String) = authController.updateCode(value)
     fun toggleTokenLogin() = authController.toggleTokenLogin()
@@ -178,10 +182,6 @@ class AppViewModel(
     fun sendCode() = authController.sendCode()
     fun login() = authController.login()
     fun logout() = authController.logout()
-
-    // ══════════════════════════════════════════════
-    //  设备 / 解锁
-    // ══════════════════════════════════════════════
 
     fun refreshDevices() = viewModelScope.launch {
         if (!state.value.hasToken) return@launch
@@ -245,7 +245,7 @@ class AppViewModel(
     fun unlock(device: DeviceItem) = viewModelScope.launch {
         if (state.value.unlocking) return@launch
         _state.update {
-            it.copy(unlocking = true, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0)
+            it.copy(unlocking = true, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0, unlockFlowHidden = false)
         }
         unlockTimerJob?.cancel()
         unlockTimerJob = viewModelScope.launch {
@@ -266,20 +266,20 @@ class AppViewModel(
             }
         }.onSuccess { result ->
             unlockTimerJob?.cancel()
-            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, orderHistory = repository.orderHistory()) }
+            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, unlockFlowHidden = false, orderHistory = repository.orderHistory()) }
             if (result.integralCost != "-") { pointsStatsStore?.addDeducted(result.integralCost); refreshPointsStats() }
             refreshBalance()
         }.onFailure { e ->
             unlockTimerJob?.cancel()
             if (e is TokenExpiredException) {
-                _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0) }
+                _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
                 authController.handleTokenExpired()
                 return@launch
             }
             val diag = if (e is UnlockException) e.diagnosis else null
             val failState = if (diag != null) UnlockFlowState.Failed(diag.primaryReason, diag.step, diag.rawError, diag.suggestions)
                 else UnlockFlowState.Failed(e.message ?: "未知错误", "未知", e.message ?: "")
-            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = failState, unlockElapsedSeconds = 0) }
+            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = failState, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
         }
     }
 
@@ -288,9 +288,10 @@ class AppViewModel(
         _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0) }
     }
 
-    // ══════════════════════════════════════════════
-    //  积分任务 — 委托 PointsTaskController
-    // ══════════════════════════════════════════════
+    fun dismissUnlockAnimation() {
+        unlockTimerJob?.cancel()
+        _state.update { it.copy(unlockFlowHidden = true, unlockElapsedSeconds = 0) }
+    }
 
     fun startPointsTask(userAgent: String) = pointsController.startPointsTask(userAgent)
     fun pausePointsTask() = pointsController.pausePointsTask()
@@ -299,18 +300,10 @@ class AppViewModel(
     fun clearPointsLogs() = pointsController.clearPointsLogs()
     fun syncTodayTaskStateFromPrefs() = pointsController.syncTodayTaskStateFromPrefs()
 
-    // ══════════════════════════════════════════════
-    //  备份恢复 — 委托 BackupController
-    // ══════════════════════════════════════════════
-
     fun prepareBackupJson(): String = backupController.prepareBackupJson()
     fun restoreFromBackupJson(json: String) = backupController.restoreFromBackupJson(json)
     fun confirmBackupImportOrdersOnly() = backupController.confirmBackupImportOrdersOnly()
     fun dismissBackupTokenExpiredDialog() = backupController.dismissBackupTokenExpiredDialog()
-
-    // ══════════════════════════════════════════════
-    //  设置
-    // ══════════════════════════════════════════════
 
     fun toggleHaptic() {
         val v = !state.value.hapticEnabled
@@ -362,10 +355,6 @@ class AppViewModel(
         _state.update { it.copy(colorTheme = theme) }
     }
 
-    // ══════════════════════════════════════════════
-    //  日志管理
-    // ══════════════════════════════════════════════
-
     fun showDebugLogs() {
         _state.update { it.copy(debugLogs = debugLogStore?.listFiles() ?: emptyList(), showDebugLogs = true) }
     }
@@ -395,10 +384,6 @@ class AppViewModel(
         logStore?.deleteFile(name)
         _state.update { it.copy(archivedLogs = it.archivedLogs.filter { it.first != name }) }
     }
-
-    // ══════════════════════════════════════════════
-    //  弹窗 / UI 状态
-    // ══════════════════════════════════════════════
 
     fun showCurrentToken() {
         val token = repository.localToken()?.takeIf { it.isNotBlank() }
@@ -430,10 +415,6 @@ class AppViewModel(
     fun consumeToast() { _state.update { it.copy(toastMessage = null) } }
     fun consumeError() { _state.update { it.copy(errorMessage = null) } }
 
-    // ══════════════════════════════════════════════
-    //  统计刷新
-    // ══════════════════════════════════════════════
-
     fun refreshTodayWater() {
         val todayStart = with(java.util.Calendar.getInstance()) {
             set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -459,7 +440,6 @@ class AppViewModel(
     fun refreshPointsStats() {
         pointsStatsStore?.let {
             _state.update { s -> s.copy(
-                totalPointsEarned = it.getTotalEarned(),
                 totalPointsDeducted = it.getTotalDeductedAmount(),
             )}
         }

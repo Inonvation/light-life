@@ -26,6 +26,7 @@ class AuthController(
     private val showError: (String) -> Unit,
 ) {
     private val PHONE_REGEX = Regex("^1[3-9]\\d{9}$")
+    private var codeSentTimestamp: Long = 0
 
     fun updatePhone(value: String) {
         state.update { it.copy(phone = value, phoneError = null) }
@@ -75,6 +76,11 @@ class AuthController(
 
     fun sendCode() = scope.launch {
         val phone = state.value.phone.trim()
+        val elapsed = System.currentTimeMillis() - codeSentTimestamp
+        if (elapsed < 60_000) {
+            showError("验证码已发送，请${(60 - elapsed / 1000).toInt()}秒后再试")
+            return@launch
+        }
         if (phone.isBlank() || !PHONE_REGEX.matches(phone)) {
             state.update { it.copy(phoneError = "请输入正确格式的手机号") }
             return@launch
@@ -83,6 +89,7 @@ class AuthController(
             state.update { it.copy(sendingCode = true) }
             repository.sendCode(phone)
         }.onSuccess {
+            codeSentTimestamp = System.currentTimeMillis()
             showToast("验证码已发送")
         }.onFailure {
             showError(it.message ?: "验证码发送失败")
@@ -136,7 +143,6 @@ class AuthController(
             totalWaterCount = 0,
             orderHistory = emptyList(),
             pointsLogs = emptyList(),
-            totalPointsEarned = 0,
             totalPointsDeducted = "0.00",
             showSettings = false,
             currentTab = DeviceTab.Me,
@@ -144,25 +150,12 @@ class AuthController(
     }
 
     fun handleTokenExpired() {
-        debugLogStore?.d("VM", "handleTokenExpired: clearing token")
+        debugLogStore?.d("VM", "handleTokenExpired: token expired")
         repository.clearToken()
-        pointsStatsStore?.clearAll()
-        repository.clearOrderHistory()
-        taskStateStore?.reset()
-        clearAdVideoState()
-        logStore?.clearAll()
-        debugLogStore?.clearAll()
         state.update { it.copy(
             hasToken = false,
             devices = emptyList(),
             balance = null,
-            orderHistory = emptyList(),
-            pointsLogs = emptyList(),
-            totalPointsEarned = 0,
-            totalPointsDeducted = "0.00",
-            todayWaterCount = 0,
-            todayWaterAmount = "0.00",
-            totalWaterCount = 0,
             currentTab = DeviceTab.Me,
         )}
         showToast("登录已失效，请重新登录")

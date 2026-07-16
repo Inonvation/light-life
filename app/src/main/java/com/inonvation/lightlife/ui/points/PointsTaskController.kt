@@ -52,19 +52,8 @@ class PointsTaskController(
                 }
             }.onSuccess {
                 appendPointLog("任务流程结束")
-                val gainedPoints = run {
-                    val entry = state.value.pointsLogs.findLast { it.message.contains("今日积分") }
-                    if (entry != null) {
-                        val regex = Regex("今日积分：(\\d+)")
-                        regex.find(entry.message)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-                    } else 0
-                }
-                if (gainedPoints > 0) {
-                    pointsStatsStore?.addEarned(gainedPoints)
-                }
                 pointsStatsStore?.let {
                     state.update { s -> s.copy(
-                        totalPointsEarned = it.getTotalEarned(),
                         totalPointsDeducted = it.getTotalDeductedAmount(),
                     )}
                 }
