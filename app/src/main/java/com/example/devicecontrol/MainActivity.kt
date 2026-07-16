@@ -69,6 +69,7 @@ import com.example.devicecontrol.ui.screen.OrderDetailDialog
 import com.example.devicecontrol.ui.screen.OrderHistoryBottomSheet
 import com.example.devicecontrol.ui.screen.PointsTaskScreen
 import com.example.devicecontrol.ui.screen.SettingsScreen
+import com.example.devicecontrol.ui.screen.LogCenterScreen
 import com.example.devicecontrol.ui.screen.SimpleScreen
 import com.example.devicecontrol.ui.screen.TokenDialog
 import com.example.devicecontrol.ui.screen.TopBar
@@ -380,10 +381,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 .fillMaxSize()
                 .graphicsLayer {
                     translationX = settingsOffset * size.width
-                    // alpha = 1f - settingsOffset // 移除透明度变化，仅保留平移
                 }
         ) {
             SettingsScreen(state = state, vm = vm)
+        }
+
+        // ═══ 日志中心（独立于设置，可直接在主界面弹出）═══
+        if (state.showLogCenter) {
+            LogCenterScreen(state = state, vm = vm)
         }
     }
 }

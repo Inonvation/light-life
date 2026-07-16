@@ -553,9 +553,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
         )
     }
 
-    if (state.showLogCenter) {
-        LogCenterScreen(state, vm)
-    }
 
     if (state.showArchivedLogs) {
         ArchivedLogsBottomSheet(state, vm)
