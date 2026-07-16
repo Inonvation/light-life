@@ -88,7 +88,10 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
 
     PullToRefreshBox(
         isRefreshing = state.loadingDevices,
-        onRefresh = { vm.refreshDevices() },
+        onRefresh = {
+            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            vm.refreshDevices()
+        },
         modifier = Modifier.fillMaxSize()
     ) {
     LazyColumn(
