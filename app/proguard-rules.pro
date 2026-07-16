@@ -42,12 +42,7 @@
 -dontwarn okhttp3.internal.platform.BouncyCastlePlatform
 -dontwarn okhttp3.internal.platform.OpenJSSEPlatform
 
-# ========================
-# Material Icons Extended
-# ========================
-# 保留实际使用的图标类（允许 R8 裁剪其他未使用的）
--keep class androidx.compose.material.icons.Icons$Outlined { *; }
--keep class androidx.compose.material.icons.Icons$AutoMirrored$Outlined { *; }
+# Material Icons Extended — R8 自动裁剪未引用的图标，不需要手动 keep
 
 # ========================
 # Kotlin Coroutines
