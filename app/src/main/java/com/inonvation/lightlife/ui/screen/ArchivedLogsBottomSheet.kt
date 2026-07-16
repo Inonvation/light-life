@@ -72,7 +72,7 @@ fun ArchivedLogsBottomSheet(state: AppUiState, vm: AppViewModel) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showConfirmClearDialog = false },
             title = { Text("确认删除") },
-            text = { Text("确定要清除所有任务记录吗？此操作不可撤销。") },
+            text = { Text("确定要清除所有任务记录吗？\n\n注意：清除记录会同时重置当天的积分任务进度（签到、视频观看等），下次执行任务时将从头开始。\n\n此操作不可撤销。") },
             confirmButton = {
                 androidx.compose.material3.TextButton(
                     onClick = {
