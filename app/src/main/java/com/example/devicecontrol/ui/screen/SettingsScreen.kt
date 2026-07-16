@@ -165,29 +165,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
         }
         val scrollState = rememberScrollState()
 
-        // 滚动到顶部或底部时触发触感反馈
-        LaunchedEffect(scrollState, state.hapticEnabled) {
-            var wasAtTop = true // 初始已在顶部，不触发
-            var wasAtBottom = false
-
-            snapshotFlow { scrollState.value to scrollState.maxValue }
-                .collect { (value, maxValue) ->
-                    if (state.hapticEnabled && maxValue > 0) {
-                        val isAtTop = value == 0
-                        val isAtBottom = value >= maxValue
-
-                        if (isAtTop && !wasAtTop) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        } else if (isAtBottom && !wasAtBottom) {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        }
-
-                        wasAtTop = isAtTop
-                        wasAtBottom = isAtBottom
-                    }
-                }
-        }
-
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -477,6 +454,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
 
             Spacer(Modifier.height(Spacings.xxl))
         }
+
     }
 
     if (showAccountDialog) {
