@@ -82,7 +82,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
-        // ═══ 积分卡片 ═══
+
         AnimatedVisibility(
             visible = contentVisible,
             enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { -it / 4 })
@@ -176,7 +176,6 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
 
         Spacer(Modifier.height(12.dp))
 
-        // ═══ 日志面板 ═══
         AnimatedVisibility(
             visible = contentVisible,
             enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(tween(400, delayMillis = 200), initialOffsetY = { it / 4 }),
@@ -190,7 +189,6 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
 
         Spacer(Modifier.height(14.dp))
 
-        // ═══ 控制按钮 ═══
         AnimatedVisibility(
             visible = contentVisible,
             enter = fadeIn(tween(350, delayMillis = 300)) + slideInVertically(tween(350, delayMillis = 300), initialOffsetY = { it / 3 })
@@ -236,7 +234,6 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         }
     }
 
-    // ═══ 警告弹窗 ═══
     if (state.showPointsTaskWarning) {
         WarningDialog(
             onDismiss = { vm.dismissPointsTaskWarning() },
