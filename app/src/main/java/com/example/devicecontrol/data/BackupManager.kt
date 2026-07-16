@@ -25,6 +25,7 @@ data class BackupPayload(
     val pointsStats: PointsStatsPayload? = null,
     val taskLogs: List<TaskLogPayload>? = null,
     val dailyTaskState: DailyTaskStatePayload? = null,
+    val adVideoState: AdVideoStatePayload? = null,
 )
 
 data class PointsStatsPayload(
@@ -37,6 +38,19 @@ data class RestoreCounts(val orders: Int = 0, val logs: Int = 0)
 data class TaskLogPayload(
     val name: String = "",
     val content: String = "",
+)
+
+data class AdVideoStatePayload(
+    val signinDone: Boolean = false,
+    val signinDoneDate: String = "",
+    val tasklistDone: Boolean = false,
+    val tasklistDoneDate: String = "",
+    val appVideo: Int = 0,
+    val appVideoDate: String = "",
+    val alipayVideo: Int = 0,
+    val alipayVideoDate: String = "",
+    val adTask: Int = 0,
+    val adTaskDate: String = "",
 )
 
 data class DailyTaskStatePayload(
@@ -117,6 +131,24 @@ class BackupManager(private val context: Context) {
                         )
                     } else null
                 },
+                adVideoState = run {
+                    val adPrefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
+                    val hasData = adPrefs.all.isNotEmpty()
+                    if (hasData) {
+                        AdVideoStatePayload(
+                            signinDone = adPrefs.getBoolean("signin_done", false),
+                            signinDoneDate = adPrefs.getString("signin_done_date", "") ?: "",
+                            tasklistDone = adPrefs.getBoolean("tasklist_done", false),
+                            tasklistDoneDate = adPrefs.getString("tasklist_done_date", "") ?: "",
+                            appVideo = adPrefs.getInt("app_video", 0),
+                            appVideoDate = adPrefs.getString("app_video_date", "") ?: "",
+                            alipayVideo = adPrefs.getInt("alipay_video", 0),
+                            alipayVideoDate = adPrefs.getString("alipay_video_date", "") ?: "",
+                            adTask = adPrefs.getInt("ad_task", 0),
+                            adTaskDate = adPrefs.getString("ad_task_date", "") ?: "",
+                        )
+                    } else null
+                },
             ),
         )
     }
@@ -142,7 +174,8 @@ class BackupManager(private val context: Context) {
             val d = parsed.data
             if (d.token == null && d.themeMode == null && d.hapticEnabled == null
                 && d.logCompactEnabled == null
-                && d.orderHistory == null && d.pointsStats == null && d.taskLogs == null) {
+                && d.orderHistory == null && d.pointsStats == null && d.taskLogs == null
+                && d.adVideoState == null) {
                 return@runCatching null
             }
             parsed
@@ -202,6 +235,22 @@ class BackupManager(private val context: Context) {
             if (token.isNotBlank()) {
                 TokenStore(context).saveToken(token)
             }
+        }
+
+        payload.adVideoState?.let { avs ->
+            val adPrefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
+            val editor = adPrefs.edit()
+            editor.putBoolean("signin_done", avs.signinDone)
+            editor.putString("signin_done_date", avs.signinDoneDate)
+            editor.putBoolean("tasklist_done", avs.tasklistDone)
+            editor.putString("tasklist_done_date", avs.tasklistDoneDate)
+            editor.putInt("app_video", avs.appVideo)
+            editor.putString("app_video_date", avs.appVideoDate)
+            editor.putInt("alipay_video", avs.alipayVideo)
+            editor.putString("alipay_video_date", avs.alipayVideoDate)
+            editor.putInt("ad_task", avs.adTask)
+            editor.putString("ad_task_date", avs.adTaskDate)
+            editor.apply()
         }
 
         payload.dailyTaskState?.let { daily ->

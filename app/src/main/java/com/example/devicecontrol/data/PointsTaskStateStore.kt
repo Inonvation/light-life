@@ -1,4 +1,4 @@
-﻿package com.example.devicecontrol.data
+package com.example.devicecontrol.data
 
 import android.content.Context
 import java.text.SimpleDateFormat
@@ -30,6 +30,12 @@ class PointsTaskStateStore(context: Context) {
 
     fun isTaskListDone(): Boolean = isActiveDay() && prefs.getBoolean("tasklist_done", false)
     fun setTaskListDone(v: Boolean) { prefs.edit().putBoolean("tasklist_done", v).putString("run_date", effectiveDate()).apply() }
+
+    fun isAdTaskDone(): Boolean = isActiveDay() && prefs.getBoolean("ad_task_done", false)
+    fun setAdTaskDone(v: Boolean) { prefs.edit().putBoolean("ad_task_done", v).putString("run_date", effectiveDate()).apply() }
+
+    fun isOtherTaskDone(): Boolean = isActiveDay() && prefs.getBoolean("other_task_done", false)
+    fun setOtherTaskDone(v: Boolean) { prefs.edit().putBoolean("other_task_done", v).putString("run_date", effectiveDate()).apply() }
 
     fun isLogCompactEnabled(): Boolean = prefs.getBoolean("log_compact", true)
     fun setLogCompactEnabled(v: Boolean) { prefs.edit().putBoolean("log_compact", v).apply() }
@@ -67,7 +73,7 @@ class PointsTaskStateStore(context: Context) {
 
     fun reset() {
         val editor = prefs.edit()
-        listOf("run_date", "app_video", "alipay_video", "signin_done", "tasklist_done", "task_codes", "phase").forEach { editor.remove(it) }
+        listOf("run_date", "app_video", "alipay_video", "signin_done", "tasklist_done", "ad_task_done", "other_task_done", "task_codes", "phase").forEach { editor.remove(it) }
         editor.apply()
     }
 }
