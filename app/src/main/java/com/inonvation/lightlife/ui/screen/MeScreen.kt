@@ -336,24 +336,24 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        StatCard(
+                        RollingStatCard(
                             icon = Icons.Outlined.Person,
                             label = "当前积分",
-                            value = state.balance?.pointsText ?: "-",
+                            text = state.balance?.pointsText ?: "-",
                             accentColor = Color(0xFF4CAF50),
                             modifier = Modifier.weight(1f)
                         )
-                        StatCard(
+                        RollingStatCard(
                             icon = Icons.Outlined.Money,
                             label = "可抵扣",
-                            value = state.balance?.integralAmount?.let { "¥$it" } ?: "-",
+                            text = state.balance?.integralAmount?.let { "¥$it" } ?: "-",
                             accentColor = Color(0xFFE8A838),
                             modifier = Modifier.weight(1f)
                         )
-                        StatCard(
+                        RollingStatCard(
                             icon = Icons.Outlined.ConfirmationNumber,
                             label = "小票余额",
-                            value = state.balance?.ticketText?.let { "¥$it" } ?: "-",
+                            text = state.balance?.ticketText?.let { "¥$it" } ?: "-",
                             accentColor = Color(0xFF2E7DBA),
                             modifier = Modifier.weight(1f)
                         )

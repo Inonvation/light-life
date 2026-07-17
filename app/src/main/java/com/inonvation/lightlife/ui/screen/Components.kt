@@ -1,6 +1,7 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,6 +29,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +39,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.ui.DeviceTab
 import com.inonvation.lightlife.ui.theme.CardShapes
@@ -129,6 +136,90 @@ fun StatCard(
             }
             Spacer(Modifier.height(Spacings.sm))
             Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(Modifier.height(2.dp))
+            Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * 按位滚动数字组件
+ * 每个数字独立动画，只有变化的位才滚动
+ */
+@Composable
+fun RollingDigits(
+    text: String,
+    style: TextStyle = MaterialTheme.typography.headlineMedium,
+    fontWeight: FontWeight = FontWeight.Bold,
+    color: Color = MaterialTheme.colorScheme.primary,
+    modifier: Modifier = Modifier,
+) {
+    val prevText = remember { mutableStateOf(text) }
+    LaunchedEffect(text) { prevText.value = text }
+
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        text.forEachIndexed { index, char ->
+            val prevChar = prevText.value.getOrNull(index)
+            if (char.isDigit()) {
+                val direction = if (
+                    prevChar != null && prevChar.isDigit() &&
+                    char.digitToInt() > prevChar.digitToInt()
+                ) 1 else -1
+                AnimatedContent(
+                    targetState = char,
+                    transitionSpec = {
+                        (slideInVertically(tween(200)) { direction * it / 3 } + fadeIn(tween(150)))
+                            .togetherWith(slideOutVertically(tween(200)) { -direction * it / 3 } + fadeOut(tween(150)))
+                            .using(SizeTransform(clip = false))
+                    },
+                    label = "Digit"
+                ) { ch ->
+                    Text(ch.toString(), style = style, fontWeight = fontWeight, color = color)
+                }
+            } else {
+                Text(char.toString(), style = style, fontWeight = fontWeight, color = color)
+            }
+        }
+    }
+}
+
+/**
+ * 带滚动动画的 StatCard（数字版），使用 RollingDigits
+ */
+@Composable
+fun RollingStatCard(
+    icon: ImageVector,
+    label: String,
+    text: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        shape = CardShapes.smallCardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = Spacings.md, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(accentColor.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = accentColor)
+            }
+            Spacer(Modifier.height(Spacings.sm))
+            RollingDigits(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             Spacer(Modifier.height(2.dp))
             Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

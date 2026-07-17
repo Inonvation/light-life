@@ -162,8 +162,8 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("当前积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${state.balance?.pointsText ?: "-"}",
+                                RollingDigits(
+                                    text = state.balance?.pointsText ?: "-",
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -171,8 +171,8 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("可抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${state.balance?.integralAmount?.let { "¥$it" } ?: "-"}",
+                                RollingDigits(
+                                    text = state.balance?.integralAmount?.let { "¥$it" } ?: "-",
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary
@@ -180,8 +180,8 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                             }
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("剩余小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    "${state.balance?.ticketText?.let { "¥$it" } ?: "-"}",
+                                RollingDigits(
+                                    text = state.balance?.ticketText?.let { "¥$it" } ?: "-",
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary

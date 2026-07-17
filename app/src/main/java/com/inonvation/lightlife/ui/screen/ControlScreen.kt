@@ -125,24 +125,24 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    StatCard(
+                    RollingStatCard(
                         icon = Icons.Outlined.LocalDrink,
                         label = "今日喝水",
-                        value = "${state.todayWaterCount} 次",
+                        text = "${state.todayWaterCount} 次",
                         accentColor = StatColors.waterCount,
                         modifier = Modifier.weight(1f)
                     )
-                    StatCard(
+                    RollingStatCard(
                         icon = Icons.Outlined.AttachMoney,
                         label = "抵扣金额",
-                        value = "¥${state.todayWaterAmount}",
+                        text = "¥${state.todayWaterAmount}",
                         accentColor = StatColors.waterAmount,
                         modifier = Modifier.weight(1f)
                     )
-                    StatCard(
+                    RollingStatCard(
                         icon = Icons.Outlined.BarChart,
                         label = "累计",
-                        value = "${state.totalWaterCount} 次",
+                        text = "${state.totalWaterCount} 次",
                         accentColor = StatColors.totalWater,
                         modifier = Modifier.weight(1f)
                     )
