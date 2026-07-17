@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -54,6 +55,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -309,28 +312,91 @@ private fun LogPanelInline(
                         }
                     } else {
                         items(logs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                            val color = when (entry.level) {
+                            val levelColor = when (entry.level) {
                                 LogLevel.SUCCESS -> LogColors.success
                                 LogLevel.WARN -> LogColors.warn
                                 LogLevel.ERROR -> LogColors.error
                                 else -> LogColors.info
                             }
-                            Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.Top) {
-                                if (entry.timestamp.isNotEmpty()) {
-                                    Text(
-                                        entry.timestamp, color = LogColors.timestamp,
-                                        fontFamily = FontFamily.Monospace,
-                                        style = MaterialTheme.typography.labelSmall, fontSize = 10.sp,
-                                        modifier = Modifier.width(46.dp)
+                            val hasPoints = Regex("\\+\\d+").containsMatchIn(entry.message)
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.Top,
+                                horizontalArrangement = if (hasPoints) Arrangement.End else Arrangement.Start
+                            ) {
+                                if (!hasPoints) {
+                                    // 左侧：圆点 + 气泡
+                                    Box(
+                                        Modifier
+                                            .padding(top = 5.dp)
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(levelColor)
                                     )
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = levelColor.copy(alpha = 0.08f),
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp
+                                    ) {
+                                        Text(
+                                            buildAnnotatedString {
+                                                val text = entry.message.trimStart()
+                                                val regex = Regex("\\+\\d+")
+                                                var lastIndex = 0
+                                                regex.findAll(text).forEach { match ->
+                                                    append(text.substring(lastIndex, match.range.first))
+                                                    pushStyle(SpanStyle(color = Color(0xFF4CAF50)))
+                                                    append(match.value)
+                                                    pop()
+                                                    lastIndex = match.range.last + 1
+                                                }
+                                                append(text.substring(lastIndex))
+                                            },
+                                            color = levelColor,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                } else {
+                                    // 右侧：气泡（蓝色底） + 圆点
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFF4FC3F7).copy(alpha = 0.12f),
+                                        tonalElevation = 0.dp,
+                                        shadowElevation = 0.dp
+                                    ) {
+                                        Text(
+                                            buildAnnotatedString {
+                                                val text = entry.message.trimStart()
+                                                val regex = Regex("\\+\\d+")
+                                                var lastIndex = 0
+                                                regex.findAll(text).forEach { match ->
+                                                    append(text.substring(lastIndex, match.range.first))
+                                                    pushStyle(SpanStyle(color = Color(0xFF4CAF50)))
+                                                    append(match.value)
+                                                    pop()
+                                                    lastIndex = match.range.last + 1
+                                                }
+                                                append(text.substring(lastIndex))
+                                            },
+                                            color = levelColor,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontSize = 12.sp,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                    Box(
+                                        Modifier
+                                            .padding(top = 5.dp)
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFF4FC3F7))
+                                    )
                                 }
-                                Text(
-                                    entry.message.trimStart(), color = color,
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall, fontSize = 11.sp,
-                                    modifier = Modifier.weight(1f)
-                                )
                             }
                         }
                     }
