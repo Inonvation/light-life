@@ -431,12 +431,6 @@ class PointsTaskRunner(
         } else {
             log("开始执行支付宝视频任务")
         }
-        val aliTaskCode = findVideoAdTaskCode(token, ua, listOf("支付宝"))
-        if (aliTaskCode == null) {
-            log("支付宝视频任务：服务器无匹配任务，标记为已完成")
-            setAdCount("alipay_video", 50)
-            return
-        }
         var lastBalance = balance(token, ua)
         for (index in startFrom until total) {
             checkCancelled()
@@ -444,7 +438,7 @@ class PointsTaskRunner(
                 url = "https://userapi.qiekj.com/task/completed",
                 token = token,
                 userAgent = ua,
-                fields = mapOf("taskCode" to aliTaskCode, "token" to token),
+                fields = mapOf("taskCode" to "9", "token" to token),
                 channel = "alipay",
             )
             if (res.codeInt() == 0 && res["data"] == true) {
