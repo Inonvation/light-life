@@ -1,6 +1,7 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -52,6 +54,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
@@ -312,6 +315,12 @@ private fun LogPanelInline(
                         }
                     } else {
                         items(logs, key = { "${it.timestamp}_${it.id}" }) { entry ->
+                            val animAlpha = remember { Animatable(0f) }
+                            val animSlide = remember { Animatable(20f) }
+                            LaunchedEffect(Unit) {
+                                animAlpha.animateTo(1f, animationSpec = tween(300))
+                                animSlide.animateTo(0f, animationSpec = tween(300))
+                            }
                             val levelColor = when (entry.level) {
                                 LogLevel.SUCCESS -> LogColors.success
                                 LogLevel.WARN -> LogColors.warn
@@ -320,7 +329,14 @@ private fun LogPanelInline(
                             }
                             val hasPoints = Regex("\\+\\d+").containsMatchIn(entry.message)
                             Row(
-                                Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp),
+                                Modifier
+                                    .fillMaxWidth()
+                                    .animateItem()
+                                    .padding(horizontal = 4.dp, vertical = 3.dp)
+                                    .graphicsLayer {
+                                        alpha = animAlpha.value
+                                        translationY = animSlide.value
+                                    },
                                 verticalAlignment = Alignment.Top,
                                 horizontalArrangement = if (hasPoints) Arrangement.End else Arrangement.Start
                             ) {
@@ -338,7 +354,8 @@ private fun LogPanelInline(
                                         shape = RoundedCornerShape(6.dp),
                                         color = levelColor.copy(alpha = 0.08f),
                                         tonalElevation = 0.dp,
-                                        shadowElevation = 0.dp
+                                        shadowElevation = 0.dp,
+                                        modifier = Modifier.widthIn(max = 280.dp)
                                     ) {
                                         Text(
                                             buildAnnotatedString {
@@ -366,7 +383,8 @@ private fun LogPanelInline(
                                         shape = RoundedCornerShape(6.dp),
                                         color = Color(0xFF4FC3F7).copy(alpha = 0.12f),
                                         tonalElevation = 0.dp,
-                                        shadowElevation = 0.dp
+                                        shadowElevation = 0.dp,
+                                        modifier = Modifier.widthIn(max = 280.dp)
                                     ) {
                                         Text(
                                             buildAnnotatedString {
