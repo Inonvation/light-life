@@ -1,8 +1,8 @@
 # LightLife
 
-轻量级饮水机积分助手，Release 包体积仅约 **2MB**。
+集成了胖乖生活开水功能和刷积分脚本。安装包包体积仅约 **2MB**。轻量无广告，启动快速
 
-基于 [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) 重构而来，去除臃肿功能和广告，保留最实用的部分。
+基于 [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) 重构而来
 
 ---
 
@@ -18,7 +18,7 @@
 实时查看积分余额、订单记录、累计白嫖金额。
 
 ### 数据备份
-支持导出/导入 `.lif` 备份文件，换机可实现无需验证码直接登录。
+支持导出/导入 `.lif` 备份文件，换机可实现无需验证码直接登录，保留日志及订单数据。
 
 ### 超级简洁模式
 开水、刷积分、查余额集中到一个界面，极简操作。
@@ -60,32 +60,6 @@
 | 序列化 | Moshi |
 | 存储 | SharedPreferences + JSON 文件 |
 | 构建 | Gradle + AGP 8.7.3 |
-
----
-
-## 构建
-
-### 环境要求
-- Android Studio Hedgehog (2023.1.1) 或更高版本
-- JDK 17
-- Android SDK 35
-
-### 构建步骤
-```bash
-git clone https://github.com/your-username/light-life.git
-cd light-life
-
-# 使用 Android Studio 打开项目，或命令行构建
-./gradlew assembleDebug      # Debug APK
-./gradlew assembleRelease    # Release APK
-
-# 使用构建脚本（自动管理版本号）
-scripts\build.bat             # Windows
-scripts\build.ps1             # PowerShell
-```
-
-### APK 归档
-构建脚本会自动将 APK 归档到 `archive/` 目录，命名格式：`app-debug-v{版本号}.apk`
 
 ---
 
