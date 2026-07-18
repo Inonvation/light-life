@@ -37,14 +37,19 @@ class PointsTaskStateStore(context: Context) {
     fun isOtherTaskDone(): Boolean = isActiveDay() && prefs.getBoolean("other_task_done", false)
     fun setOtherTaskDone(v: Boolean) { prefs.edit().putBoolean("other_task_done", v).putString("run_date", effectiveDate()).apply() }
 
-    fun isLogCompactEnabled(): Boolean = prefs.getBoolean("log_compact", true)
-    fun setLogCompactEnabled(v: Boolean) { prefs.edit().putBoolean("log_compact", v).apply() }
-
     fun isHapticEnabled(): Boolean = prefs.getBoolean("haptic_enabled", true)
     fun setHapticEnabled(v: Boolean) { prefs.edit().putBoolean("haptic_enabled", v).apply() }
 
     fun isAutoCleanLogsEnabled(): Boolean = prefs.getBoolean("auto_clean_logs", false)
     fun setAutoCleanLogsEnabled(v: Boolean) { prefs.edit().putBoolean("auto_clean_logs", v).apply() }
+
+    fun isAutoStartTaskEnabled(): Boolean = prefs.getBoolean("auto_start_task", false)
+    fun setAutoStartTaskEnabled(v: Boolean) { prefs.edit().putBoolean("auto_start_task", v).apply() }
+
+    fun isBackgroundTaskEnabled(): Boolean = prefs.getBoolean("background_task", true)
+    fun setBackgroundTaskEnabled(v: Boolean) { prefs.edit().putBoolean("background_task", v).apply() }
+
+
 
     fun isSimpleModeEnabled(): Boolean = prefs.getBoolean("simple_mode", false)
     fun setSimpleModeEnabled(v: Boolean) { prefs.edit().putBoolean("simple_mode", v).apply() }

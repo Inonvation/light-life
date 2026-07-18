@@ -2,6 +2,10 @@
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,10 +34,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -52,6 +58,7 @@ fun TopBar(
     currentTab: DeviceTab,
     hasToken: Boolean,
     hapticEnabled: Boolean,
+    taskRunning: Boolean,
     onSettingsClick: () -> Unit,
 ) {
     val haptic = LocalHapticFeedback.current
@@ -84,16 +91,33 @@ fun TopBar(
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(Modifier.width(Spacings.sm))
-                    Text(
-                        text = when (tab) {
-                            DeviceTab.Control -> "历史设备"
-                            DeviceTab.Points -> "自动化刷积分"
-                            DeviceTab.Me -> if (hasToken) "已登录" else "未登录"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 3.dp)
-                    )
+                    if (taskRunning) {
+                        val pulse by rememberInfiniteTransition(label = "dot")
+                            .animateFloat(0.3f, 1f, infiniteRepeatable(
+                                tween(900), RepeatMode.Reverse
+                            ), label = "dotA")
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 3.dp)) {
+                            Box(
+                                Modifier.size(8.dp).alpha(pulse).background(Color(0xFF4CAF50).copy(alpha = 0.4f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(Modifier.size(4.dp).background(Color(0xFF4CAF50), CircleShape))
+                            }
+                            Spacer(Modifier.width(6.dp))
+                            Text("执行中", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4CAF50))
+                        }
+                    } else {
+                        Text(
+                            text = when (tab) {
+                                DeviceTab.Control -> "历史设备"
+                                DeviceTab.Points -> "自动化刷积分"
+                                DeviceTab.Me -> if (hasToken) "已登录" else "未登录"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        )
+                    }
                 }
             }
             IconButton(onClick = {

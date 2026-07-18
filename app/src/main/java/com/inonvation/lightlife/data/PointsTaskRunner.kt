@@ -28,6 +28,14 @@ class PointsTaskRunner(
     private var debugLog: DebugLogStore? = null
     fun setDebugLog(log: DebugLogStore?) { debugLog = log }
 
+    /**
+     * 进度回调，供前台 Service 更新通知。
+     * @param stage 阶段标识：signin / app_video / alipay_video / ad_task / task_list / home_page
+     * @param current 当前已完成次数
+     * @param total 该阶段总次数（0 表示无进度概念）
+     */
+    var onProgress: ((stage: String, current: Int, total: Int) -> Unit)? = null
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
@@ -176,8 +184,9 @@ class PointsTaskRunner(
         when (res.codeInt()) {
             0 -> { log("签到成功，当前积分：${res.dataMap()["totalIntegral"] ?: "-"}")
                 setState("signin_done", true)
+                onProgress?.invoke("signin", 1, 1)
             }
-            33001 -> { log("今天已经签到过"); setState("signin_done", true) }
+            33001 -> { log("今天已经签到过"); setState("signin_done", true); onProgress?.invoke("signin", 1, 1) }
             else -> log("签到失败：${res.messageText()}")
         }
     }
@@ -201,6 +210,7 @@ class PointsTaskRunner(
         )
         if (res.codeInt() == 0) {
             log("首页浏览：成功")
+            onProgress?.invoke("home_page", 1, 1)
         } else {
             log("首页浏览失败：${res.messageText()}")
         }
@@ -220,6 +230,7 @@ class PointsTaskRunner(
     ): Int? {
         var curBalance = lastBalance
         log("任务列表...")
+        onProgress?.invoke("task_list", 0, 0)
         val res = request("https://userapi.qiekj.com/task/list", token, ua, mapOf("token" to token))
         if (res.codeInt() != 0) {
             log("获取任务列表失败：${res.messageText()}")
@@ -322,6 +333,7 @@ class PointsTaskRunner(
                     val suffix = if (diff != null && diff > 0) " +$diff" else ""
                     log("$title 第${index + 1}次完成$suffix")
                     curBalance = cur ?: curBalance
+                    onProgress?.invoke("ad_task", index + 1, adTaskTotal())
                 } else {
                     // 检查是否服务器返回"已完成"（非广告任务的兜底）
                     if (isAlreadyCompletedResponse(taskRes)) {
@@ -380,6 +392,7 @@ class PointsTaskRunner(
             val res = completeTask(token, ua, 2)
             if (res.codeInt() == 0 && res["data"] == true) {
                 setAdCount("app_video", index + 1)
+                onProgress?.invoke("app_video", index + 1, 20)
                 delay(15_000)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
@@ -439,6 +452,7 @@ class PointsTaskRunner(
             )
             if (res.codeInt() == 0 && res["data"] == true) {
                 setAdCount("alipay_video", index + 1)
+                onProgress?.invoke("alipay_video", index + 1, 50)
                 delay(15_000)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
