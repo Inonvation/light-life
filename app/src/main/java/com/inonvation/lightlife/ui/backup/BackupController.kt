@@ -6,6 +6,7 @@ import com.inonvation.lightlife.data.BackupManager
 import com.inonvation.lightlife.data.DebugLogStore
 import com.inonvation.lightlife.data.PointsStatsStore
 import com.inonvation.lightlife.data.PointsTaskStateStore
+import com.inonvation.lightlife.data.QuickLinkStore
 import com.inonvation.lightlife.data.RestoreCounts
 import com.inonvation.lightlife.data.TaskLogStore
 import com.inonvation.lightlife.data.TokenExpiredException
@@ -28,6 +29,7 @@ class BackupController(
     private val logStore: TaskLogStore?,
     private val themePreferences: ThemePreferences?,
     private val debugLogStore: DebugLogStore?,
+    private val quickLinkStore: QuickLinkStore? = null,
     private val onRestoreFinished: () -> Unit,
     private val showToast: (String) -> Unit,
 ) {
@@ -47,6 +49,7 @@ class BackupController(
             simpleModeEnabled = s.simpleModeEnabled,
             userAgent = s.userAgent,
             taskStateStore = taskStateStore,
+            quickLinkStore = quickLinkStore,
         ) ?: return ""
         return backupManager.toJson(backup)
     }
@@ -121,7 +124,7 @@ class BackupController(
     }
 
     private fun doRestoreBackup(backup: BackupData): RestoreCounts {
-        val counts = backupManager?.restore(backup) ?: RestoreCounts()
+        val counts = backupManager?.restore(backup, quickLinkStore) ?: RestoreCounts()
         state.update { it.copy(
             hasToken = repository.localToken() != null,
             orderHistory = repository.orderHistory(),
@@ -154,6 +157,12 @@ class BackupController(
         backup.data.simpleModeEnabled?.let { enabled ->
             taskStateStore?.setSimpleModeEnabled(enabled)
             state.update { s -> s.copy(simpleModeEnabled = enabled) }
+        }
+        // 恢复快捷链接后重新加载状态
+        if (backup.data.quickLinks != null) {
+            quickLinkStore?.let { store ->
+                state.update { s -> s.copy(quickLinks = store.getLinks()) }
+            }
         }
         return counts
     }

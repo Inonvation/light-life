@@ -126,6 +126,7 @@ class AppViewModel(
             logStore = logStore,
             themePreferences = themePreferences,
             debugLogStore = debugLogStore,
+            quickLinkStore = quickLinkStore,
             onRestoreFinished = { refreshTodayWater() },
             showToast = ::showToast,
         )
@@ -330,6 +331,27 @@ class AppViewModel(
         }
     }
 
+    /** 删除快捷方式：清空该槽位，后续条目前移补位 */
+    fun deleteQuickLink(index: Int) {
+        val links = _state.value.quickLinks.toMutableList()
+        if (index !in links.indices) return
+        // 清空该槽位，预设槽保留 presetIndex 以便重置
+        val pi = if (index < 3) index else -1
+        quickLinkStore?.updateLink(index, "", "", "", pi)
+        // 非预设槽位：后面的条目依次前移
+        if (index >= 3) {
+            for (i in index until links.size - 1) {
+                val next = links[i + 1]
+                quickLinkStore?.updateLink(i, next.name, next.url, next.packageName, next.presetIndex)
+            }
+            // 最后一个槽位清空
+            quickLinkStore?.updateLink(links.size - 1, "", "", "", -1)
+        }
+        quickLinkStore?.let {
+            _state.update { s -> s.copy(quickLinks = it.getLinks()) }
+        }
+    }
+
     fun swapQuickLinks(index1: Int, index2: Int) {
         quickLinkStore?.swapLinks(index1, index2)
         quickLinkStore?.let {
@@ -361,6 +383,26 @@ class AppViewModel(
         quickLinkStore?.let {
             _state.update { s -> s.copy(quickLinks = it.getLinks()) }
         }
+    }
+
+    fun setQuickLinkIcon(index: Int, uri: android.net.Uri) {
+        val success = quickLinkStore?.saveIcon(index, uri) ?: false
+        if (success) {
+            quickLinkStore?.let {
+                _state.update { s -> s.copy(quickLinks = it.getLinks()) }
+            }
+            showToast("图标已设置")
+        } else {
+            showError("设置图标失败")
+        }
+    }
+
+    fun removeQuickLinkIcon(index: Int) {
+        quickLinkStore?.removeIcon(index)
+        quickLinkStore?.let {
+            _state.update { s -> s.copy(quickLinks = it.getLinks()) }
+        }
+        showToast("图标已移除")
     }
 
     fun dismissUnlockAnimation() {

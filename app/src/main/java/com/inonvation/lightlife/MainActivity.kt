@@ -152,6 +152,17 @@ private fun DeviceControlApp(vm: AppViewModel) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
+    // 图标选择器
+    var pendingIconIndex by remember { mutableStateOf(-1) }
+    val iconPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null && pendingIconIndex >= 0) {
+            vm.setQuickLinkIcon(pendingIconIndex, uri)
+            pendingIconIndex = -1
+        }
+    }
+
     BackHandler(enabled = state.showOrderHistory || state.showLogoutConfirm || state.tokenDialogText != null || state.showBackupTokenExpiredDialog) {
         when {
             state.showOrderHistory -> vm.dismissOrderHistory()
@@ -389,7 +400,14 @@ private fun DeviceControlApp(vm: AppViewModel) {
                     userScrollEnabled = true,
                 ) { page ->
                     when (TAB_LIST[page]) {
-                        DeviceTab.Control -> ControlScreen(state, vm)
+                        DeviceTab.Control -> ControlScreen(
+                            state = state,
+                            vm = vm,
+                            onPickIcon = { index ->
+                                pendingIconIndex = index
+                                iconPickerLauncher.launch("image/*")
+                            }
+                        )
                         DeviceTab.Points -> PointsTaskScreen(state, vm)
                         DeviceTab.Me -> MeScreen(state, vm, isActive = state.currentTab == DeviceTab.Me)
                     }

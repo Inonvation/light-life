@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -39,12 +37,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -55,11 +53,16 @@ import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.remember
 import androidx.compose.ui.text.input.KeyboardType
 
 @Composable
 fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
     val haptic = LocalHapticFeedback.current
+    // 动态显示数量：初始为最后有内容的槽位+1，最少3个，最多9个
+    val lastUsedIndex = state.quickLinks.indexOfLast { it.url.isNotBlank() || it.name.isNotBlank() }
+    val initialDisplay = maxOf(3, (lastUsedIndex + 2).coerceAtLeast(3))
+    var displayCount by remember { mutableIntStateOf(initialDisplay.coerceAtMost(9)) }
 
     Column(
         modifier = Modifier
@@ -67,7 +70,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
             .background(MaterialTheme.colorScheme.background)
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
-        // 顶栏（跟日志页面一致）
+        // 顶栏
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -88,7 +91,6 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
         }
 
         // 内容区域
-        val displayCount = maxOf(3, state.quickLinks.count { it.url.isNotBlank() })
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -100,8 +102,13 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                 Spacer(Modifier.height(12.dp))
             }
 
-            itemsIndexed(state.quickLinks.take(displayCount)) { index, link ->
+            itemsIndexed(state.quickLinks.take(displayCount), key = { i, _ -> "quicklink_$i" }) { index, link ->
                 val hasContent = link.name.isNotBlank() || link.url.isNotBlank()
+                // 显示标题：有内容时用名称，无内容时用编号
+                val title = when {
+                    hasContent -> link.name.ifBlank { "未命名链接" }
+                    else -> "快捷方式 ${index + 1}"
+                }
                 val expanded = remember { mutableStateOf(false) }
                 Card(
                     modifier = Modifier
@@ -115,7 +122,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                         // ── 标题行（始终显示） ──
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "快捷方式 ${index + 1}",
+                                title,
                                 style = MaterialTheme.typography.labelLarge,
                                 color = if (hasContent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
@@ -140,6 +147,21 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(20.dp),
                             )
+                            // 自定义槽折叠态：删除按钮（仅非预设且有内容时显示）
+                            if (index >= 3 && hasContent && !expanded.value) {
+                                Spacer(Modifier.width(8.dp))
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = "删除",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clickable {
+                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            vm.deleteQuickLink(index)
+                                        },
+                                )
+                            }
                         }
 
                         // ── 展开详情 ──
@@ -179,28 +201,35 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                 ) {
-                                    // 左：重置（前3个）/ 空占位（后6个）
+                                    // 左：重置（预设槽）/ 删除此快捷方式（自定义槽）
                                     if (index < 3) {
                                         TextButton(
                                             onClick = {
                                                 if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                val preset = DEFAULT_QUICK_LINKS.getOrNull(link.presetIndex)
+                                                val preset = DEFAULT_QUICK_LINKS.getOrNull(index)
                                                 if (preset != null) {
-                                                    vm.updateQuickLink(index, preset.name, preset.url, preset.packageName, link.presetIndex)
+                                                    vm.updateQuickLink(index, preset.name, preset.url, preset.packageName, index)
                                                 }
                                             },
                                         ) {
-                                            Text("重置", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                            Text("重置为默认", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                         }
                                     } else {
-                                        Spacer(Modifier.width(1.dp))
-                                    }
-                                    // 右：清除
-                                    if (hasContent) {
                                         TextButton(
                                             onClick = {
                                                 if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                vm.updateQuickLink(index, "", "", "")
+                                                vm.deleteQuickLink(index)
+                                            },
+                                        ) {
+                                            Text("删除", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                    // 右：清除（预设槽有内容时）
+                                    if (index < 3 && hasContent) {
+                                        TextButton(
+                                            onClick = {
+                                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                vm.updateQuickLink(index, "", "", "", index)
                                             },
                                         ) {
                                             Text("清除", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
@@ -219,6 +248,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                     OutlinedButton(
                         onClick = {
                             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            displayCount = (displayCount + 1).coerceAtMost(9)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),

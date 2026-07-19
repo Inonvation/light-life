@@ -25,6 +25,8 @@ data class BackupPayload(
     val taskLogs: List<TaskLogPayload>? = null,
     val dailyTaskState: DailyTaskStatePayload? = null,
     val adVideoState: AdVideoStatePayload? = null,
+    val quickLinks: Map<String, *>? = null,
+    val quickLinksIcons: Map<String, String>? = null,
 )
 
 data class PointsStatsPayload(
@@ -89,6 +91,7 @@ class BackupManager(private val context: Context) {
         userAgent: String,
         simpleModeEnabled: Boolean,
         taskStateStore: PointsTaskStateStore? = null,
+        quickLinkStore: QuickLinkStore? = null,
     ): BackupData {
         val logs = taskLogStore?.let { store ->
             store.listFiles().map { (name, content) ->
@@ -144,6 +147,8 @@ class BackupManager(private val context: Context) {
                         )
                     } else null
                 },
+                quickLinks = quickLinkStore?.exportData(),
+                quickLinksIcons = quickLinkStore?.exportIcons()?.ifEmpty { null },
             ),
         )
     }
@@ -180,7 +185,8 @@ class BackupManager(private val context: Context) {
             && d.hapticEnabled == null
             && d.userAgent == null && d.simpleModeEnabled == null
             && d.orderHistory == null && d.pointsStats == null && d.taskLogs == null
-            && d.adVideoState == null && d.dailyTaskState == null) {
+            && d.adVideoState == null && d.dailyTaskState == null
+            && d.quickLinks == null) {
             logError?.invoke("备份文件内容为空，未包含任何有效数据")
             return null
         }
@@ -191,7 +197,7 @@ class BackupManager(private val context: Context) {
      * 将备份数据恢复到各 Store。
      * 返回恢复摘要信息。
      */
-    fun restore(backup: BackupData): RestoreCounts {
+    fun restore(backup: BackupData, quickLinkStore: QuickLinkStore? = null): RestoreCounts {
         val payload = backup.data
         var orderCount = 0
         var logCount = 0
@@ -272,6 +278,14 @@ class BackupManager(private val context: Context) {
             }
         }
 
+        // 恢复快捷链接
+        payload.quickLinks?.let { data ->
+            @Suppress("UNCHECKED_CAST")
+            quickLinkStore?.importData(data as Map<String, *>)
+        }
+        payload.quickLinksIcons?.let { icons ->
+            quickLinkStore?.importIcons(icons)
+        }
 
         return RestoreCounts(orderCount, logCount)
     }

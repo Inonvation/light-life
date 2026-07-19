@@ -36,6 +36,8 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -86,6 +88,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -99,7 +104,7 @@ import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ControlScreen(state: AppUiState, vm: AppViewModel) {
+fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit)? = null) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
@@ -306,6 +311,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                                                 SortableQuickLinkCard(
                                                     name = link.name,
                                                     url = link.url,
+                                                    iconUri = link.iconUri,
                                                     isSorting = isSorting.value,
                                                     onLongClick = {
                                                         if (!isSorting.value && hasLink) {
@@ -354,6 +360,28 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                                                                 Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                                                             },
                                                         )
+                                                        DropdownMenuItem(
+                                                            text = { Text("设置图标", style = MaterialTheme.typography.bodyMedium) },
+                                                            onClick = {
+                                                                contextMenuIndex = -1
+                                                                onPickIcon?.invoke(realIndex)
+                                                            },
+                                                            leadingIcon = {
+                                                                Icon(Icons.Outlined.Image, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                            },
+                                                        )
+                                                        if (link.iconUri.isNotBlank()) {
+                                                            DropdownMenuItem(
+                                                                text = { Text("移除图标", style = MaterialTheme.typography.bodyMedium) },
+                                                                onClick = {
+                                                                    contextMenuIndex = -1
+                                                                    vm.removeQuickLinkIcon(realIndex)
+                                                                },
+                                                                leadingIcon = {
+                                                                    Icon(Icons.Outlined.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                                                },
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
@@ -589,6 +617,7 @@ private fun DeviceCard(
 private fun SortableQuickLinkCard(
     name: String,
     url: String,
+    iconUri: String = "",
     isSorting: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
@@ -671,7 +700,27 @@ private fun SortableQuickLinkCard(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (hasLink) {
+                    if (hasLink && iconUri.isNotBlank()) {
+                        // 显示自定义图标
+                        val iconBitmap = remember(iconUri) {
+                            try {
+                                val file = java.io.File(iconUri)
+                                if (file.exists()) {
+                                    android.graphics.BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+                                } else null
+                            } catch (_: Exception) { null }
+                        }
+                        if (iconBitmap != null) {
+                            Image(
+                                bitmap = iconBitmap,
+                                contentDescription = name,
+                                modifier = Modifier.size(24.dp).clip(CircleShape),
+                                contentScale = ContentScale.Crop,
+                            )
+                        } else {
+                            Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    } else if (hasLink) {
                         Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else {
                         Icon(Icons.Outlined.Add, contentDescription = "添加", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.outline)
@@ -706,12 +755,14 @@ private fun SortableQuickLinkCard(
 private fun QuickLinkCard(
     name: String,
     url: String,
+    iconUri: String = "",
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     SortableQuickLinkCard(
         name = name,
         url = url,
+        iconUri = iconUri,
         isSorting = false,
         onClick = onClick,
         modifier = modifier,
