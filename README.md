@@ -8,9 +8,11 @@
 
 ## 功能预览
 
-| 首页 | 积分任务 | 我的 |
-|:---:|:---:|:---:|
-| ![首页](screenshots/home.jpg) | ![积分任务](screenshots/points.jpg) | ![我的](screenshots/profile.jpg) |
+<p align="center">
+  <img src="screenshots/home.jpg" width="30%" />
+  <img src="screenshots/points.jpg" width="30%" />
+  <img src="screenshots/profile.jpg" width="30%" />
+</p>
 
 ---
 
