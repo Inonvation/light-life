@@ -19,6 +19,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.List
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -110,7 +113,38 @@ fun LogCenterScreen(state: AppUiState, vm: AppViewModel) {
                     }
                 }
             }
+
+            Spacer(Modifier.height(Spacings.md))
+
+            Button(
+                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showClearAllLogsConfirm() },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("清除所有记录和日志", color = MaterialTheme.colorScheme.onError)
+            }
         }
+    }
+
+    if (state.showClearAllLogsConfirm) {
+        AlertDialog(
+            onDismissRequest = { vm.dismissClearAllLogsConfirm() },
+            title = { Text("确认清除") },
+            text = { Text("将删除所有任务记录和调试日志，此操作不可撤销。") },
+            confirmButton = {
+                Button(
+                    onClick = { vm.clearAllLogs() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("清除", color = MaterialTheme.colorScheme.onError) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { vm.dismissClearAllLogsConfirm() }) {
+                    Text("取消")
+                }
+            },
+            shape = RoundedCornerShape(8.dp),
+        )
     }
 
     if (state.showArchivedLogs) {

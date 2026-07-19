@@ -28,10 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -167,6 +171,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                     enter = fadeIn(tween(400, delayMillis = 150))
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                        val isSorting = remember { mutableStateOf(false) }
                         val hasAny = state.quickLinks.any { it.url.isNotBlank() }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -179,51 +184,93 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
+                            if (isSorting.value) {
+                                IconButton(
+                                    onClick = {
+                                        isSorting.value = false
+                                    },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(Icons.Outlined.Check, contentDescription = "完成", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        isSorting.value = true
+                                    },
+                                    modifier = Modifier.size(28.dp),
+                                ) {
+                                    Icon(Icons.Outlined.SwapVert, contentDescription = "排序", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                }
+                            }
                         }
                         Spacer(Modifier.height(8.dp))
-                        val scrollState = rememberScrollState()
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(scrollState),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        val displayCount = maxOf(3, state.quickLinks.count { it.url.isNotBlank() })
+                        val rowCount = (displayCount + 2) / 3
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            // 始终显示前 3 个（已配置或空位）
-                            val displayCount = maxOf(3, state.quickLinks.count { it.url.isNotBlank() })
-                            for (i in 0 until displayCount) {
-                                val link = state.quickLinks.getOrNull(i) ?: break
-                                val hasLink = link.url.isNotBlank()
-                                QuickLinkCard(
-                                    name = link.name,
-                                    url = link.url,
-                                    onClick = {
-                                        if (hasLink) {
-                                            try {
-                                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
-                                                if (link.packageName.isNotBlank()) {
-                                                    intent.setPackage(link.packageName)
-                                                }
-                                                context.startActivity(intent)
-                                            } catch (e: android.content.ActivityNotFoundException) {
-                                                try {
-                                                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
-                                                    context.startActivity(fallbackIntent)
-                                                } catch (e2: Exception) {
-                                                    android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
-                                            }
+                            for (row in 0 until rowCount) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                ) {
+                                    for (col in 0 until 3) {
+                                        val i = row * 3 + col
+                                        if (i < displayCount) {
+                                            val link = state.quickLinks[i]
+                                            val hasLink = link.url.isNotBlank()
+                                            SortableQuickLinkCard(
+                                                name = link.name,
+                                                url = link.url,
+                                                isSorting = isSorting.value,
+                                                canMoveUp = isSorting.value && i > 0,
+                                                canMoveDown = isSorting.value && i < displayCount - 1,
+                                                onMoveUp = { vm.swapQuickLinks(i, i - 1) },
+                                                onMoveDown = { vm.swapQuickLinks(i, i + 1) },
+                                                onClick = {
+                                                    if (!isSorting.value && hasLink) {
+                                                        try {
+                                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
+                                                            if (link.packageName.isNotBlank()) {
+                                                                intent.setPackage(link.packageName)
+                                                            }
+                                                            context.startActivity(intent)
+                                                        } catch (e: android.content.ActivityNotFoundException) {
+                                                            try {
+                                                                val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(link.url))
+                                                                context.startActivity(fallbackIntent)
+                                                            } catch (e2: Exception) {
+                                                                android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } else if (!isSorting.value) {
+                                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        vm.showQuickLinksSettings()
+                                                    }
+                                                },
+                                                modifier = Modifier.width(100.dp),
+                                            )
                                         } else {
-                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            vm.showQuickLinksSettings()
+                                            QuickLinkCard(
+                                                name = "添加",
+                                                url = "",
+                                                onClick = {
+                                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    vm.showQuickLinksSettings()
+                                                },
+                                                modifier = Modifier.width(100.dp),
+                                            )
                                         }
-                                    },
-                                    modifier = Modifier.width(100.dp),
-                                )
+                                    }
+                                }
+                                Spacer(Modifier.height(8.dp))
                             }
-                            if (displayCount <= 3 && !hasAny) {
-                                // 全空时显示一个管理入口
+                            // 全空时的管理入口
+                            if (displayCount <= 3 && !state.quickLinks.any { it.url.isNotBlank() }) {
                                 QuickLinkCard(
                                     name = "管理",
                                     url = "",
@@ -435,16 +482,20 @@ private fun DeviceCard(
 }
 
 @Composable
-private fun QuickLinkCard(
+private fun SortableQuickLinkCard(
     name: String,
     url: String,
+    isSorting: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasLink = url.isNotBlank()
     Card(
-        modifier = modifier
-            .clickable(onClick = onClick),
+        modifier = modifier.clickable(enabled = !isSorting, onClick = onClick),
         shape = CardShapes.smallCardCorner,
         colors = CardDefaults.cardColors(
             containerColor = if (hasLink) MaterialTheme.colorScheme.surface
@@ -452,36 +503,78 @@ private fun QuickLinkCard(
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (hasLink) 1.dp else 0.dp),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
                 modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (hasLink) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-                    ),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (hasLink) {
-                    Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                } else {
-                    Icon(Icons.Outlined.Add, contentDescription = "添加", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (hasLink) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (hasLink) {
+                        Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    } else {
+                        Icon(Icons.Outlined.Add, contentDescription = "添加", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.outline)
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (hasLink) name.ifBlank { "快捷方式" } else "添加",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (hasLink) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            // 排序模式下的移动按钮
+            if (isSorting) {
+                if (canMoveUp) {
+                    IconButton(
+                        onClick = onMoveUp,
+                        modifier = Modifier.align(Alignment.TopStart).size(18.dp),
+                    ) {
+                        Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "上移", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                if (canMoveDown) {
+                    IconButton(
+                        onClick = onMoveDown,
+                        modifier = Modifier.align(Alignment.TopEnd).size(18.dp),
+                    ) {
+                        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "下移", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = if (hasLink) name.ifBlank { "快捷方式" } else "添加",
-                style = MaterialTheme.typography.labelSmall,
-                color = if (hasLink) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
         }
     }
+}
+
+@Composable
+private fun QuickLinkCard(
+    name: String,
+    url: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    SortableQuickLinkCard(
+        name = name,
+        url = url,
+        isSorting = false,
+        canMoveUp = false,
+        canMoveDown = false,
+        onMoveUp = {},
+        onMoveDown = {},
+        onClick = onClick,
+        modifier = modifier,
+    )
 }

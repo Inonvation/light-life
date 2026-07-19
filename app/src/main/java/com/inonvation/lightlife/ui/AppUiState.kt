@@ -114,6 +114,7 @@ data class AppUiState(
     val showLogoutConfirm: Boolean = false,
     val showBackupTokenExpiredDialog: Boolean = false,
     val showPointsTaskWarning: Boolean = false,
+    val showClearAllLogsConfirm: Boolean = false,
     val showArchivedLogs: Boolean = false,
     val showDebugLogs: Boolean = false,
     val tokenDialogText: String? = null,

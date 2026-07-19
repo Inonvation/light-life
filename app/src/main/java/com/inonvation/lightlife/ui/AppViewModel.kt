@@ -330,6 +330,13 @@ class AppViewModel(
         }
     }
 
+    fun swapQuickLinks(index1: Int, index2: Int) {
+        quickLinkStore?.swapLinks(index1, index2)
+        quickLinkStore?.let {
+            _state.update { s -> s.copy(quickLinks = it.getLinks()) }
+        }
+    }
+
     fun toggleQuickLinksEnabled() {
         val v = !_state.value.quickLinksEnabled
         quickLinkStore?.setEnabled(v)
@@ -471,6 +478,18 @@ class AppViewModel(
         _state.update { it.copy(debugLogs = it.debugLogs.filter { it.first != name }) }
     }
     fun getDebugLogContent(): String = debugLogStore?.getLatestContent() ?: ""
+
+    fun showClearAllLogsConfirm() { _state.update { it.copy(showClearAllLogsConfirm = true) } }
+    fun dismissClearAllLogsConfirm() { _state.update { it.copy(showClearAllLogsConfirm = false) } }
+    fun clearAllLogs() {
+        logStore?.clearAll()
+        taskStateStore?.reset()
+        clearAdVideoState()
+        syncTodayTaskStateFromPrefs()
+        debugLogStore?.clearAll()
+        _state.update { it.copy(archivedLogs = emptyList(), debugLogs = emptyList(), showClearAllLogsConfirm = false) }
+        showToast("所有记录和日志已清除")
+    }
 
     fun showArchivedLogs() {
         _state.update { it.copy(archivedLogs = logStore?.listFiles() ?: emptyList(), showArchivedLogs = true) }

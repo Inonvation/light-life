@@ -34,4 +34,18 @@ class QuickLinkStore(context: Context) {
             .putString("pkg_$index", packageName)
             .apply()
     }
+
+    fun swapLinks(index1: Int, index2: Int) {
+        val links = getLinks().toMutableList()
+        val temp = links[index1]
+        links[index1] = links[index2]
+        links[index2] = temp
+        links.forEachIndexed { i, link ->
+            prefs.edit()
+                .putString("name_$i", link.name)
+                .putString("url_$i", link.url)
+                .putString("pkg_$i", link.packageName)
+                .apply()
+        }
+    }
 }

@@ -1,6 +1,8 @@
 package com.inonvation.lightlife.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -30,10 +34,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -95,13 +102,17 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
 
             itemsIndexed(state.quickLinks.take(displayCount)) { index, link ->
                 val hasContent = link.name.isNotBlank() || link.url.isNotBlank()
+                val expanded = remember { mutableStateOf(false) }
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded.value = !expanded.value },
                     shape = CardShapes.cardCorner,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
+                        // ── 标题行（始终显示） ──
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "快捷方式 ${index + 1}",
@@ -109,64 +120,95 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 color = if (hasContent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (hasContent && index >= 3) {
-                                IconButton(
-                                    onClick = {
-                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        vm.updateQuickLink(index, "", "", "")
-                                    },
-                                    modifier = Modifier.size(32.dp),
-                                ) {
-                                    Icon(Icons.Outlined.Close, contentDescription = "删除", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
-                                }
-                            }
                             if (index < 3) {
-                                androidx.compose.material3.TextButton(
-                                    onClick = {
-                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        val preset = com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS.getOrNull(index)
-                                        if (preset != null) {
-                                            vm.updateQuickLink(index, preset.name, preset.url, preset.packageName)
-                                        }
-                                    },
-                                    modifier = Modifier.size(48.dp, 32.dp),
+                                Spacer(Modifier.width(4.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
                                 ) {
                                     Text(
-                                        if (hasContent) "重置" else "预设",
+                                        "预设",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
                                 }
                             }
+                            Icon(
+                                if (expanded.value) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = if (expanded.value) "收起" else "展开",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
                         }
-                        Spacer(Modifier.height(6.dp))
-                        OutlinedTextField(
-                            value = link.name,
-                            onValueChange = { vm.updateQuickLink(index, it, link.url, link.packageName) },
-                            label = { Text("名称") },
-                            placeholder = { Text("如：项目文档") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = link.url,
-                            onValueChange = { vm.updateQuickLink(index, link.name, it, link.packageName) },
-                            label = { Text("链接") },
-                            placeholder = { Text("如：https:// 或 weixin://") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = link.packageName,
-                            onValueChange = { vm.updateQuickLink(index, link.name, link.url, it) },
-                            label = { Text("包名（可选）") },
-                            placeholder = { Text("如：com.tencent.mm") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+
+                        // ── 展开详情 ──
+                        AnimatedVisibility(visible = expanded.value) {
+                            Column {
+                                Spacer(Modifier.height(12.dp))
+                                OutlinedTextField(
+                                    value = link.name,
+                                    onValueChange = { vm.updateQuickLink(index, it, link.url, link.packageName) },
+                                    label = { Text("名称") },
+                                    placeholder = { Text("如：项目文档") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = link.url,
+                                    onValueChange = { vm.updateQuickLink(index, link.name, it, link.packageName) },
+                                    label = { Text("链接") },
+                                    placeholder = { Text("如：https:// 或 weixin://") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedTextField(
+                                    value = link.packageName,
+                                    onValueChange = { vm.updateQuickLink(index, link.name, link.url, it) },
+                                    label = { Text("包名（可选）") },
+                                    placeholder = { Text("如：com.tencent.mm") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                // ── 底部按钮 ──
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                ) {
+                                    // 左：重置（前3个）/ 空占位（后6个）
+                                    if (index < 3) {
+                                        TextButton(
+                                            onClick = {
+                                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                val preset = com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS.getOrNull(index)
+                                                if (preset != null) {
+                                                    vm.updateQuickLink(index, preset.name, preset.url, preset.packageName)
+                                                }
+                                            },
+                                        ) {
+                                            Text("重置", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                                        }
+                                    } else {
+                                        Spacer(Modifier.width(1.dp))
+                                    }
+                                    // 右：清除
+                                    if (hasContent) {
+                                        TextButton(
+                                            onClick = {
+                                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                vm.updateQuickLink(index, "", "", "")
+                                            },
+                                        ) {
+                                            Text("清除", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
