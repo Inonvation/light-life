@@ -170,14 +170,6 @@ class PointsTaskRunner(
         }
         val totalGained = after?.let { a -> lastBalance?.let { _ -> a - (lastBalance ?: a) } }
         log("总计：${after ?: "-"}（今日 +${totalGained ?: 0}）")
-        // 如果APP视频任务未完成，但整个流程已结束，标记为已完成
-        if (getAdCount("app_video") < 20) {
-            setAdCount("app_video", 20)
-        }
-        // 如果支付宝视频任务未完成，但整个流程已结束，标记为已完成
-        if (getAdCount("alipay_video") < 50) {
-            setAdCount("alipay_video", 50)
-        }
         log("全部完成")
     }
 
@@ -409,7 +401,12 @@ class PointsTaskRunner(
                 lastBalance = cur ?: lastBalance
             } else {
                 val msg = res.messageText()
-                if (msg.contains("任务已结束") || msg.contains("已结束")) {
+                val code = res.codeInt()
+                // 服务器返回成功但数据为false，可能表示任务已完成
+                if (code == 0 && res["data"] == false) {
+                    log("APP视频：已完成")
+                    setAdCount("app_video", 20)
+                } else if (msg.contains("任务已结束") || msg.contains("已结束")) {
                     log("APP视频：已完成")
                     setAdCount("app_video", 20)
                 } else {
