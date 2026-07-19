@@ -323,8 +323,8 @@ class AppViewModel(
         _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0) }
     }
 
-    fun updateQuickLink(index: Int, name: String, url: String, packageName: String = "") {
-        quickLinkStore?.updateLink(index, name, url, packageName)
+    fun updateQuickLink(index: Int, name: String, url: String, packageName: String, presetIndex: Int = -1) {
+        quickLinkStore?.updateLink(index, name, url, packageName, presetIndex)
         quickLinkStore?.let {
             _state.update { s -> s.copy(quickLinks = it.getLinks()) }
         }
@@ -353,10 +353,10 @@ class AppViewModel(
 
     fun resetQuickLinksToDefault() {
         DEFAULT_QUICK_LINKS.forEachIndexed { index, link ->
-            quickLinkStore?.updateLink(index, link.name, link.url, link.packageName)
+            quickLinkStore?.updateLink(index, link.name, link.url, link.packageName, link.presetIndex)
         }
         for (i in 3 until 9) {
-            quickLinkStore?.updateLink(i, "", "", "")
+            quickLinkStore?.updateLink(i, "", "", "", -1)
         }
         quickLinkStore?.let {
             _state.update { s -> s.copy(quickLinks = it.getLinks()) }

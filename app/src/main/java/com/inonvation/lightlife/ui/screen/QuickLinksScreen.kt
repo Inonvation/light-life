@@ -184,9 +184,9 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                         TextButton(
                                             onClick = {
                                                 if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                val preset = com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS.getOrNull(index)
+                                                val preset = com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS.getOrNull(link.presetIndex)
                                                 if (preset != null) {
-                                                    vm.updateQuickLink(index, preset.name, preset.url, preset.packageName)
+                                                    vm.updateQuickLink(index, preset.name, preset.url, preset.packageName, link.presetIndex)
                                                 }
                                             },
                                         ) {
