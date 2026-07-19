@@ -27,21 +27,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -350,7 +344,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                                                         expanded = contextMenuIndex == realIndex,
                                                         onDismissRequest = { contextMenuIndex = -1 },
                                                     ) {
-                                                        androidx.compose.material3.DropdownMenuItem(
+                                                        DropdownMenuItem(
                                                             text = { Text("添加快捷方式到桌面", style = MaterialTheme.typography.bodyMedium) },
                                                             onClick = {
                                                                 contextMenuIndex = -1
@@ -618,7 +612,7 @@ private fun SortableQuickLinkCard(
         remember { mutableFloatStateOf(1f) }
     }
 
-    val dashColor = if (isSorting) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else androidx.compose.ui.graphics.Color.Transparent
+    val dashColor = if (isSorting) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else Color.Transparent
 
     Card(
         modifier = modifier
@@ -628,7 +622,7 @@ private fun SortableQuickLinkCard(
                     Modifier.drawBehind {
                             val rect = Rect(Offset.Zero, size)
                             val path = Path().apply {
-                                addRoundRect(androidx.compose.ui.geometry.RoundRect(
+                                addRoundRect(RoundRect(
                                     rect = rect,
                                     cornerRadius = CornerRadius(12.dp.toPx()),
                                 ))

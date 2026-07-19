@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,6 +49,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.theme.CardShapes
@@ -88,7 +88,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
         }
 
         // 内容区域
-        var displayCount by remember { mutableIntStateOf(maxOf(3, state.quickLinks.count { it.url.isNotBlank() })) }
+        val displayCount = maxOf(3, state.quickLinks.count { it.url.isNotBlank() })
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -148,7 +148,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 Spacer(Modifier.height(12.dp))
                                 OutlinedTextField(
                                     value = link.name,
-                                    onValueChange = { vm.updateQuickLink(index, it, link.url, link.packageName) },
+                                    onValueChange = { vm.updateQuickLink(index, it, link.url, link.packageName, link.presetIndex) },
                                     label = { Text("名称") },
                                     placeholder = { Text("如：项目文档") },
                                     singleLine = true,
@@ -157,7 +157,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 Spacer(Modifier.height(8.dp))
                                 OutlinedTextField(
                                     value = link.url,
-                                    onValueChange = { vm.updateQuickLink(index, link.name, it, link.packageName) },
+                                    onValueChange = { vm.updateQuickLink(index, link.name, it, link.packageName, link.presetIndex) },
                                     label = { Text("链接") },
                                     placeholder = { Text("如：https:// 或 weixin://") },
                                     singleLine = true,
@@ -167,7 +167,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 Spacer(Modifier.height(8.dp))
                                 OutlinedTextField(
                                     value = link.packageName,
-                                    onValueChange = { vm.updateQuickLink(index, link.name, link.url, it) },
+                                    onValueChange = { vm.updateQuickLink(index, link.name, link.url, it, link.presetIndex) },
                                     label = { Text("包名（可选）") },
                                     placeholder = { Text("如：com.tencent.mm") },
                                     singleLine = true,
@@ -184,7 +184,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                         TextButton(
                                             onClick = {
                                                 if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                val preset = com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS.getOrNull(link.presetIndex)
+                                                val preset = DEFAULT_QUICK_LINKS.getOrNull(link.presetIndex)
                                                 if (preset != null) {
                                                     vm.updateQuickLink(index, preset.name, preset.url, preset.packageName, link.presetIndex)
                                                 }
@@ -219,7 +219,6 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                     OutlinedButton(
                         onClick = {
                             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            displayCount = (displayCount + 1).coerceAtMost(9)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(8.dp),

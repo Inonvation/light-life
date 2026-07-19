@@ -47,6 +47,7 @@ class QuickLinkStore(context: Context) {
                 .putString("name_$i", link.name)
                 .putString("url_$i", link.url)
                 .putString("pkg_$i", link.packageName)
+                .putInt("preset_$i", link.presetIndex)
                 .apply()
         }
     }
