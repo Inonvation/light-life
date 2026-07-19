@@ -326,6 +326,10 @@ class AppViewModel(
 
     fun updateQuickLink(index: Int, name: String, url: String, packageName: String, presetIndex: Int = -1) {
         quickLinkStore?.updateLink(index, name, url, packageName, presetIndex)
+        // 选择预设时自动保存预设图标
+        if (presetIndex >= 0 && name.isNotBlank()) {
+            quickLinkStore?.savePresetIcon(index, presetIndex)
+        }
         quickLinkStore?.let {
             _state.update { s -> s.copy(quickLinks = it.getLinks()) }
         }

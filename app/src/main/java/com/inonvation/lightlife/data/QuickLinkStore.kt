@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import com.inonvation.lightlife.R
 import java.io.File
 import java.io.FileOutputStream
 
@@ -75,6 +76,29 @@ class QuickLinkStore(private val context: Context) {
             File(path).delete()
         }
         prefs.edit().remove("icon_$index").apply()
+    }
+
+    /** 保存预设图标（从 drawable 资源复制） */
+    fun savePresetIcon(index: Int, presetIndex: Int) {
+        val resId = when (presetIndex) {
+            0 -> R.drawable.ic_preset_taobao
+            1 -> R.drawable.ic_preset_pinduoduo
+            2 -> R.drawable.ic_preset_jiaowu
+            else -> return
+        }
+        try {
+            val bitmap = BitmapFactory.decodeResource(context.resources, resId)
+            val scaled = Bitmap.createScaledBitmap(bitmap, 128, 128, true)
+            val iconFile = File(iconDir, "icon_$index.png")
+            FileOutputStream(iconFile).use { out ->
+                scaled.compress(Bitmap.CompressFormat.PNG, 90, out)
+            }
+            if (scaled != bitmap) scaled.recycle()
+            bitmap.recycle()
+            prefs.edit().putString("icon_$index", iconFile.absolutePath).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     fun getIconFile(index: Int): File? {
