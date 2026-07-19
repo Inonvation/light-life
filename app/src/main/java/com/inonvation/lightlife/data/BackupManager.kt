@@ -18,7 +18,6 @@ data class BackupPayload(
     val themeMode: String? = null,
     val colorTheme: String? = null,
     val hapticEnabled: Boolean? = null,
-    val autoCleanLogsEnabled: Boolean? = null,
     val userAgent: String? = null,
     val simpleModeEnabled: Boolean? = null,
     val orderHistory: List<OrderHistoryItem>? = null,
@@ -87,7 +86,6 @@ class BackupManager(private val context: Context) {
         themeMode: String,
         colorTheme: String,
         hapticEnabled: Boolean,
-        autoCleanLogsEnabled: Boolean,
         userAgent: String,
         simpleModeEnabled: Boolean,
         taskStateStore: PointsTaskStateStore? = null,
@@ -104,7 +102,6 @@ class BackupManager(private val context: Context) {
                 themeMode = themeMode,
                 colorTheme = colorTheme,
                 hapticEnabled = hapticEnabled,
-                autoCleanLogsEnabled = autoCleanLogsEnabled,
                 userAgent = userAgent,
                 simpleModeEnabled = simpleModeEnabled,
                 orderHistory = orderHistory.ifEmpty { null },
@@ -181,7 +178,6 @@ class BackupManager(private val context: Context) {
         val d = parsed.data
         if (d.token == null && d.themeMode == null && d.colorTheme == null
             && d.hapticEnabled == null
-            && d.autoCleanLogsEnabled == null
             && d.userAgent == null && d.simpleModeEnabled == null
             && d.orderHistory == null && d.pointsStats == null && d.taskLogs == null
             && d.adVideoState == null && d.dailyTaskState == null) {
@@ -233,7 +229,6 @@ class BackupManager(private val context: Context) {
         // 恢复触感、日志紧凑模式、UserAgent 和每日任务状态
         val taskPrefs = context.getSharedPreferences("points_task_state", Context.MODE_PRIVATE)
         payload.hapticEnabled?.let { taskPrefs.edit().putBoolean("haptic_enabled", it).apply() }
-        payload.autoCleanLogsEnabled?.let { taskPrefs.edit().putBoolean("auto_clean_logs", it).apply() }
         payload.userAgent?.let { if (it.isNotBlank()) taskPrefs.edit().putString("user_agent", it).apply() }
         payload.simpleModeEnabled?.let { taskPrefs.edit().putBoolean("simple_mode", it).apply() }
 

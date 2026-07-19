@@ -44,7 +44,6 @@ class BackupController(
             themeMode = s.themeMode.name,
             colorTheme = s.colorTheme.name,
             hapticEnabled = s.hapticEnabled,
-            autoCleanLogsEnabled = s.autoCleanLogsEnabled,
             simpleModeEnabled = s.simpleModeEnabled,
             userAgent = s.userAgent,
             taskStateStore = taskStateStore,
@@ -145,10 +144,6 @@ class BackupController(
         backup.data.hapticEnabled?.let { enabled ->
             taskStateStore?.setHapticEnabled(enabled)
             state.update { s -> s.copy(hapticEnabled = enabled) }
-        }
-        backup.data.autoCleanLogsEnabled?.let { autoClean ->
-            taskStateStore?.setAutoCleanLogsEnabled(autoClean)
-            state.update { s -> s.copy(autoCleanLogsEnabled = autoClean) }
         }
         backup.data.userAgent?.let { ua ->
             if (ua.isNotBlank()) {

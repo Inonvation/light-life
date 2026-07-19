@@ -109,7 +109,7 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 color = if (hasContent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (hasContent) {
+                            if (hasContent && index >= 3) {
                                 IconButton(
                                     onClick = {
                                         if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -118,6 +118,24 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                                     modifier = Modifier.size(32.dp),
                                 ) {
                                     Icon(Icons.Outlined.Close, contentDescription = "删除", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                            if (index < 3) {
+                                androidx.compose.material3.TextButton(
+                                    onClick = {
+                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        val preset = com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS.getOrNull(index)
+                                        if (preset != null) {
+                                            vm.updateQuickLink(index, preset.name, preset.url, preset.packageName)
+                                        }
+                                    },
+                                    modifier = Modifier.size(48.dp, 32.dp),
+                                ) {
+                                    Text(
+                                        if (hasContent) "重置" else "预设",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
                                 }
                             }
                         }

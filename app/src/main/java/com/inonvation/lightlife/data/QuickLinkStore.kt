@@ -4,6 +4,12 @@ import android.content.Context
 
 data class QuickLink(val name: String = "", val url: String = "", val packageName: String = "")
 
+val DEFAULT_QUICK_LINKS = listOf(
+    QuickLink("淘宝取件码", "https://pages-fast.m.taobao.com/wow/z/uniapp/1011717/last-mile-fe/end-collect-platform/identity-code", "com.taobao.taobao"),
+    QuickLink("拼多多取件码", "pinduoduo://com.xunmeng.pinduoduo/mdkd/package", "com.xunmeng.pinduoduo"),
+    QuickLink("学校教务系统", "https://eapp2.juwp.edu.cn:9443/cas/login?service=http%3A%2F%2Fportal.juwp.edu.cn%2Fcas%2Flogin_portal", ""),
+)
+
 class QuickLinkStore(context: Context) {
     private val prefs = context.getSharedPreferences("quick_links", Context.MODE_PRIVATE)
     private val count = 9

@@ -51,6 +51,9 @@ class PointsTaskStateStore(context: Context) {
 
 
 
+    fun isSafeModeEnabled(): Boolean = prefs.getBoolean("safe_mode", false)
+    fun setSafeModeEnabled(v: Boolean) { prefs.edit().putBoolean("safe_mode", v).apply() }
+
     fun isSimpleModeEnabled(): Boolean = prefs.getBoolean("simple_mode", false)
     fun setSimpleModeEnabled(v: Boolean) { prefs.edit().putBoolean("simple_mode", v).apply() }
 

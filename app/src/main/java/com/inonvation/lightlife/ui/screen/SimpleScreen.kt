@@ -1,5 +1,9 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -356,111 +360,142 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
             }
 
             // === 刷积分区域 ===
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
+            if (state.safeModeEnabled) {
+                item {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 })
+                    ) {
+                        Card(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {
-                            Text("积分任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            if (state.pointsLogs.isNotEmpty()) {
-                                OutlinedButton(
-                                    onClick = { vm.clearPointsLogs() },
-                                    modifier = Modifier.height(32.dp),
-                                    shape = RoundedCornerShape(6.dp)
-                                ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
-                            }
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        // 执行日志区域
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().height(180.dp),
-                            color = LogColors.background.copy(alpha = 0.85f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            val logListState = rememberLazyListState()
-                            LaunchedEffect(state.pointsLogs.size) {
-                                if (state.pointsLogs.isNotEmpty()) {
-                                    logListState.animateScrollToItem(state.pointsLogs.lastIndex)
-                                }
-                            }
-                            LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp)) {
-                                if (state.pointsLogs.isEmpty()) {
-                                    item {
-                                        Text(
-                                            "等待执行任务…",
-                                            color = LogColors.info.copy(alpha = 0.5f),
-                                            fontFamily = FontFamily.Monospace,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                } else {
-                                    items(state.pointsLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                                        val color = when (entry.level) {
-                                            LogLevel.SUCCESS -> LogColors.success
-                                            LogLevel.WARN -> LogColors.warn
-                                            LogLevel.ERROR -> LogColors.error
-                                            else -> LogColors.info
-                                        }
-                                        Row {
-                                            Text(
-                                                "[${entry.timestamp}]", color = LogColors.info.copy(alpha = 0.6f),
-                                                fontFamily = FontFamily.Monospace,
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                            Spacer(Modifier.width(4.dp))
-                                            Text(
-                                                entry.message, color = color,
-                                                fontFamily = FontFamily.Monospace,
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-
-
-                        Spacer(Modifier.height(10.dp))
-
-                        // 控制按钮
-                        if (state.runningPointsTask) {
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Button(
-                                    onClick = { if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask() },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) { Text(if (state.pointsTaskPaused) "继续" else "暂停") }
-                                OutlinedButton(
-                                    onClick = { vm.stopPointsTask() },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) { Text("停止") }
-                            }
-                        } else {
-                            Button(
-                                onClick = {
-                                    val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
-                                    vm.startPointsTask(ua)
-                                },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondary,
-                                    contentColor = MaterialTheme.colorScheme.onSecondary
+                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Spacer(Modifier.height(24.dp))
+                                Text(
+                                    "🔒 保险模式已开启",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "如需刷积分请到设置中关闭此模式",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(Modifier.height(24.dp))
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = CardShapes.cardCorner,
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("开始执行自动化任务", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                Text("积分任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                if (state.pointsLogs.isNotEmpty()) {
+                                    OutlinedButton(
+                                        onClick = { vm.clearPointsLogs() },
+                                        modifier = Modifier.height(32.dp),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            // 执行日志区域
+                            Surface(
+                                modifier = Modifier.fillMaxWidth().height(180.dp),
+                                color = LogColors.background.copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                val logListState = rememberLazyListState()
+                                LaunchedEffect(state.pointsLogs.size) {
+                                    if (state.pointsLogs.isNotEmpty()) {
+                                        logListState.animateScrollToItem(state.pointsLogs.lastIndex)
+                                    }
+                                }
+                                LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp)) {
+                                    if (state.pointsLogs.isEmpty()) {
+                                        item {
+                                            Text(
+                                                "等待执行任务…",
+                                                color = LogColors.info.copy(alpha = 0.5f),
+                                                fontFamily = FontFamily.Monospace,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    } else {
+                                        items(state.pointsLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
+                                            val color = when (entry.level) {
+                                                LogLevel.SUCCESS -> LogColors.success
+                                                LogLevel.WARN -> LogColors.warn
+                                                LogLevel.ERROR -> LogColors.error
+                                                else -> LogColors.info
+                                            }
+                                            Row {
+                                                Text(
+                                                    "[${entry.timestamp}]", color = LogColors.info.copy(alpha = 0.6f),
+                                                    fontFamily = FontFamily.Monospace,
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    entry.message, color = color,
+                                                    fontFamily = FontFamily.Monospace,
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(10.dp))
+
+                            // 控制按钮
+                            if (state.runningPointsTask) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Button(
+                                        onClick = { if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask() },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) { Text(if (state.pointsTaskPaused) "继续" else "暂停") }
+                                    OutlinedButton(
+                                        onClick = { vm.stopPointsTask() },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) { Text("停止") }
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
+                                        vm.startPointsTask(ua)
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondary,
+                                        contentColor = MaterialTheme.colorScheme.onSecondary
+                                    )
+                                ) {
+                                    Text("开始执行自动化任务", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                                }
                             }
                         }
                     }

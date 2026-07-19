@@ -16,6 +16,7 @@ import com.inonvation.lightlife.data.PointsTaskRunner
 import com.inonvation.lightlife.data.PointsTaskStateStore
 import com.inonvation.lightlife.data.QuickLink
 import com.inonvation.lightlife.data.QuickLinkStore
+import com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS
 import com.inonvation.lightlife.data.TaskLogStore
 import com.inonvation.lightlife.data.TokenExpiredException
 import com.inonvation.lightlife.data.UnlockException
@@ -139,9 +140,9 @@ class AppViewModel(
         taskStateStore?.let {
             _state.update { s -> s.copy(
                 hapticEnabled = it.isHapticEnabled(),
-                autoCleanLogsEnabled = it.isAutoCleanLogsEnabled(),
                 autoStartTaskEnabled = it.isAutoStartTaskEnabled(),
                 simpleModeEnabled = it.isSimpleModeEnabled(),
+                safeModeEnabled = it.isSafeModeEnabled(),
                 backgroundTaskEnabled = it.isBackgroundTaskEnabled(),
                 backupPrivacySafe = it.isBackupPrivacySafe(),
                 debugLogEnabled = debugLogStore?.isEnabled() ?: false,
@@ -173,7 +174,7 @@ class AppViewModel(
             connectToRunningService()
 
             // 自动检测：已登录且开启了自动启动时，检查今日任务是否已完成
-            if (!state.value.autoStartTaskEnabled) {
+            if (!state.value.autoStartTaskEnabled || state.value.safeModeEnabled) {
                 // 自动检测已关闭，不做任何事
             } else if (state.value.userAgent.isBlank()) {
                 android.os.Handler(Looper.getMainLooper()).post {
@@ -343,6 +344,18 @@ class AppViewModel(
         _state.update { it.copy(showQuickLinksSettings = false) }
     }
 
+    fun resetQuickLinksToDefault() {
+        DEFAULT_QUICK_LINKS.forEachIndexed { index, link ->
+            quickLinkStore?.updateLink(index, link.name, link.url, link.packageName)
+        }
+        for (i in 3 until 9) {
+            quickLinkStore?.updateLink(i, "", "", "")
+        }
+        quickLinkStore?.let {
+            _state.update { s -> s.copy(quickLinks = it.getLinks()) }
+        }
+    }
+
     fun dismissUnlockAnimation() {
         unlockTimerJob?.cancel()
         _state.update { it.copy(unlockFlowHidden = true, unlockElapsedSeconds = 0) }
@@ -385,12 +398,6 @@ class AppViewModel(
         _state.update { it.copy(backupPrivacySafe = v) }
     }
 
-    fun toggleAutoCleanLogs() {
-        val v = !state.value.autoCleanLogsEnabled
-        taskStateStore?.setAutoCleanLogsEnabled(v)
-        _state.update { it.copy(autoCleanLogsEnabled = v) }
-    }
-
     fun toggleAutoStartTask() {
         val v = !state.value.autoStartTaskEnabled
         taskStateStore?.setAutoStartTaskEnabled(v)
@@ -426,6 +433,19 @@ class AppViewModel(
         _state.update { it.copy(simpleModeEnabled = v) }
         if (v) showToast("已切换为简洁模式")
         else showToast("已切换为完整模式")
+    }
+
+    fun toggleSafeMode() {
+        val v = !state.value.safeModeEnabled
+        taskStateStore?.setSafeModeEnabled(v)
+        _state.update { it.copy(safeModeEnabled = v) }
+        if (v) {
+            // 开启保险模式时停止正在运行的积分任务
+            if (state.value.runningPointsTask) stopPointsTask()
+            showToast("保险模式已开启，积分任务已禁用")
+        } else {
+            showToast("保险模式已关闭")
+        }
     }
 
     fun updateThemeMode(mode: ThemeMode) {

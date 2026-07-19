@@ -89,6 +89,39 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
 
+        // 保险模式：隐藏所有积分任务功能
+        if (state.safeModeEnabled) {
+            AnimatedVisibility(
+                visible = contentVisible,
+                enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 })
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(Modifier.height(24.dp))
+                        Text(
+                            "🔒 保险模式已开启",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "如需刷积分请到设置中关闭此模式",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(24.dp))
+                    }
+                }
+            }
+            return@Column
+        }
+
         AnimatedVisibility(
             visible = contentVisible,
             enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { -it / 4 })

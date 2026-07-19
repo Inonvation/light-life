@@ -58,10 +58,6 @@ class PointsTaskController(
                 pointsStatsStore?.let { state.update { s -> s.copy(totalPointsDeducted = it.getTotalDeductedAmount()) } }
                 refreshBalance()
                 saveLog()
-                if (state.value.autoCleanLogsEnabled) {
-                    logStore?.clearToday()
-                    taskStateStore?.reset()
-                }
             }.onFailure { e ->
                 if (e is CancellationException) return@launch
                 appendPointLog(if (e is com.inonvation.lightlife.data.TaskCancelledException) "任务已终止" else "任务失败：${e.message ?: "未知错误"}")
@@ -128,10 +124,6 @@ class PointsTaskController(
                     saveLog()
                     refreshBalance()
                     syncTodayTaskStateFromPrefs()
-                    if (state.value.autoCleanLogsEnabled) {
-                        logStore?.clearToday()
-                        taskStateStore?.reset()
-                    }
                 }
                 if (s.isPaused != state.value.pointsTaskPaused) {
                     state.update { it.copy(pointsTaskPaused = s.isPaused) }
