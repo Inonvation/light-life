@@ -37,6 +37,18 @@ class PointsTaskStateStore(context: Context) {
     fun isOtherTaskDone(): Boolean = isActiveDay() && prefs.getBoolean("other_task_done", false)
     fun setOtherTaskDone(v: Boolean) { prefs.edit().putBoolean("other_task_done", v).putString("run_date", effectiveDate()).apply() }
 
+    fun isHomePageDone(): Boolean = isActiveDay() && prefs.getBoolean("home_page_done", false)
+    fun setHomePageDone(v: Boolean) { prefs.edit().putBoolean("home_page_done", v).putString("run_date", effectiveDate()).apply() }
+
+    fun getAppVideoDone(): Boolean = isActiveDay() && prefs.getBoolean("app_video_done", false)
+    fun setAppVideoDone(v: Boolean) { prefs.edit().putBoolean("app_video_done", v).putString("run_date", effectiveDate()).apply() }
+
+    fun getAlipayVideoTaskCount(): Int = if (isActiveDay()) prefs.getInt("alipay_video_task", 0) else 0
+    fun setAlipayVideoTaskCount(n: Int) { prefs.edit().putInt("alipay_video_task", n).putString("run_date", effectiveDate()).apply() }
+
+    fun isAlipayVideoTaskDone(): Boolean = isActiveDay() && prefs.getBoolean("alipay_video_task_done", false)
+    fun setAlipayVideoTaskDone(v: Boolean) { prefs.edit().putBoolean("alipay_video_task_done", v).putString("run_date", effectiveDate()).apply() }
+
     fun isHapticEnabled(): Boolean = prefs.getBoolean("haptic_enabled", true)
     fun setHapticEnabled(v: Boolean) { prefs.edit().putBoolean("haptic_enabled", v).apply() }
 
@@ -81,7 +93,7 @@ class PointsTaskStateStore(context: Context) {
 
     fun reset() {
         val editor = prefs.edit()
-        listOf("run_date", "app_video", "alipay_video", "signin_done", "tasklist_done", "ad_task_done", "other_task_done", "task_codes", "phase").forEach { editor.remove(it) }
+        listOf("run_date", "app_video", "alipay_video", "alipay_video_task", "signin_done", "tasklist_done", "ad_task_done", "other_task_done", "home_page_done", "app_video_done", "alipay_video_task_done", "task_codes", "phase").forEach { editor.remove(it) }
         editor.apply()
     }
 }

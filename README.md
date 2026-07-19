@@ -132,6 +132,9 @@ app/src/main/java/com/inonvation/lightlife/
 
 - [3ryng1um/qiekj](https://github.com/3ryng1um/qiekj) — 提供了积分自动化脚本及饮水设备解锁的接口分析与流程框架
 - [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) — 提供了原始 Android 客户端的框架结构与项目基础
+- [Alpaca4610/nonebot_plugin_pgsh_sign](https://github.com/Alpaca4610/nonebot_plugin_pgsh_sign) — 提供了胖乖生活签到、首页浏览子任务及支付宝任务的 API 接口分析
+- [incompletecactus/PG](https://github.com/incompletecactus/PG) — 提供了支付宝视频任务及广告任务的接口与签名逻辑
+- [3288588344/toulu](https://github.com/3288588344/toulu) — 提供了胖乖生活自动化脚本参考
 
 ---
 

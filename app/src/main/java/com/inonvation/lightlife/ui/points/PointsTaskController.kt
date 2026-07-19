@@ -145,11 +145,28 @@ class PointsTaskController(
         }
         val app = count("app_video")
         val ali = count("alipay_video")
+        val aliTask = count("alipay_video_task")
         val adt = count("ad_task")
         val adDone = done("ad_task_done")
         val otherDone = done("other_task_done")
-        val all = done("signin_done") && app >= 20 && ali >= 50 && adt >= 10 && adDone && otherDone
-        state.update { it.copy(signInDone = done("signin_done"), taskListDone = done("tasklist_done"), appVideoCount = app, alipayVideoCount = ali, adTaskCount = adt, adTaskDone = adDone, otherTaskDone = otherDone, todayAllDone = all) }
+        val homeDone = done("home_page_done")
+        val appDone = done("app_video_done")
+        val aliTaskDone = done("alipay_video_task_done")
+        val all = done("signin_done") && app >= 20 && ali >= 50 && aliTask >= 10 && adt >= 10 && adDone && otherDone && homeDone && appDone && aliTaskDone
+        state.update { it.copy(
+            signInDone = done("signin_done"),
+            taskListDone = done("tasklist_done"),
+            appVideoCount = app,
+            alipayVideoCount = ali,
+            alipayVideoTaskCount = aliTask,
+            adTaskCount = adt,
+            adTaskDone = adDone,
+            otherTaskDone = otherDone,
+            homePageDone = homeDone,
+            appVideoDone = appDone,
+            alipayVideoTaskDone = aliTaskDone,
+            todayAllDone = all
+        ) }
     }
 
     fun clearAdVideoState() {

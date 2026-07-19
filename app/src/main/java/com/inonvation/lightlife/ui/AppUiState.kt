@@ -79,9 +79,13 @@ data class AppUiState(
     val taskListDone: Boolean = false,
     val appVideoCount: Int = 0,
     val alipayVideoCount: Int = 0,
+    val alipayVideoTaskCount: Int = 0,
     val adTaskCount: Int = 0,
     val adTaskDone: Boolean = false,
     val otherTaskDone: Boolean = false,
+    val homePageDone: Boolean = false,
+    val appVideoDone: Boolean = false,
+    val alipayVideoTaskDone: Boolean = false,
     val todayAllDone: Boolean = false,
     val pointsLogs: List<LogEntry> = emptyList(),
 

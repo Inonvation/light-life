@@ -30,7 +30,7 @@ class PointsTaskRunner(
 
     /**
      * 进度回调，供前台 Service 更新通知。
-     * @param stage 阶段标识：signin / app_video / alipay_video / ad_task / task_list / home_page
+     * @param stage 阶段标识：signin / app_video / alipay_video_task / alipay_video / ad_task / task_list / home_page
      * @param current 当前已完成次数
      * @param total 该阶段总次数（0 表示无进度概念）
      */
@@ -95,10 +95,9 @@ class PointsTaskRunner(
     private fun isAlreadyCompletedResponse(taskRes: Map<String, Any?>): Boolean {
         val code = taskRes.codeInt()
         val msg = taskRes.messageText()
-        val completedKeys = listOf("已完成", "已结束", "完成", "已达上限", "已达今日上限", "已达最大次数", "次数已满", "今日已满")
-        val noDataKeys = listOf("已完成", "已结束", "已达上限", "已达今日上限", "已达最大次数", "次数已满", "今日已满")
-        if (code != 0 && completedKeys.any { msg.contains(it) }) return true
-        if (code == 0 && taskRes["data"] != true && noDataKeys.any { msg.contains(it) }) return true
+        val keys = listOf("已完成", "已结束", "完成", "已达上限", "已达今日上限", "已达最大次数", "次数已满", "今日已满")
+        if (code != 0 && keys.any { msg.contains(it) }) return true
+        if (code == 0 && taskRes["data"] != true && keys.any { msg.contains(it) }) return true
         return false
     }
 
@@ -132,9 +131,10 @@ class PointsTaskRunner(
         checkCancelled()
         shieldingQuery(token, userAgent, log)
 
+        // 首页浏览第1次（5s）
         log("首页浏览...")
-        queryByType(token, userAgent, log)
-        delay(2000)
+        runNextHomePageSubtask(token, userAgent, log)
+        delay(1000)
         run {
             val cur = balance(token, userAgent)
             if (cur != null && lastBalance != null) {
@@ -147,6 +147,19 @@ class PointsTaskRunner(
         checkCancelled()
         delay(1000)
         lastBalance = runTaskList(token, userAgent, log, lastBalance)
+
+        // 首页浏览第2次（10s）
+        checkCancelled()
+        runNextHomePageSubtask(token, userAgent, log)
+        delay(1000)
+        run {
+            val cur = balance(token, userAgent)
+            if (cur != null && lastBalance != null) {
+                val diff = cur - lastBalance
+                log("首页浏览：+${diff} (${cur})")
+            }
+            lastBalance = cur
+        }
 
         checkCancelled()
         runAppVideos(token, userAgent, log)
@@ -161,12 +174,39 @@ class PointsTaskRunner(
         }
 
         checkCancelled()
-        runAlipayVideos(token, userAgent, log)
+        runAlipayVideoTasks(token, userAgent, log)
+        delay(3000)
+        run {
+            val cur = balance(token, userAgent)
+            if (cur != null && lastBalance != null) {
+                val diff = cur - lastBalance
+                log("支付宝视频：+${diff} (${cur})")
+            }
+            lastBalance = cur
+        }
+
+        // 首页浏览第3次（30s）
+        checkCancelled()
+        runNextHomePageSubtask(token, userAgent, log)
+        delay(1000)
+        run {
+            val cur = balance(token, userAgent)
+            if (cur != null && lastBalance != null) {
+                val diff = cur - lastBalance
+                log("首页浏览：+${diff} (${cur})")
+            }
+            lastBalance = cur
+        }
+        // 首页浏览全部完成，记录状态
+        setState("home_page_done", true)
+
+        checkCancelled()
+        runAlipayAds(token, userAgent, log)
         delay(3000)
         val after = balance(token, userAgent)
         if (after != null && lastBalance != null) {
             val diff = after - lastBalance
-            log("支付宝视频：+${diff} (${after})")
+            log("支付宝广告：+${diff} (${after})")
         }
         val totalGained = after?.let { a -> lastBalance?.let { _ -> a - (lastBalance ?: a) } }
         log("总计：${after ?: "-"}（今日 +${totalGained ?: 0}）")
@@ -201,19 +241,39 @@ class PointsTaskRunner(
         log("屏蔽：${res.messageText()}")
     }
 
-    private suspend fun queryByType(token: String, ua: String, log: suspend (String) -> Unit) {
+    private var homePageSubtaskIndex = 0
+
+    private val homePageSubtasks = listOf(
+        "4a86e8b5-e46c-4dac-9e73-c6e3cf39c7d6" to "5s",
+        "73310f73-b076-40d5-a53f-c79c48f14d64" to "10s",
+        "f3814d95-38f0-4778-8da3-6b8e3fc113d0" to "30s",
+    )
+
+    /** 执行首页浏览的下一个子任务 */
+    private suspend fun runNextHomePageSubtask(token: String, ua: String, log: suspend (String) -> Unit) {
+        if (homePageSubtaskIndex >= homePageSubtasks.size) {
+            log("首页浏览：已完成，跳过")
+            return
+        }
+        val current = homePageSubtaskIndex + 1
+        val (subtaskCode, label) = homePageSubtasks[homePageSubtaskIndex]
         val res = request(
-            url = "https://userapi.qiekj.com/task/queryByType",
+            url = "https://userapi.qiekj.com/task/completed",
             token = token,
             userAgent = ua,
-            fields = mapOf("taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a", "token" to token),
+            fields = mapOf(
+                "taskCode" to "8b475b42-df8b-4039-b4c1-f9a0174a611a",
+                "subtaskCode" to subtaskCode,
+                "token" to token,
+            ),
         )
-        if (res.codeInt() == 0) {
-            log("首页浏览：成功")
-            onProgress?.invoke("home_page", 1, 1)
+        if (res.codeInt() == 0 && res["data"] == true) {
+            log("首页浏览${label}（$current/3）：成功")
         } else {
-            log("首页浏览失败：${res.messageText()}")
+            log("首页浏览${label}（$current/3）：${res.messageText()}")
         }
+        onProgress?.invoke("home_page", current, 3)
+        homePageSubtaskIndex++
     }
 
     /**
@@ -318,7 +378,7 @@ class PointsTaskRunner(
                 // 广告任务先检查是否已全部完成
                 if (isAdTask && isAlreadyCompletedResponse(taskRes)) {
                     log("$title 已全部完成")
-                    setAdCount("ad_task", adTaskTotal())
+                    setAdCount("ad_task", 10)
                     setState("ad_task_done", true)
                     taskCompletedNormally = true
                     return@repeat
@@ -333,12 +393,12 @@ class PointsTaskRunner(
                     val suffix = if (diff != null && diff > 0) " +$diff" else ""
                     log("$title 第${index + 1}次完成$suffix")
                     curBalance = cur ?: curBalance
-                    onProgress?.invoke("ad_task", index + 1, adTaskTotal())
+                    onProgress?.invoke("ad_task", index + 1, 10)
                 } else {
                     // 检查是否服务器返回"已完成"（非广告任务的兜底）
                     if (isAlreadyCompletedResponse(taskRes)) {
                         log("$title 已完成")
-                        if (isAdTask) { setAdCount("ad_task", adTaskTotal()); setState("ad_task_done", true) }
+                        if (isAdTask) { setAdCount("ad_task", 10); setState("ad_task_done", true) }
                         taskCompletedNormally = true
                         return@repeat
                     }
@@ -350,7 +410,7 @@ class PointsTaskRunner(
             }
 
             // 任务循环结束后处理本地状态
-            if (isAdTask && completedCount >= adTaskTotal()) {
+            if (isAdTask && completedCount >= 10) {
                 setState("ad_task_done", true)
             }
 
@@ -372,13 +432,12 @@ class PointsTaskRunner(
         return curBalance
     }
 
-    private fun adTaskTotal(): Int = 10
-
     private suspend fun runAppVideos(token: String, ua: String, log: suspend (String) -> Unit) {
         val total = 20
         val startFrom = getAdCount("app_video")
         if (startFrom >= total) {
             log("APP视频：已完成，跳过")
+            setState("app_video_done", true)
             return
         }
         if (startFrom > 0) {
@@ -397,7 +456,7 @@ class PointsTaskRunner(
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""
-                log("第${index + 1}次APP视频$suffix")
+                log("APP视频（${index + 1}/20）$suffix")
                 lastBalance = cur ?: lastBalance
             } else {
                 val msg = res.messageText()
@@ -406,44 +465,88 @@ class PointsTaskRunner(
                 if (code == 0 && res["data"] == false) {
                     log("APP视频：已完成")
                     setAdCount("app_video", 20)
+                    setState("app_video_done", true)
                 } else if (msg.contains("任务已结束") || msg.contains("已结束")) {
                     log("APP视频：已完成")
                     setAdCount("app_video", 20)
+                    setState("app_video_done", true)
                 } else {
                     log("APP视频停止：$msg")
                 }
                 return
             }
         }
+        // 循环全部完成，记录状态
+        setState("app_video_done", true)
     }
 
-    /** 从任务列表中匹配视频广告类任务的 taskCode */
-    private suspend fun findVideoAdTaskCode(token: String, ua: String, keywords: List<String>): String? {
-        val res = request("https://userapi.qiekj.com/task/list", token, ua, mapOf("token" to token))
-        if (res.codeInt() != 0) return null
-        val items = (res.dataMap()["items"] as? List<*>)?.filterIsInstance<Map<String, Any?>>() ?: emptyList()
-        for (item in items) {
-            val title = item["title"]?.toString().orEmpty()
-            val tc = item["taskCode"]?.toString() ?: continue
-            if (tc in NOT_FINISH_TASKS) continue
-            val completed = (item["completedStatus"] as? Number)?.toInt() ?: -1
-            val limit = ((item["dailyTaskLimit"] as? Number)?.toInt() ?: 1)
-            if (keywords.any { title.contains(it) } && completed < limit) return tc
-        }
-        return null
-    }
-
-    private suspend fun runAlipayVideos(token: String, ua: String, log: suspend (String) -> Unit) {
-        val total = 50
-        val startFrom = getAdCount("alipay_video")
+    /** 支付宝视频任务（taskCode=dc18b525，最多10次） */
+    private suspend fun runAlipayVideoTasks(token: String, ua: String, log: suspend (String) -> Unit) {
+        val taskCode = "dc18b525-f679-47d8-805a-e331f8f3341d"
+        val total = 10
+        val startFrom = getAdCount("alipay_video_task")
         if (startFrom >= total) {
             log("支付宝视频：已完成，跳过")
+            setState("alipay_video_task_done", true)
             return
         }
         if (startFrom > 0) {
             log("支付宝视频：继续（$startFrom/$total）")
         } else {
             log("支付宝视频...")
+        }
+        var lastBalance = balance(token, ua)
+        for (index in startFrom until total) {
+            checkCancelled()
+            val res = request(
+                url = "https://userapi.qiekj.com/task/completed",
+                token = token,
+                userAgent = ua,
+                fields = mapOf("taskCode" to taskCode, "token" to token),
+                channel = "alipay",
+            )
+            if (res.codeInt() == 0 && res["data"] == true) {
+                setAdCount("alipay_video_task", index + 1)
+                onProgress?.invoke("alipay_video_task", index + 1, total)
+                delay(15_000)
+                val cur = balance(token, ua)
+                val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
+                val suffix = if (diff != null && diff > 0) " +$diff" else ""
+                log("支付宝视频（${index + 1}/10）$suffix")
+                lastBalance = cur ?: lastBalance
+            } else {
+                val msg = res.messageText()
+                val code = res.codeInt()
+                if (code == 0 && res["data"] == false) {
+                    log("支付宝视频：已完成")
+                    setAdCount("alipay_video_task", total)
+                    setState("alipay_video_task_done", true)
+                } else if (isAlreadyCompletedResponse(res) || msg.contains("任务已结束") || msg.contains("已结束")) {
+                    log("支付宝视频：已完成")
+                    setAdCount("alipay_video_task", total)
+                    setState("alipay_video_task_done", true)
+                } else {
+                    log("支付宝视频停止：$msg")
+                }
+                return
+            }
+        }
+        // 循环全部完成，记录状态
+        setState("alipay_video_task_done", true)
+    }
+
+    /** 支付宝广告任务（taskCode=9，最多50次） */
+    private suspend fun runAlipayAds(token: String, ua: String, log: suspend (String) -> Unit) {
+        val total = 50
+        val startFrom = getAdCount("alipay_video")
+        if (startFrom >= total) {
+            log("支付宝广告：已完成，跳过")
+            return
+        }
+        if (startFrom > 0) {
+            log("支付宝广告：继续（$startFrom/$total）")
+        } else {
+            log("支付宝广告...")
         }
         var lastBalance = balance(token, ua)
         for (index in startFrom until total) {
@@ -462,7 +565,7 @@ class PointsTaskRunner(
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""
-                log("第${index + 1}次$suffix")
+                log("支付宝广告（${index + 1}/50）$suffix")
                 lastBalance = cur ?: lastBalance
             } else {
                 val msg = res.messageText()
@@ -470,13 +573,13 @@ class PointsTaskRunner(
                 val dataVal = res["data"]
                 // 服务器返回成功但数据为false，可能表示任务已完成
                 if (code == 0 && dataVal == false) {
-                    log("支付宝视频：已完成")
+                    log("支付宝广告：已完成")
                     setAdCount("alipay_video", 50)
                 } else if (isAlreadyCompletedResponse(res) || msg.contains("任务已结束") || msg.contains("已结束")) {
-                    log("支付宝视频：已完成")
+                    log("支付宝广告：已完成")
                     setAdCount("alipay_video", 50)
                 } else {
-                    log("支付宝视频停止：code=$code data=$dataVal msg=$msg")
+                    log("支付宝广告停止：$msg")
                 }
                 return
             }

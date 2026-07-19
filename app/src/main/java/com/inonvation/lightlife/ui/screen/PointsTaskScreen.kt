@@ -204,10 +204,18 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         StatusTag("签到", state.signInDone)
+                        StatusTag("首页浏览", state.homePageDone)
                         StatusTag("看广告 ${state.adTaskCount}/10", state.adTaskDone)
-                        StatusTag("APP视频", state.appVideoCount >= 20)
+                        StatusTag("APP视频 ${state.appVideoCount}/20", state.appVideoDone)
                         StatusTag("其他", state.otherTaskDone)
-                        StatusTag("支付宝 ${state.alipayVideoCount}/50", state.alipayVideoCount >= 50)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        StatusTag("支付宝视频 ${state.alipayVideoTaskCount}/10", state.alipayVideoTaskDone)
+                        StatusTag("支付宝广告 ${state.alipayVideoCount}/50", state.alipayVideoCount >= 50)
                     }
                 }
             }
