@@ -342,7 +342,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("电池优化", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                    Text("建议开启：设置后台运行例外，避免被系统省电策略杀掉", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("建议改为无限制，避免被系统省电策略杀掉。执行期间可能耗电加快、轻微发烫，完成后杀掉进程即可", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
