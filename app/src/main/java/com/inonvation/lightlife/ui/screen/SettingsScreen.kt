@@ -221,7 +221,67 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
-            // ── 任务（最重要的常用设置排最前）──
+            // ── 外观 ──
+            Text("外观", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(Spacings.sm))
+
+            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("主题模式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("切换应用的明暗主题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(ThemeMode.SYSTEM to "跟随系统", ThemeMode.LIGHT to "浅色", ThemeMode.DARK to "深色").forEach { (mode, label) ->
+                            val selected = currentMode == mode
+                            FilterChip(
+                                selected = selected,
+                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateThemeMode(mode) },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    Text("主题配色", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("更换应用的主色调", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val currentTheme = state.colorTheme
+                        listOf(
+                            ColorTheme.GREEN to "绿色",
+                            ColorTheme.PINK to "粉色",
+                            ColorTheme.YELLOW to "黄色",
+                            ColorTheme.BLUE to "蓝色",
+                            ColorTheme.BROWN to "棕色",
+                        ).forEach { (theme, label) ->
+                            val selected = currentTheme == theme
+                            FilterChip(
+                                selected = selected,
+                                onClick = {
+                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    vm.updateColorTheme(theme)
+                                },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("超级简洁版", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("仅显示开水与刷积分功能，立即生效", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = state.simpleModeEnabled, onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleSimpleMode() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(Spacings.md))
+
+            // ── 任务 ──
             Text("任务", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             Spacer(Modifier.height(Spacings.sm))
 
@@ -318,66 +378,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 modifier = Modifier.padding(10.dp)
                             )
                         }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(Spacings.md))
-
-            // ── 外观 ──
-            Text("外观", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(Spacings.sm))
-
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("主题模式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("切换应用的明暗主题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(ThemeMode.SYSTEM to "跟随系统", ThemeMode.LIGHT to "浅色", ThemeMode.DARK to "深色").forEach { (mode, label) ->
-                            val selected = currentMode == mode
-                            FilterChip(
-                                selected = selected,
-                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateThemeMode(mode) },
-                                label = { Text(label) },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
-                    Text("主题配色", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text("更换应用的主色调", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val currentTheme = state.colorTheme
-                        listOf(
-                            ColorTheme.GREEN to "绿色",
-                            ColorTheme.PINK to "粉色",
-                            ColorTheme.YELLOW to "黄色",
-                            ColorTheme.BLUE to "蓝色",
-                            ColorTheme.BROWN to "棕色",
-                        ).forEach { (theme, label) ->
-                            val selected = currentTheme == theme
-                            FilterChip(
-                                selected = selected,
-                                onClick = {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.updateColorTheme(theme)
-                                },
-                                label = { Text(label) },
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("超级简洁版", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("仅显示开水与刷积分功能，立即生效", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(checked = state.simpleModeEnabled, onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleSimpleMode() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
                     }
                 }
             }

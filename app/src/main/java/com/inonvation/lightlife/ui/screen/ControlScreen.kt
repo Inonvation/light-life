@@ -4,8 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +65,7 @@ import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.UnlockFlowState
 import com.inonvation.lightlife.ui.pinDeviceShortcut
+import com.inonvation.lightlife.ui.pinQuickLinkShortcut
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -229,6 +232,12 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel) {
                                                 canMoveDown = isSorting.value && i < displayCount - 1,
                                                 onMoveUp = { vm.swapQuickLinks(i, i - 1) },
                                                 onMoveDown = { vm.swapQuickLinks(i, i + 1) },
+                                                onLongClick = {
+                                                    if (!isSorting.value && hasLink) {
+                                                        android.widget.Toast.makeText(context, "正在添加桌面快捷方式…", android.widget.Toast.LENGTH_SHORT).show()
+                                                        pinQuickLinkShortcut(context, link, i)
+                                                    }
+                                                },
                                                 onClick = {
                                                     if (!isSorting.value && hasLink) {
                                                         try {
@@ -481,6 +490,7 @@ private fun DeviceCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SortableQuickLinkCard(
     name: String,
@@ -491,11 +501,18 @@ private fun SortableQuickLinkCard(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val hasLink = url.isNotBlank()
     Card(
-        modifier = modifier.clickable(enabled = !isSorting, onClick = onClick),
+        modifier = modifier
+            .then(
+                if (!isSorting && hasLink) Modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ) else Modifier.clickable(enabled = !isSorting, onClick = onClick)
+            ),
         shape = CardShapes.smallCardCorner,
         colors = CardDefaults.cardColors(
             containerColor = if (hasLink) MaterialTheme.colorScheme.surface

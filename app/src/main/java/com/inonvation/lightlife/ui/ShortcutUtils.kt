@@ -10,6 +10,7 @@ import android.widget.Toast
 import com.inonvation.lightlife.MainActivity
 import com.inonvation.lightlife.R
 import com.inonvation.lightlife.data.DeviceItem
+import com.inonvation.lightlife.data.QuickLink
 
 const val ACTION_OPEN_DEVICE_SHORTCUT = "com.inonvation.lightlife.OPEN_DEVICE_SHORTCUT"
 const val EXTRA_GOODS_ID = "goods_id"
@@ -51,4 +52,31 @@ fun pinDeviceShortcut(context: Context, device: DeviceItem) {
         .build()
     shortcutManager.requestPinShortcut(shortcut, null)
     Toast.makeText(context, "已尝试添加桌面快捷方式，若失败请检查是否已授权软件添加快捷方式的权限", Toast.LENGTH_LONG).show()
+}
+
+fun pinQuickLinkShortcut(context: Context, link: QuickLink, index: Int) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+        Toast.makeText(context, "当前系统不支持添加桌面快捷方式", Toast.LENGTH_LONG).show()
+        return
+    }
+    val shortcutManager = context.getSystemService(ShortcutManager::class.java)
+    if (shortcutManager?.isRequestPinShortcutSupported != true) {
+        Toast.makeText(context, "当前桌面不支持添加快捷方式", Toast.LENGTH_LONG).show()
+        return
+    }
+    val label = link.name.ifBlank { "快捷方式" }.take(10)
+    val shortcutIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(link.url)).apply {
+        if (link.packageName.isNotBlank()) {
+            `package` = link.packageName
+        }
+        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+    val shortcut = ShortcutInfo.Builder(context, "quicklink-$index-${link.url.hashCode()}")
+        .setShortLabel(label)
+        .setLongLabel(link.name.ifBlank { label })
+        .setIcon(Icon.createWithResource(context, R.drawable.ic_launcher))
+        .setIntent(shortcutIntent)
+        .build()
+    shortcutManager.requestPinShortcut(shortcut, null)
+    Toast.makeText(context, "已尝试添加「${link.name.ifBlank { "快捷方式" }}」到桌面", Toast.LENGTH_SHORT).show()
 }
