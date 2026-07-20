@@ -16,9 +16,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class PointsTaskController(
     private val state: MutableStateFlow<AppUiState>,
@@ -32,8 +29,9 @@ class PointsTaskController(
     private val showToast: (String) -> Unit,
 ) {
     private var observing = false
+    private var observeJob: Job? = null
     private var pointsTaskJob: Job? = null
-    private val timeFmt = SimpleDateFormat("HH:mm:ss", Locale.CHINA)
+    private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
 
     fun startPointsTask(userAgent: String) {
         if (state.value.runningPointsTask) return
@@ -90,6 +88,9 @@ class PointsTaskController(
             pointsTaskJob = null
             pointsTaskRunner.cancelled = true
         }
+        observeJob?.cancel()
+        observeJob = null
+        observing = false
         TaskServiceState.update { it.copy(isRunning = false, isPaused = false) }
         state.update { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
         syncTodayTaskStateFromPrefs()
@@ -105,13 +106,13 @@ class PointsTaskController(
     private fun observeServiceState() {
         if (observing) return
         observing = true
-        scope.launch {
+        observeJob = scope.launch {
             var startedReceived = false
             TaskServiceState.state.collect { s ->
                 if (!startedReceived) { startedReceived = true; return@collect }
                 if (s.logs.isNotEmpty()) {
                     val lastLog = s.logs.last()
-                    val now = timeFmt.format(Date())
+                    val now = java.time.LocalTime.now().format(timeFmt)
                     val level = resolveLogLevel(lastLog)
                     state.update { st ->
                         val existing = st.pointsLogs.map { it.message }
@@ -135,7 +136,7 @@ class PointsTaskController(
 
     fun syncTodayTaskStateFromPrefs() {
         val prefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+        val today = java.time.LocalDate.now().toString()
         fun done(key: String): Boolean {
             val savedDate = prefs.getString("${key}_date", "") ?: ""
             return savedDate == today && prefs.getBoolean(key, false)
@@ -185,7 +186,7 @@ class PointsTaskController(
         state.update { it.copy(runningPointsTask = true) }
         val existingLogs = TaskServiceState.snapshot().logs
         if (existingLogs.isEmpty()) return
-        val now = timeFmt.format(Date())
+        val now = java.time.LocalTime.now().format(timeFmt)
         val entries = existingLogs.map { msg -> LogEntry(now, msg, resolveLogLevel(msg)) }
         state.update { st -> st.copy(pointsLogs = (st.pointsLogs + entries).takeLast(500)) }
     }
@@ -194,7 +195,7 @@ class PointsTaskController(
         val isCentered = centered || line.startsWith("\u200B")
         val displayLine = if (line.startsWith("\u200B")) line.removePrefix("\u200B") else line
         state.update { st ->
-            st.copy(pointsLogs = (st.pointsLogs + LogEntry(timeFmt.format(Date()), displayLine, resolveLogLevel(displayLine), centered = isCentered)).takeLast(500))
+            st.copy(pointsLogs = (st.pointsLogs + LogEntry(java.time.LocalTime.now().format(timeFmt), displayLine, resolveLogLevel(displayLine), centered = isCentered)).takeLast(500))
         }
     }
 

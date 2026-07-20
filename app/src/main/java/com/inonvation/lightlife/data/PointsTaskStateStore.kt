@@ -1,9 +1,6 @@
 ﻿package com.inonvation.lightlife.data
 
 import android.content.Context
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class PointsTaskStateStore(context: Context) {
     private val prefs = context.getSharedPreferences("points_task_state", Context.MODE_PRIVATE)
@@ -13,7 +10,7 @@ class PointsTaskStateStore(context: Context) {
 
     fun setSessionDate(date: String) { sessionDate = date }
 
-    private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+    private fun today(): String = java.time.LocalDate.now().toString()
     private fun effectiveDate(): String = sessionDate ?: today()
     private fun savedDate(): String = prefs.getString("run_date", "") ?: ""
     fun getRunDate(): String = savedDate()
@@ -66,6 +63,9 @@ class PointsTaskStateStore(context: Context) {
 
     fun isRandomDelayEnabled(): Boolean = prefs.getBoolean("random_delay", false)
     fun setRandomDelayEnabled(v: Boolean) { prefs.edit().putBoolean("random_delay", v).apply() }
+
+    fun isUsePointsForUnlockEnabled(): Boolean = prefs.getBoolean("use_points_unlock", true)
+    fun setUsePointsForUnlockEnabled(v: Boolean) { prefs.edit().putBoolean("use_points_unlock", v).apply() }
 
 
 

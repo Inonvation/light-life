@@ -4,10 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.inonvation.lightlife.service.TaskForegroundService
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 /**
  * 定时任务 Worker。
@@ -32,7 +29,7 @@ class ScheduledTaskWorker(
         }
         
         // 检查今天是否已经执行过
-        val today = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+        val today = java.time.LocalDate.now().toString()
         if (scheduleStore.getLastExecutedDate() == today) {
             return Result.success()
         }
@@ -84,8 +81,15 @@ class ScheduledTaskWorker(
             return
         }
         
+        // 从 PointsTaskStateStore 获取保存的 UserAgent
+        val taskStateStore = PointsTaskStateStore(context)
+        val userAgent = taskStateStore.getUserAgent()
+        if (userAgent.isBlank()) {
+            // 没有保存的 UA，跳过执行
+            return
+        }
+        
         // 启动前台服务执行任务
-        val userAgent = android.webkit.WebSettings.getDefaultUserAgent(context)
         TaskForegroundService.start(context, userAgent, true)
     }
 }

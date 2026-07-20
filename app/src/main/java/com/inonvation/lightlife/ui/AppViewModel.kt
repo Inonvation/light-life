@@ -1,8 +1,7 @@
 ﻿package com.inonvation.lightlife.ui
 
+import android.app.Application
 import android.content.Context
-import android.os.Looper
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -34,7 +33,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AppViewModel(
-    private val context: Context,
+    application: Application,
     private val repository: AppRepository,
     private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
@@ -45,6 +44,8 @@ class AppViewModel(
     private val debugLogStore: DebugLogStore? = null,
     private val quickLinkStore: QuickLinkStore? = null,
 ) : ViewModel() {
+    private val context: Context = application.applicationContext
+    private val unlockMutex = kotlinx.coroutines.sync.Mutex()
 
     // ── State ──
     private val _state = MutableStateFlow(
@@ -152,6 +153,7 @@ class AppViewModel(
                 safeModeEnabled = it.isSafeModeEnabled(),
                 backgroundTaskEnabled = it.isBackgroundTaskEnabled(),
                 randomDelayEnabled = it.isRandomDelayEnabled(),
+                usePointsForUnlock = it.isUsePointsForUnlockEnabled(),
                 backupPrivacySafe = it.isBackupPrivacySafe(),
                 debugLogEnabled = debugLogStore?.isEnabled() ?: false,
                 userAgent = it.getUserAgent(),
@@ -188,20 +190,14 @@ class AppViewModel(
             if (!state.value.autoStartTaskEnabled || state.value.safeModeEnabled) {
                 // 自动检测已关闭，不做任何事
             } else if (state.value.userAgent.isBlank()) {
-                android.os.Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(context, "未设置 User-Agent，请在设置中先执行一次任务", Toast.LENGTH_LONG).show()
-                }
+                showToast("未设置 User-Agent，请在设置中先执行一次任务")
             } else {
                 pointsController.syncTodayTaskStateFromPrefs()
                 if (!state.value.todayAllDone) {
-                    android.os.Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "已自动开机刷积分任务~", Toast.LENGTH_SHORT).show()
-                    }
+                    showToast("已自动开机刷积分任务~")
                     pointsController.startPointsTask(state.value.userAgent)
                 } else {
-                    android.os.Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(context, "今日积分都刷完了喔，喝杯热水吧~", Toast.LENGTH_SHORT).show()
-                    }
+                    showToast("今日积分都刷完了喔，喝杯热水吧~")
                 }
             }
         }
@@ -218,6 +214,10 @@ class AppViewModel(
     fun dismissSettings() { _state.update { it.copy(showSettings = false) } }
     fun showLogCenter() { _state.update { it.copy(showLogCenter = true) } }
     fun dismissLogCenter() { _state.update { it.copy(showLogCenter = false) } }
+    fun showDataScreen() { _state.update { it.copy(showDataScreen = true) } }
+    fun dismissDataScreen() { _state.update { it.copy(showDataScreen = false) } }
+    fun showTaskSettings() { _state.update { it.copy(showTaskSettings = true) } }
+    fun dismissTaskSettings() { _state.update { it.copy(showTaskSettings = false) } }
 
     fun updatePhone(value: String) = authController.updatePhone(value)
     fun updateCode(value: String) = authController.updateCode(value)
@@ -289,43 +289,47 @@ class AppViewModel(
     }
 
     fun unlock(device: DeviceItem) = viewModelScope.launch {
-        if (state.value.unlocking) return@launch
-        _state.update {
-            it.copy(unlocking = true, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0, unlockFlowHidden = false)
-        }
-        unlockTimerJob?.cancel()
-        unlockTimerJob = viewModelScope.launch {
-            while (true) {
-                delay(1000)
-                val cur = state.value.unlockFlowState
-                if (cur is UnlockFlowState.Working) {
-                    _state.update { it.copy(unlockElapsedSeconds = cur.elapsedSeconds + 1) }
+        if (!unlockMutex.tryLock()) return@launch
+        try {
+            _state.update {
+                it.copy(unlocking = true, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0, unlockFlowHidden = false)
+            }
+            unlockTimerJob?.cancel()
+            unlockTimerJob = viewModelScope.launch {
+                while (true) {
+                    delay(1000)
+                    val cur = state.value.unlockFlowState
+                    if (cur is UnlockFlowState.Working) {
+                        _state.update { it.copy(unlockElapsedSeconds = cur.elapsedSeconds + 1) }
+                    }
                 }
             }
-        }
-        runCatching {
-            repository.unlockDevice(device) { step ->
-                val isWorking = step.contains("等待完成") || step.contains("设备工作")
-                _state.update {
-                    it.copy(unlockStatus = step, unlockFlowState = if (isWorking) UnlockFlowState.Working(step, state.value.unlockElapsedSeconds) else UnlockFlowState.Working(step, 0))
+            runCatching {
+                repository.unlockDevice(device, usePoints = state.value.usePointsForUnlock) { step ->
+                    val isWorking = step.contains("等待完成") || step.contains("设备工作")
+                    _state.update {
+                        it.copy(unlockStatus = step, unlockFlowState = if (isWorking) UnlockFlowState.Working(step, state.value.unlockElapsedSeconds) else UnlockFlowState.Working(step, 0))
+                    }
                 }
+            }.onSuccess { result ->
+                unlockTimerJob?.cancel()
+                _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, unlockFlowHidden = false, orderHistory = repository.orderHistory()) }
+                if (result.integralCost != "-") { pointsStatsStore?.addDeducted(result.integralCost); refreshPointsStats() }
+                refreshBalance()
+            }.onFailure { e ->
+                unlockTimerJob?.cancel()
+                if (e is TokenExpiredException) {
+                    _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
+                    authController.handleTokenExpired()
+                    return@launch
+                }
+                val diag = if (e is UnlockException) e.diagnosis else null
+                val failState = if (diag != null) UnlockFlowState.Failed(diag.primaryReason, diag.step, diag.rawError, diag.suggestions)
+                    else UnlockFlowState.Failed(e.message ?: "未知错误", "未知", e.message ?: "")
+                _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = failState, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
             }
-        }.onSuccess { result ->
-            unlockTimerJob?.cancel()
-            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, unlockFlowHidden = false, orderHistory = repository.orderHistory()) }
-            if (result.integralCost != "-") { pointsStatsStore?.addDeducted(result.integralCost); refreshPointsStats() }
-            refreshBalance()
-        }.onFailure { e ->
-            unlockTimerJob?.cancel()
-            if (e is TokenExpiredException) {
-                _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
-                authController.handleTokenExpired()
-                return@launch
-            }
-            val diag = if (e is UnlockException) e.diagnosis else null
-            val failState = if (diag != null) UnlockFlowState.Failed(diag.primaryReason, diag.step, diag.rawError, diag.suggestions)
-                else UnlockFlowState.Failed(e.message ?: "未知错误", "未知", e.message ?: "")
-            _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = failState, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
+        } finally {
+            unlockMutex.unlock()
         }
     }
 
@@ -481,6 +485,13 @@ class AppViewModel(
         _state.update { it.copy(randomDelayEnabled = v) }
         showToast(if (v) "已开启随机延迟" else "已关闭随机延迟")
     }
+
+    fun toggleUsePointsForUnlock() {
+        val v = !state.value.usePointsForUnlock
+        taskStateStore?.setUsePointsForUnlockEnabled(v)
+        _state.update { it.copy(usePointsForUnlock = v) }
+        showToast(if (v) "开水将使用积分抵扣" else "开水不使用积分抵扣")
+    }
     
     // ── 定时任务 ──
     
@@ -513,6 +524,14 @@ class AppViewModel(
     
     fun dismissScheduleSettings() {
         _state.update { it.copy(showScheduleSettings = false) }
+    }
+
+    fun showScheduleInfoDialog() {
+        _state.update { it.copy(showScheduleInfoDialog = true) }
+    }
+
+    fun dismissScheduleInfoDialog() {
+        _state.update { it.copy(showScheduleInfoDialog = false) }
     }
     
     private fun scheduleWorkManager() {
@@ -620,7 +639,7 @@ class AppViewModel(
     }
     fun deleteDebugLog(name: String) {
         debugLogStore?.deleteFile(name)
-        _state.update { it.copy(debugLogs = it.debugLogs.filter { it.first != name }) }
+        _state.update { state -> state.copy(debugLogs = state.debugLogs.filter { log -> log.first != name }) }
     }
     fun getDebugLogContent(): String = debugLogStore?.getLatestContent() ?: ""
 
@@ -721,7 +740,7 @@ class AppViewModel(
 }
 
 class AppViewModelFactory(
-    private val context: android.content.Context,
+    private val application: Application,
     private val repository: AppRepository,
     private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
@@ -734,6 +753,6 @@ class AppViewModelFactory(
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(context, repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager, debugLogStore, quickLinkStore) as T
+        return AppViewModel(application, repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager, debugLogStore, quickLinkStore) as T
     }
 }

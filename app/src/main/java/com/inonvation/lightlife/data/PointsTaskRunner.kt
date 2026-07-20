@@ -8,13 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.security.MessageDigest
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.concurrent.TimeUnit
 import kotlin.jvm.Volatile
 
 class TaskCancelledException : Exception()
@@ -25,6 +20,7 @@ class PointsTaskRunner(
 ) {
     @Volatile
     var cancelled = false
+    @Volatile
     var randomDelay = false
     private var debugLog: DebugLogStore? = null
     fun setDebugLog(log: DebugLogStore?) { debugLog = log }
@@ -37,11 +33,7 @@ class PointsTaskRunner(
      */
     var onProgress: ((stage: String, current: Int, total: Int) -> Unit)? = null
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
-        .writeTimeout(20, TimeUnit.SECONDS)
-        .build()
+    private val client = HttpClientProvider.client
 
     private val jsonAdapter: JsonAdapter<Map<String, Any?>> = Moshi.Builder()
         .build()
@@ -51,7 +43,7 @@ class PointsTaskRunner(
         context?.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
     }
 
-    private fun today(): String = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+    private fun today(): String = java.time.LocalDate.now().toString()
 
     /** 读取今天某个广告任务已完成的次数，跨天自动归零 */
     private fun getAdCount(key: String): Int {
