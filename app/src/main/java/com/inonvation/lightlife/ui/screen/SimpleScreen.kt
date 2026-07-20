@@ -38,6 +38,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -50,7 +52,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -67,6 +71,7 @@ import com.inonvation.lightlife.ui.theme.Spacings
 @Composable
 fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
     val ctx = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     var selectedDevice: DeviceItem? by remember { mutableStateOf(state.devices.firstOrNull()) }
 
     // 设备列表变化时更新默认选中
@@ -254,6 +259,28 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                     }
                                 }
                             }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        // 积分抵扣开关
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("使用积分抵扣", style = MaterialTheme.typography.bodyMedium)
+                                Text("关闭后开水将不消耗积分", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(
+                                checked = state.usePointsForUnlock,
+                                onCheckedChange = {
+                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    vm.toggleUsePointsForUnlock()
+                                },
+                                colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                            )
                         }
 
                         Spacer(Modifier.height(8.dp))

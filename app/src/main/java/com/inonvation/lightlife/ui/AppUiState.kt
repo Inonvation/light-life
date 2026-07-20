@@ -72,6 +72,7 @@ data class AppUiState(
     val unlockFlowState: UnlockFlowState = UnlockFlowState.Idle,
     val unlockElapsedSeconds: Int = 0,
     val orderDetail: UnlockResult? = null,
+    val usePointsForUnlock: Boolean = true,
 
     // ── 积分任务 ──
     val runningPointsTask: Boolean = false,
@@ -118,10 +119,13 @@ data class AppUiState(
     val scheduleEnabled: Boolean = false,
     val scheduleTimeSlots: List<com.inonvation.lightlife.data.ScheduleStore.TimeSlot> = emptyList(),
     val showScheduleSettings: Boolean = false,
+    val showScheduleInfoDialog: Boolean = false,
+    val showTaskSettings: Boolean = false,
 
     // ── 弹窗/对话框 ──
     val showSettings: Boolean = false,
     val showLogCenter: Boolean = false,
+    val showDataScreen: Boolean = false,
     val showOrderHistory: Boolean = false,
     val showLogoutConfirm: Boolean = false,
     val showBackupTokenExpiredDialog: Boolean = false,
