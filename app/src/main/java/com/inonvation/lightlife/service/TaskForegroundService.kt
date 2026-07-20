@@ -71,6 +71,7 @@ class TaskForegroundService : Service() {
                     context = this,
                 )
                 runner.setDebugLog(DebugLogStore(this))
+                runner.randomDelay = intent.getBooleanExtra(EXTRA_RANDOM_DELAY, false)
                 currentRunner = runner
 
                 TaskServiceState.update { it.copy(isRunning = true, isPaused = false, logs = emptyList()) }
@@ -284,11 +285,13 @@ class TaskForegroundService : Service() {
         const val ACTION_PAUSE = "com.inonvation.lightlife.action.PAUSE_TASK"
         const val ACTION_RESUME = "com.inonvation.lightlife.action.RESUME_TASK"
         const val EXTRA_USER_AGENT = "user_agent"
+        const val EXTRA_RANDOM_DELAY = "random_delay"
 
-        fun start(context: Context, userAgent: String) {
+        fun start(context: Context, userAgent: String, randomDelay: Boolean = false) {
             val intent = Intent(context, TaskForegroundService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_USER_AGENT, userAgent)
+                putExtra(EXTRA_RANDOM_DELAY, randomDelay)
             }
             context.startForegroundService(intent)
         }

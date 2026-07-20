@@ -61,6 +61,9 @@ class PointsTaskStateStore(context: Context) {
     fun isBackgroundTaskEnabled(): Boolean = prefs.getBoolean("background_task", true)
     fun setBackgroundTaskEnabled(v: Boolean) { prefs.edit().putBoolean("background_task", v).apply() }
 
+    fun isRandomDelayEnabled(): Boolean = prefs.getBoolean("random_delay", false)
+    fun setRandomDelayEnabled(v: Boolean) { prefs.edit().putBoolean("random_delay", v).apply() }
+
 
 
     fun isSafeModeEnabled(): Boolean = prefs.getBoolean("safe_mode", false)

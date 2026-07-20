@@ -326,6 +326,26 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
                         )
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp).alpha(if (state.safeModeEnabled) 0.5f else 1f)) {
+                            Text("随机延迟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("执行步骤间随机等待几秒，降低风控风险，会略微增加总耗时", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                        }
+                        Switch(
+                            checked = state.randomDelayEnabled && !state.safeModeEnabled,
+                            onCheckedChange = {
+                                if (state.safeModeEnabled) {
+                                    android.widget.Toast.makeText(ctx, "请先关闭保险模式", android.widget.Toast.LENGTH_SHORT).show()
+                                } else {
+                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    vm.toggleRandomDelay()
+                                }
+                            },
+                            modifier = Modifier.alpha(if (state.safeModeEnabled) 0.5f else 1f),
+                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                        )
+                    }
                     AnimatedVisibility(
                         visible = state.backgroundTaskEnabled && !state.safeModeEnabled,
                         enter = fadeIn() + slideInVertically { -it / 4 },

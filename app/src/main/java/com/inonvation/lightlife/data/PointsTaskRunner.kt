@@ -25,6 +25,7 @@ class PointsTaskRunner(
 ) {
     @Volatile
     var cancelled = false
+    var randomDelay = false
     private var debugLog: DebugLogStore? = null
     fun setDebugLog(log: DebugLogStore?) { debugLog = log }
 
@@ -89,6 +90,14 @@ class PointsTaskRunner(
 
     private fun checkCancelled() {
         if (cancelled) throw TaskCancelledException()
+    }
+
+    /** 随机延迟 2~6 秒，仅在 randomDelay 开启时生效。前缀 \u200B 标记居中显示 */
+    private suspend fun maybeRandomDelay(log: (suspend (String) -> Unit)? = null) {
+        if (randomDelay) {
+            log?.invoke("\u200B随机延迟生效中")
+            delay(2000L + (Math.random() * 4000).toLong())
+        }
     }
 
     /** 判断服务器返回是否表示任务已全部完成 */
@@ -406,7 +415,7 @@ class PointsTaskRunner(
                     taskCompletedNormally = false
                     return@repeat
                 }
-                if (index < limit - 1) delay(10_000)
+                if (index < limit - 1) { delay(10_000); maybeRandomDelay(log) }
             }
 
             // 任务循环结束后处理本地状态
@@ -428,6 +437,7 @@ class PointsTaskRunner(
             }
 
             delay(5_000)
+            maybeRandomDelay(log)
         }
         return curBalance
     }
@@ -453,6 +463,7 @@ class PointsTaskRunner(
                 setAdCount("app_video", index + 1)
                 onProgress?.invoke("app_video", index + 1, 20)
                 delay(15_000)
+                maybeRandomDelay(log)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""
@@ -509,6 +520,7 @@ class PointsTaskRunner(
                 setAdCount("alipay_video_task", index + 1)
                 onProgress?.invoke("alipay_video_task", index + 1, total)
                 delay(15_000)
+                maybeRandomDelay(log)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""
@@ -562,6 +574,7 @@ class PointsTaskRunner(
                 setAdCount("alipay_video", index + 1)
                 onProgress?.invoke("alipay_video", index + 1, 50)
                 delay(15_000)
+                maybeRandomDelay(log)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""
@@ -656,7 +669,7 @@ class PointsTaskRunner(
     )
 
     private fun signzfb(timestamp: String, url: String, token: String): String = sha256(
-        "appSecret=$ALIPAY_SECRET&channel=alipay&timestamp=$timestamp&token=$token&version=$VERSION&${url.drop(25)}",
+        "appSecret=$ALIPAY_SECRET&channel=alipay&timestamp=$timestamp&token=$token&${url.drop(25)}",
     )
 
     private fun sha256(value: String): String {

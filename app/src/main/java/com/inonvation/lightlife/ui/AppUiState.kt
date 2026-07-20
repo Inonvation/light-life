@@ -36,6 +36,7 @@ data class LogEntry(
     val message: String,
     val level: LogLevel = LogLevel.INFO,
     val collapsed: Boolean = false,
+    val centered: Boolean = false,
     val id: Long = logIdCounter.getAndIncrement(),
 ) {
     companion object {
@@ -109,6 +110,7 @@ data class AppUiState(
     val debugLogEnabled: Boolean = false,
     val autoStartTaskEnabled: Boolean = false,
     val backgroundTaskEnabled: Boolean = true,
+    val randomDelayEnabled: Boolean = false,
     val userAgent: String = "",
 
     // ── 弹窗/对话框 ──

@@ -447,7 +447,17 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                                 LogLevel.ERROR -> LogColors.error
                                                 else -> LogColors.info
                                             }
-                                            Row {
+                                            if (entry.centered) {
+                                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                                                    Text(
+                                                        entry.message, color = LogColors.warn,
+                                                        fontFamily = FontFamily.Monospace,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            } else {
+                                                Row {
                                                 Text(
                                                     "[${entry.timestamp}]", color = LogColors.info.copy(alpha = 0.6f),
                                                     fontFamily = FontFamily.Monospace,
@@ -459,6 +469,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                                     fontFamily = FontFamily.Monospace,
                                                     style = MaterialTheme.typography.bodySmall
                                                 )
+                                            }
                                             }
                                         }
                                     }

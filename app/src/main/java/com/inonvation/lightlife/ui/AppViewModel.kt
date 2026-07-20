@@ -148,6 +148,7 @@ class AppViewModel(
                 simpleModeEnabled = it.isSimpleModeEnabled(),
                 safeModeEnabled = it.isSafeModeEnabled(),
                 backgroundTaskEnabled = it.isBackgroundTaskEnabled(),
+                randomDelayEnabled = it.isRandomDelayEnabled(),
                 backupPrivacySafe = it.isBackupPrivacySafe(),
                 debugLogEnabled = debugLogStore?.isEnabled() ?: false,
                 userAgent = it.getUserAgent(),
@@ -466,6 +467,13 @@ class AppViewModel(
         taskStateStore?.setBackgroundTaskEnabled(v)
         _state.update { it.copy(backgroundTaskEnabled = v) }
         showToast(if (v) "已开启后台刷积分" else "已关闭后台刷积分")
+    }
+
+    fun toggleRandomDelay() {
+        val v = !state.value.randomDelayEnabled
+        taskStateStore?.setRandomDelayEnabled(v)
+        _state.update { it.copy(randomDelayEnabled = v) }
+        showToast(if (v) "已开启随机延迟" else "已关闭随机延迟")
     }
 
     fun openBatteryOptimizationSettings() {

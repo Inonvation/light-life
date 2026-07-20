@@ -39,9 +39,10 @@ class PointsTaskController(
         if (state.value.runningPointsTask) return
         state.update { it.copy(runningPointsTask = true, pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)), userAgent = userAgent) }
         taskStateStore?.setUserAgent(userAgent)
+        pointsTaskRunner.randomDelay = state.value.randomDelayEnabled
         if (state.value.backgroundTaskEnabled) {
             observeServiceState()
-            TaskForegroundService.start(context, userAgent)
+            TaskForegroundService.start(context, userAgent, state.value.randomDelayEnabled)
         } else {
             startPointsTaskDirect(userAgent)
         }
@@ -187,9 +188,11 @@ class PointsTaskController(
         state.update { st -> st.copy(pointsLogs = (st.pointsLogs + entries).takeLast(500)) }
     }
 
-    private fun appendPointLog(line: String) {
+    private fun appendPointLog(line: String, centered: Boolean = false) {
+        val isCentered = centered || line.startsWith("\u200B")
+        val displayLine = if (line.startsWith("\u200B")) line.removePrefix("\u200B") else line
         state.update { st ->
-            st.copy(pointsLogs = (st.pointsLogs + LogEntry(timeFmt.format(Date()), line, resolveLogLevel(line))).takeLast(500))
+            st.copy(pointsLogs = (st.pointsLogs + LogEntry(timeFmt.format(Date()), displayLine, resolveLogLevel(displayLine), centered = isCentered)).takeLast(500))
         }
     }
 

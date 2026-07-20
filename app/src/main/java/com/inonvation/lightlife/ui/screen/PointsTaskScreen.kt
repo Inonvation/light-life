@@ -369,8 +369,30 @@ private fun LogPanelInline(
                                 else -> LogColors.info
                             }
                             val hasPoints = Regex("\\+\\d+").containsMatchIn(entry.message)
-                            Row(
-                                Modifier
+                            if (entry.centered) {
+                                // 居中显示的提示（如随机延迟）
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .animateItem()
+                                        .padding(horizontal = 4.dp, vertical = 3.dp)
+                                        .graphicsLayer {
+                                            alpha = animAlpha.value
+                                            translationY = animSlide.value
+                                        },
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        entry.message,
+                                        color = LogColors.warn,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            } else {
+                                Row(
+                                    Modifier
                                     .fillMaxWidth()
                                     .animateItem()
                                     .padding(horizontal = 4.dp, vertical = 3.dp)
@@ -457,6 +479,7 @@ private fun LogPanelInline(
                                     )
                                 }
                             }
+                            } // end else (not centered)
                         }
                     }
                 }
