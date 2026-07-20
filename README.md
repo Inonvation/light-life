@@ -1,8 +1,12 @@
 # LightLife
 
-集成了胖乖生活开水功能和刷积分脚本。安装包包体积仅约 **2MB**。轻量无广告，启动快速
+胖乖生活饮水机助手，集成开水、刷积分、快捷方式。基于 [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) 重构，Jetpack Compose + Material3 UI，R8 全模式压缩，安装包仅 **2MB**，轻量无广告。
 
-基于 [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) 重构而来
+---
+
+## 下载
+
+前往 [Releases](https://github.com/nicexun233/light-life/releases) 下载最新 APK。
 
 ---
 
@@ -13,10 +17,13 @@
   <img src="screenshots/points.jpg" width="30%" />
   <img src="screenshots/profile.jpg" width="30%" />
 </p>
+<p align="center">
+  <em>首页（设备列表/开水） · 积分任务 · 我的</em>
+</p>
 
 ---
 
-## 功能
+## 核心功能
 
 ### 一键开水
 选择历史设备，点击即可启动饮水机，订单自动保存并展示详情。
@@ -27,19 +34,18 @@
 - **后台执行**：无需停留在前台，通知栏展示任务进度
 - **自动执行**：启动App后自动检测并执行未完成任务（默认关闭，可在设置中开启）
 
-### 快捷方式
-内置三个预设：
-- 淘宝取件码
-- 拼多多取件码
-- 学校教务系统
-
-支持自定义编辑，长按卡片可添加到手机桌面。
-
 ### 数据统计
 实时查看积分余额、订单记录、累计白嫖金额。
 
 ### 数据备份
 支持导出/导入 `.lif` 备份文件，换机可实现无需验证码直接登录，保留日志及订单数据。
+
+---
+
+## 次要功能
+
+### 快捷方式
+内置三个预设：淘宝取件码、拼多多取件码、学校教务系统。支持自定义编辑，长按卡片可添加到手机桌面。
 
 ### 安全功能
 - **保险模式**：开启后完全禁用积分脚本，适合担心账号风险的用户
@@ -99,6 +105,7 @@
 | 序列化 | Moshi |
 | 存储 | SharedPreferences + JSON 文件 |
 | 构建 | Gradle + AGP 8.7.3 |
+| 体积优化 | R8 全模式压缩（shrink/obfuscate/optimize） |
 | 后台服务 | ForegroundService + Notification |
 
 ---
@@ -107,10 +114,19 @@
 
 ```
 app/src/main/java/com/inonvation/lightlife/
-├── MainActivity.kt      # 应用入口
-├── data/                # 数据层（API、存储、任务执行）
-├── ui/                  # UI 层（ViewModel、页面、组件）
-│   └── screen/          # 各功能页面
+├── MainActivity.kt                 # 应用入口
+├── data/
+│   ├── api/                        # OkHttp 接口定义
+│   ├── store/                      # SharedPreferences 封装
+│   └── PointsTaskRunner.kt         # 刷积分核心逻辑
+├── ui/
+│   ├── AppViewModel.kt             # 状态协调，委托 Controller
+│   ├── auth/AuthController.kt      # 登录、Token 管理
+│   ├── points/PointsTaskController.kt  # 积分任务控制
+│   ├── backup/BackupController.kt  # 备份导入导出
+│   └── screen/                     # 各功能页面（Compose）
+└── service/
+    └── TaskForegroundService.kt    # 后台前台服务
 ```
 
 ---
