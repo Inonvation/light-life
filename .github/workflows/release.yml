@@ -103,8 +103,10 @@ jobs:
       - name: 清理已使用的 RELEASE.md
         if: env.USED_RELEASE_MD == 'true'
         run: |
+          git fetch origin main
+          git checkout main
           git rm RELEASE.md
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: 清理已使用的 RELEASE.md [skip ci]"
-          git push origin HEAD:main
+          git push origin main
