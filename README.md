@@ -6,7 +6,7 @@
 
 ## 下载
 
-前往 [Releases](https://github.com/nicexun233/light-life/releases) 下载最新 APK。
+前往 [Releases](https://github.com/Inonvation/light-life/releases) 下载最新 APK。
 
 ---
 
