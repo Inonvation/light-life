@@ -74,12 +74,14 @@ class AppViewModel(
             "sslhandshakeexception" in lower -> "网络安全验证失败"
             "eofexception" in lower -> "数据传输中断，请重试"
             "请先登录" in raw -> "请先登录"
+            "500" in raw || "502" in raw || "503" in raw || "504" in raw -> "服务器繁忙，请稍后再试"
+            " 401 " in raw || " 403 " in raw || "http 401" in lower || "http 403" in lower -> "请求被拒绝，请检查权限"
             else -> raw.ifBlank { "操作失败，请重试" }
         }
     }
 
     private fun clearAdVideoState() {
-        context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE).edit().clear().apply()
+        pointsController.clearAdVideoState()
     }
 
     // ── Controllers ──

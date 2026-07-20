@@ -62,7 +62,6 @@ import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.data.DeviceItem
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
-import com.inonvation.lightlife.ui.LogLevel
 import com.inonvation.lightlife.ui.UnlockFlowState
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.LogColors
@@ -286,6 +285,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                         Spacer(Modifier.height(8.dp))
                         Button(
                             onClick = {
+                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 val device = selectedDevice
                                 if (device != null) vm.unlock(device)
                                 else android.widget.Toast.makeText(ctx, "请先选择设备", android.widget.Toast.LENGTH_SHORT).show()
@@ -435,7 +435,10 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                 Text("积分任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                                 if (state.pointsLogs.isNotEmpty()) {
                                     OutlinedButton(
-                                        onClick = { vm.clearPointsLogs() },
+                                        onClick = {
+                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            vm.clearPointsLogs()
+                                        },
                                         modifier = Modifier.height(32.dp),
                                         shape = RoundedCornerShape(6.dp)
                                     ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
@@ -468,12 +471,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                         }
                                     } else {
                                         items(state.pointsLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                                            val color = when (entry.level) {
-                                                LogLevel.SUCCESS -> LogColors.success
-                                                LogLevel.WARN -> LogColors.warn
-                                                LogLevel.ERROR -> LogColors.error
-                                                else -> LogColors.info
-                                            }
+                                            val color = entry.color
                                             if (entry.centered) {
                                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                                                     Text(
@@ -509,12 +507,18 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                             if (state.runningPointsTask) {
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Button(
-                                        onClick = { if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask() },
+                                        onClick = {
+                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask()
+                                        },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(8.dp)
                                     ) { Text(if (state.pointsTaskPaused) "继续" else "暂停") }
                                     OutlinedButton(
-                                        onClick = { vm.stopPointsTask() },
+                                        onClick = {
+                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            vm.stopPointsTask()
+                                        },
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(8.dp)
                                     ) { Text("停止") }
@@ -522,6 +526,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                             } else {
                                 Button(
                                     onClick = {
+                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
                                         vm.startPointsTask(ua)
                                     },
