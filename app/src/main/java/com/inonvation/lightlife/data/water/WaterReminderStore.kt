@@ -32,7 +32,7 @@ class WaterReminderStore(context: Context) {
     /** 获取提醒间隔（分钟） */
     fun getIntervalMinutes(): Int = prefs.getInt("interval_minutes", 60)
     fun setIntervalMinutes(minutes: Int) {
-        prefs.edit().putInt("interval_minutes", minutes.coerceIn(15, 180)).apply()
+        prefs.edit().putInt("interval_minutes", minutes.coerceIn(1, 180)).apply()
     }
     
     /** 获取杯子容量（毫升） */

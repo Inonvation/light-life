@@ -261,8 +261,8 @@ fun WaterReminderSettingsScreen(
                     Slider(
                         value = sliderValue,
                         onValueChange = { sliderValue = it },
-                        valueRange = 15f..180f,
-                        steps = 10,
+                        valueRange = 1f..180f,
+                        steps = 0,
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary
@@ -272,7 +272,7 @@ fun WaterReminderSettingsScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("15分钟", style = MaterialTheme.typography.labelSmall)
+                        Text("1分钟", style = MaterialTheme.typography.labelSmall)
                         Text("3小时", style = MaterialTheme.typography.labelSmall)
                     }
                 }
