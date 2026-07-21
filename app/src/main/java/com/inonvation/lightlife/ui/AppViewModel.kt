@@ -157,6 +157,7 @@ class AppViewModel(
                 randomDelayEnabled = it.isRandomDelayEnabled(),
                 usePointsForUnlock = it.isUsePointsForUnlockEnabled(),
                 backupPrivacySafe = it.isBackupPrivacySafe(),
+                waterReminderEnabled = it.isWaterReminderEnabled(),
                 debugLogEnabled = debugLogStore?.isEnabled() ?: false,
                 userAgent = it.getUserAgent(),
             ) }
@@ -624,6 +625,7 @@ class AppViewModel(
     fun toggleWaterReminder() {
         val v = !state.value.waterReminderEnabled
         _state.update { it.copy(waterReminderEnabled = v) }
+        taskStateStore?.setWaterReminderEnabled(v)
         if (v) {
             showToast("喝水提醒已开启")
         } else {

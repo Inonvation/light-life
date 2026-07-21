@@ -122,7 +122,7 @@ data class AppUiState(
     val backgroundTaskEnabled: Boolean = true,
     val randomDelayEnabled: Boolean = false,
     val userAgent: String = "",
-    val waterReminderEnabled: Boolean = false,
+    val waterReminderEnabled: Boolean = true,
     
     // ── 定时任务 ──
     val scheduleEnabled: Boolean = false,

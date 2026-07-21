@@ -173,7 +173,8 @@ class WaterReminderManager(private val context: Context) {
         return TodayStats(
             totalMl = store.getTodayTotalMl(),
             drinkCount = store.getTodayDrinkCount(),
-            cupSizeMl = store.getCupSizeMl()
+            cupSizeMl = store.getCupSizeMl(),
+            dailyGoalMl = store.getDailyGoalMl()
         )
     }
     
@@ -189,16 +190,45 @@ class WaterReminderManager(private val context: Context) {
         store.setCupSizeMl(ml)
     }
     
+    /**
+     * 获取每日喝水目标
+     */
+    fun getDailyGoalMl(): Int = store.getDailyGoalMl()
+    
+    /**
+     * 设置每日喝水目标
+     */
+    fun setDailyGoalMl(ml: Int) {
+        store.setDailyGoalMl(ml)
+    }
+    
     data class TodayStats(
         val totalMl: Int,
         val drinkCount: Int,
-        val cupSizeMl: Int
+        val cupSizeMl: Int,
+        val dailyGoalMl: Int
     ) {
         fun formatTotal(): String {
             return if (totalMl >= 1000) {
                 String.format("%.1fL", totalMl / 1000.0)
             } else {
                 "${totalMl}ml"
+            }
+        }
+        
+        fun formatGoal(): String {
+            return if (dailyGoalMl >= 1000) {
+                String.format("%.1fL", dailyGoalMl / 1000.0)
+            } else {
+                "${dailyGoalMl}ml"
+            }
+        }
+        
+        fun progressPercent(): Float {
+            return if (dailyGoalMl > 0) {
+                (totalMl.toFloat() / dailyGoalMl).coerceIn(0f, 1f)
+            } else {
+                0f
             }
         }
     }

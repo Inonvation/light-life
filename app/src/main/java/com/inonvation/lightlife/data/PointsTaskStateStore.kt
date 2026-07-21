@@ -81,6 +81,9 @@ class PointsTaskStateStore(context: Context) {
     fun isBackupPrivacySafe(): Boolean = prefs.getBoolean("backup_privacy_safe", false)
     fun setBackupPrivacySafe(v: Boolean) { prefs.edit().putBoolean("backup_privacy_safe", v).apply() }
 
+    fun isWaterReminderEnabled(): Boolean = prefs.getBoolean("water_reminder_enabled", true)
+    fun setWaterReminderEnabled(v: Boolean) { prefs.edit().putBoolean("water_reminder_enabled", v).apply() }
+
     fun getPhase(): String {
         if (!isActiveDay()) {
             reset()

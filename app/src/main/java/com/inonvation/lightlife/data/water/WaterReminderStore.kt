@@ -181,6 +181,16 @@ class WaterReminderStore(context: Context) {
         prefs.edit().putString("interval_event_ids", json).apply()
     }
     
+    // ── 喝水目标 ──
+    
+    /** 获取每日喝水目标（毫升） */
+    fun getDailyGoalMl(): Int = prefs.getInt("daily_goal_ml", 2000)
+    
+    /** 设置每日喝水目标（毫升） */
+    fun setDailyGoalMl(ml: Int) {
+        prefs.edit().putInt("daily_goal_ml", ml.coerceIn(500, 5000)).apply()
+    }
+    
     // ── 杯子容量 ──
     
     /** 获取杯子容量（毫升） */
