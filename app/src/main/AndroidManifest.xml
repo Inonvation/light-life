@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:name="android.app.Application"
@@ -31,5 +33,21 @@
             android:name=".service.TaskForegroundService"
             android:foregroundServiceType="dataSync"
             android:exported="false" />
+
+        <receiver
+            android:name=".receiver.ReminderAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.inonvation.lightlife.action.DRINK_WATER" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

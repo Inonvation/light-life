@@ -295,6 +295,28 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
 
             Spacer(Modifier.height(Spacings.md))
 
+            // ═══ 健康 ═══
+            SectionHeader("健康")
+            Spacer(Modifier.height(Spacings.sm))
+            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    // 喝水提醒入口
+                    Row(
+                        modifier = Modifier.fillMaxWidth().clickable { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showWaterReminderSettings() },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("💧 喝水提醒", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("定时提醒你喝水，保持健康", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(Spacings.md))
+
             // ═══ 快捷链接 ═══
             SectionHeader("快捷链接")
             Spacer(Modifier.height(Spacings.sm))

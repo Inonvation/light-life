@@ -145,6 +145,7 @@ data class AppUiState(
     val deviceInfoDialogText: String? = null,
     val archivedLogs: List<Pair<String, String>> = emptyList(),
     val debugLogs: List<Pair<String, String>> = emptyList(),
+    val showWaterReminderSettings: Boolean = false,
 
     // ── 全局 ──
     val toastMessage: String? = null,

@@ -220,6 +220,8 @@ class AppViewModel(
     fun dismissDataScreen() { _state.update { it.copy(showDataScreen = false) } }
     fun showTaskSettings() { _state.update { it.copy(showTaskSettings = true) } }
     fun dismissTaskSettings() { _state.update { it.copy(showTaskSettings = false) } }
+    fun showWaterReminderSettings() { _state.update { it.copy(showWaterReminderSettings = true) } }
+    fun dismissWaterReminderSettings() { _state.update { it.copy(showWaterReminderSettings = false) } }
 
     fun updatePhone(value: String) = authController.updatePhone(value)
     fun updateCode(value: String) = authController.updateCode(value)

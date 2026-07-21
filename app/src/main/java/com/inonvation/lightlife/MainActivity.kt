@@ -79,6 +79,8 @@ import com.inonvation.lightlife.ui.screen.LogCenterScreen
 import com.inonvation.lightlife.ui.screen.DataScreen
 import com.inonvation.lightlife.ui.screen.QuickLinksSettingsScreen
 import com.inonvation.lightlife.ui.screen.TaskSettingsScreen
+import com.inonvation.lightlife.ui.screen.WaterReminderSettingsScreen
+import com.inonvation.lightlife.data.water.WaterReminderManager
 import com.inonvation.lightlife.ui.screen.SimpleScreen
 import com.inonvation.lightlife.ui.screen.TokenDialog
 import com.inonvation.lightlife.ui.screen.TopBar
@@ -455,6 +457,18 @@ private fun DeviceControlApp(vm: AppViewModel) {
             exit = slideOutHorizontally { it },
         ) {
             TaskSettingsScreen(state = state, vm = vm)
+        }
+
+        AnimatedVisibility(
+            visible = state.showWaterReminderSettings,
+            enter = slideInHorizontally { it },
+            exit = slideOutHorizontally { it },
+        ) {
+            WaterReminderSettingsScreen(
+                manager = WaterReminderManager(context),
+                onBack = { vm.dismissWaterReminderSettings() },
+                hapticEnabled = state.hapticEnabled
+            )
         }
 
         AnimatedVisibility(
