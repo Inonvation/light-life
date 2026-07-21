@@ -4,25 +4,30 @@ import android.content.Context
 
 /**
  * 喝水提醒业务管理器。
- * 协调 WaterReminderStore 和 AlarmScheduler，提供统一的业务接口。
+ * 协调 WaterReminderStore 和 CalendarReminderManager，提供统一的业务接口。
  */
 class WaterReminderManager(private val context: Context) {
     
     val store = WaterReminderStore(context)
-    private val scheduler = AlarmScheduler(context)
+    private val calendarManager = CalendarReminderManager(context)
     
     /**
      * 启用喝水提醒
      * @return 是否成功启用（可能因为权限问题失败）
      */
     fun enable(): Boolean {
-        if (!scheduler.canScheduleExactAlarms()) {
+        if (!calendarManager.hasCalendarPermission()) {
             return false
         }
         
         store.setEnabled(true)
-        scheduler.scheduleNextReminder()
-        return true
+        val eventId = calendarManager.createReminderEvent(
+            intervalMinutes = store.getIntervalMinutes(),
+            quietStartHour = store.getQuietStartHour(),
+            quietEndHour = store.getQuietEndHour()
+        )
+        
+        return eventId != null
     }
     
     /**
@@ -30,7 +35,7 @@ class WaterReminderManager(private val context: Context) {
      */
     fun disable() {
         store.setEnabled(false)
-        scheduler.cancelReminder()
+        calendarManager.deleteReminderEvent()
     }
     
     /**
@@ -39,9 +44,13 @@ class WaterReminderManager(private val context: Context) {
     fun updateInterval(minutes: Int) {
         store.setIntervalMinutes(minutes)
         
-        // 如果已启用，重新调度
+        // 如果已启用，更新日历事件
         if (store.isEnabled()) {
-            scheduler.scheduleNextReminder()
+            calendarManager.updateReminderEvent(
+                intervalMinutes = minutes,
+                quietStartHour = store.getQuietStartHour(),
+                quietEndHour = store.getQuietEndHour()
+            )
         }
     }
     
@@ -59,9 +68,13 @@ class WaterReminderManager(private val context: Context) {
         store.setQuietStartHour(startHour)
         store.setQuietEndHour(endHour)
         
-        // 如果已启用，重新调度（可能需要跳过免打扰时段）
+        // 如果已启用，更新日历事件
         if (store.isEnabled()) {
-            scheduler.scheduleNextReminder()
+            calendarManager.updateReminderEvent(
+                intervalMinutes = store.getIntervalMinutes(),
+                quietStartHour = startHour,
+                quietEndHour = endHour
+            )
         }
     }
     
@@ -98,10 +111,17 @@ class WaterReminderManager(private val context: Context) {
     }
     
     /**
-     * 检查是否有精确闹钟权限
+     * 检查是否有日历权限
      */
-    fun canScheduleExactAlarms(): Boolean {
-        return scheduler.canScheduleExactAlarms()
+    fun hasCalendarPermission(): Boolean {
+        return calendarManager.hasCalendarPermission()
+    }
+    
+    /**
+     * 检查日历事件是否存在
+     */
+    fun isCalendarEventExists(): Boolean {
+        return calendarManager.isEventExists()
     }
     
     /**

@@ -1,5 +1,9 @@
 package com.inonvation.lightlife.ui.screen
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +74,20 @@ fun WaterReminderSettingsScreen(
     var showCupSizeDialog by remember { mutableStateOf(false) }
     var showQuietTimeDialog by remember { mutableStateOf(false) }
     var showPermissionDialog by remember { mutableStateOf(false) }
+    
+    // 日历权限请求
+    val calendarPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            // 权限授予后启用提醒
+            manager.enable()
+            config = manager.getConfig()
+        } else {
+            showPermissionDialog = true
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -157,16 +175,23 @@ fun WaterReminderSettingsScreen(
                             onCheckedChange = {
                                 if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 if (it) {
-                                    if (manager.canScheduleExactAlarms()) {
+                                    // 检查日历权限
+                                    if (manager.hasCalendarPermission()) {
                                         manager.enable()
+                                        config = manager.getConfig()
                                     } else {
-                                        showPermissionDialog = true
-                                        return@Switch
+                                        // 请求日历权限
+                                        calendarPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.READ_CALENDAR,
+                                                Manifest.permission.WRITE_CALENDAR
+                                            )
+                                        )
                                     }
                                 } else {
                                     manager.disable()
+                                    config = manager.getConfig()
                                 }
-                                config = manager.getConfig()
                             },
                             colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
                         )
@@ -397,7 +422,7 @@ fun WaterReminderSettingsScreen(
             onDismissRequest = { showPermissionDialog = false },
             title = { Text("需要权限") },
             text = {
-                Text("喝水提醒需要精确闹钟权限才能正常工作。请在系统设置中允许本应用的精确闹钟权限。")
+                Text("喝水提醒需要日历权限才能正常工作。请在系统设置中允许本应用的日历权限。")
             },
             confirmButton = {
                 TextButton(onClick = { showPermissionDialog = false }) { Text("我知道了") }

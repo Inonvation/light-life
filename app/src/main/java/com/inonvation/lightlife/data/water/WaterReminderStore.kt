@@ -144,6 +144,17 @@ class WaterReminderStore(context: Context) {
         }.getOrNull() ?: emptyList()
     }
     
+    /** 获取日历事件ID */
+    fun getCalendarEventId(): Long? {
+        val id = prefs.getLong("calendar_event_id", -1)
+        return if (id == -1L) null else id
+    }
+    
+    /** 设置日历事件ID */
+    fun setCalendarEventId(eventId: Long?) {
+        prefs.edit().putLong("calendar_event_id", eventId ?: -1).apply()
+    }
+    
     /** 获取上次提醒时间 */
     fun getLastReminderTime(): Long = prefs.getLong("last_reminder_time", 0)
     fun setLastReminderTime(time: Long) {
