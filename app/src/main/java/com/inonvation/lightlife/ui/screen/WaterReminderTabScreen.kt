@@ -4,7 +4,6 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -44,7 +42,6 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -65,13 +62,12 @@ import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 
 /**
- * 喝水提醒设置页面。
+ * 喝水提醒 Tab 页面。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WaterReminderSettingsScreen(
+fun WaterReminderTabScreen(
     manager: WaterReminderManager,
-    onBack: () -> Unit,
     hapticEnabled: Boolean = true
 ) {
     val haptic = LocalHapticFeedback.current
@@ -85,7 +81,6 @@ fun WaterReminderSettingsScreen(
     var editingSlot by remember { mutableStateOf<ReminderTimeSlot?>(null) }
     var showIntervalDialog by remember { mutableStateOf(false) }
     var showQuietTimeDialog by remember { mutableStateOf(false) }
-    var showClearAllDialog by remember { mutableStateOf(false) }
     var showCupSizeDialog by remember { mutableStateOf(false) }
     var showPermissionDialog by remember { mutableStateOf(false) }
     
@@ -95,7 +90,6 @@ fun WaterReminderSettingsScreen(
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
-            // 权限授予后刷新状态
             timeSlots = manager.getTimeSlots()
         } else {
             showPermissionDialog = true
@@ -115,9 +109,6 @@ fun WaterReminderSettingsScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); onBack() }) {
-                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = MaterialTheme.colorScheme.onSurface)
-            }
             Text("喝水提醒", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
         }
         Box(
@@ -215,11 +206,6 @@ fun WaterReminderSettingsScreen(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clickable {
-                                            if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            editingSlot = slot
-                                            showTimePicker = true
-                                        }
                                         .padding(vertical = 8.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -371,23 +357,6 @@ fun WaterReminderSettingsScreen(
                         Text("💧 已喝水 (${manager.getCupSizeMl()}ml)")
                     }
                 }
-            }
-
-            Spacer(Modifier.height(Spacings.xxl))
-            
-            // 清除所有提醒
-            Button(
-                onClick = {
-                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    showClearAllDialog = true
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                )
-            ) {
-                Text("🗑️ 清除所有喝水日历提醒")
             }
 
             Spacer(Modifier.height(Spacings.xxl))
@@ -579,31 +548,6 @@ fun WaterReminderSettingsScreen(
         )
     }
 
-    // 清除所有确认对话框
-    if (showClearAllDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearAllDialog = false },
-            title = { Text("清除所有提醒") },
-            text = {
-                Text("确定要删除所有喝水提醒的日历事件吗？此操作不可撤销。")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    manager.clearAllReminders()
-                    timeSlots = manager.getTimeSlots()
-                    showClearAllDialog = false
-                }) {
-                    Text("确认删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearAllDialog = false }) { Text("取消") }
-            },
-            shape = RoundedCornerShape(8.dp)
-        )
-    }
-
     // 权限提示对话框
     if (showPermissionDialog) {
         AlertDialog(
@@ -634,15 +578,13 @@ private fun SettingItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(4.dp))
-            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, style = MaterialTheme.typography.bodyLarge)
+        TextButton(onClick = onClick) {
+            Text(value)
         }
     }
 }

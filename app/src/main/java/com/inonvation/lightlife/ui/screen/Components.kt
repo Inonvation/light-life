@@ -85,6 +85,7 @@ fun TopBar(
                         text = when (tab) {
                             DeviceTab.Control -> "首页"
                             DeviceTab.Points -> "积分任务"
+                            DeviceTab.Water -> "喝水"
                             DeviceTab.Me -> "我的"
                         },
                         style = MaterialTheme.typography.headlineMedium,
@@ -111,6 +112,7 @@ fun TopBar(
                             text = when (tab) {
                                 DeviceTab.Control -> "历史设备"
                                 DeviceTab.Points -> "自动化刷积分"
+                                DeviceTab.Water -> "定时提醒你喝水"
                                 DeviceTab.Me -> if (hasToken) "已登录" else "未登录"
                             },
                             style = MaterialTheme.typography.bodyMedium,

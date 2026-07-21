@@ -8,7 +8,7 @@ import com.inonvation.lightlife.data.UnlockResult
 import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
 
-enum class DeviceTab { Control, Points, Me }
+enum class DeviceTab { Control, Points, Water, Me }
 
 data class DeviceShortcutRequest(
     val goodsId: String?,
@@ -122,6 +122,7 @@ data class AppUiState(
     val backgroundTaskEnabled: Boolean = true,
     val randomDelayEnabled: Boolean = false,
     val userAgent: String = "",
+    val waterReminderEnabled: Boolean = false,
     
     // ── 定时任务 ──
     val scheduleEnabled: Boolean = false,
@@ -145,7 +146,6 @@ data class AppUiState(
     val deviceInfoDialogText: String? = null,
     val archivedLogs: List<Pair<String, String>> = emptyList(),
     val debugLogs: List<Pair<String, String>> = emptyList(),
-    val showWaterReminderSettings: Boolean = false,
 
     // ── 全局 ──
     val toastMessage: String? = null,

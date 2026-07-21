@@ -220,8 +220,6 @@ class AppViewModel(
     fun dismissDataScreen() { _state.update { it.copy(showDataScreen = false) } }
     fun showTaskSettings() { _state.update { it.copy(showTaskSettings = true) } }
     fun dismissTaskSettings() { _state.update { it.copy(showTaskSettings = false) } }
-    fun showWaterReminderSettings() { _state.update { it.copy(showWaterReminderSettings = true) } }
-    fun dismissWaterReminderSettings() { _state.update { it.copy(showWaterReminderSettings = false) } }
 
     fun updatePhone(value: String) = authController.updatePhone(value)
     fun updateCode(value: String) = authController.updateCode(value)
@@ -620,6 +618,18 @@ class AppViewModel(
             showToast("保险模式已开启，积分任务已禁用")
         } else {
             showToast("保险模式已关闭")
+        }
+    }
+
+    fun toggleWaterReminder() {
+        val v = !state.value.waterReminderEnabled
+        _state.update { it.copy(waterReminderEnabled = v) }
+        if (v) {
+            showToast("喝水提醒已开启")
+        } else {
+            // 关闭时切换到首页
+            _state.update { it.copy(currentTab = DeviceTab.Control) }
+            showToast("喝水提醒已关闭")
         }
     }
 
