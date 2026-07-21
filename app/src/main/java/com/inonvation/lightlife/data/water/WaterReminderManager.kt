@@ -125,6 +125,18 @@ class WaterReminderManager(private val context: Context) {
     }
     
     /**
+     * 重置日历 - 删除所有喝水提醒事件和日历账户
+     * @return 是否成功删除
+     */
+    fun resetCalendar(): Boolean {
+        val result = calendarManager.deleteAllEventsAndCalendar()
+        if (result) {
+            store.setEnabled(false)
+        }
+        return result
+    }
+    
+    /**
      * 今日喝水统计
      */
     data class TodayStats(

@@ -262,6 +262,37 @@ fun WaterReminderSettingsScreen(
                 }
             }
 
+            // 重置日历
+            Spacer(Modifier.height(Spacings.md))
+            SectionHeader("日历管理")
+            Spacer(Modifier.height(Spacings.sm))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = CardShapes.cardCorner,
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("清除应用创建的所有喝水提醒日历事件", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            manager.resetCalendar()
+                            config = manager.getConfig()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    ) {
+                        Text("🗑️ 清除所有喝水日历")
+                    }
+                }
+            }
+
             Spacer(Modifier.height(Spacings.xxl))
         }
     }

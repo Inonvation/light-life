@@ -124,12 +124,21 @@ class CalendarReminderManager(private val context: Context) {
     private fun insertRepeatingEvent(calId: Long, intervalMinutes: Int, quietStartHour: Int, quietEndHour: Int): Long? {
         val startMillis = System.currentTimeMillis() + intervalMinutes * 60 * 1000
         
-        // 构建 RRULE：每 intervalMinutes 分钟重复一次
-        // 但日历不支持精确的分钟级重复，使用小时级重复
+        // 构建活跃小时列表（排除免打扰时段）
+        val activeHours = getActiveHours(quietStartHour, quietEndHour)
+        
+        // 构建 RRULE
         val rrule = when {
-            intervalMinutes >= 60 -> "FREQ=HOURLY;INTERVAL=${intervalMinutes / 60}"
-            intervalMinutes >= 30 -> "FREQ=DAILY;INTERVAL=1;BYHOUR=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23"
-            else -> "FREQ=DAILY;INTERVAL=1;BYHOUR=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23"
+            intervalMinutes >= 60 -> {
+                // 每N小时，在活跃小时内
+                val interval = intervalMinutes / 60
+                val filteredHours = activeHours.filterIndexed { index, _ -> index % interval == 0 }
+                "FREQ=DAILY;INTERVAL=1;BYHOUR=${filteredHours.joinToString(",")}"
+            }
+            else -> {
+                // 每天，在活跃小时内触发
+                "FREQ=DAILY;INTERVAL=1;BYHOUR=${activeHours.joinToString(",")}"
+            }
         }
         
         val values = ContentValues().apply {
@@ -156,6 +165,21 @@ class CalendarReminderManager(private val context: Context) {
         }
         
         return eventId
+    }
+    
+    /**
+     * 获取活跃小时列表（排除免打扰时段）
+     */
+    private fun getActiveHours(quietStartHour: Int, quietEndHour: Int): List<Int> {
+        val allHours = (0..23).toList()
+        
+        return if (quietStartHour <= quietEndHour) {
+            // 同一天内免打扰，如 1:00 - 7:00
+            allHours.filter { it < quietStartHour || it >= quietEndHour }
+        } else {
+            // 跨天免打扰，如 22:00 - 7:00
+            allHours.filter { it < quietEndHour || it >= quietStartHour }
+        }
     }
     
     /**
@@ -195,5 +219,34 @@ class CalendarReminderManager(private val context: Context) {
         }
         
         return false
+    }
+    
+    /**
+     * 删除所有喝水提醒日历事件和日历账户
+     * @return 是否成功删除
+     */
+    fun deleteAllEventsAndCalendar(): Boolean {
+        if (!hasCalendarPermission()) return false
+        
+        val calId = getOrCreateCalendarId() ?: return false
+        
+        // 删除该日历下的所有事件
+        val eventsUri = CalendarContract.Events.CONTENT_URI
+        val selection = "${CalendarContract.Events.CALENDAR_ID} = ?"
+        val selectionArgs = arrayOf(calId.toString())
+        context.contentResolver.delete(eventsUri, selection, selectionArgs)
+        
+        // 删除日历账户
+        val calUri = CalendarContract.Calendars.CONTENT_URI.buildUpon()
+            .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, CALENDAR_ACCOUNT_NAME)
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)
+            .build()
+        context.contentResolver.delete(calUri, null, null)
+        
+        // 清除存储的事件ID
+        WaterReminderStore(context).setCalendarEventId(null)
+        
+        return true
     }
 }
