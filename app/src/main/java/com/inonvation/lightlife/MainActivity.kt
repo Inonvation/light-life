@@ -170,7 +170,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
     BackHandler(
         enabled = state.showOrderHistory || state.showLogoutConfirm || state.tokenDialogText != null || 
                   state.showBackupTokenExpiredDialog || state.showSettings || state.showLogCenter || 
-                  state.showDataScreen || state.showTaskSettings || state.showQuickLinksSettings
+                  state.showDataScreen || state.showTaskSettings || state.showQuickLinksSettings ||
+                  state.showWaterReminderSettings
     ) {
         when {
             state.showOrderHistory -> vm.dismissOrderHistory()
@@ -180,6 +181,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
             state.showTaskSettings -> vm.dismissTaskSettings()
             state.showDataScreen -> vm.dismissDataScreen()
             state.showQuickLinksSettings -> vm.dismissQuickLinksSettings()
+            state.showWaterReminderSettings -> vm.dismissWaterReminderSettings()
             state.showSettings -> vm.dismissSettings()
             state.showLogCenter -> vm.dismissLogCenter()
         }
