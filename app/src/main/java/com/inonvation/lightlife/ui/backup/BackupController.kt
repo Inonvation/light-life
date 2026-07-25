@@ -129,6 +129,7 @@ class BackupController(
             hasToken = repository.localToken() != null,
             orderHistory = repository.orderHistory(),
             totalPointsDeducted = pointsStatsStore?.getTotalDeductedAmount() ?: "0.00",
+            todayPointsEarned = pointsStatsStore?.getTodayEarned() ?: 0,
         )}
         backup.data.themeMode?.let { modeName ->
             try {

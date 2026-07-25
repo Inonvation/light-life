@@ -76,7 +76,7 @@ import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 
 /**
- * 喝水提醒 Tab 页面（主界面：统计 + 手动记录 + 设置入口）
+ * 喝水提醒 Tab 页面（主界面：圆环统计 + 快速按钮 + 热力图 + 记录列表 + 设置入口）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,10 +88,20 @@ fun WaterReminderTabScreen(
     val context = LocalContext.current
     var stats by remember { mutableStateOf(manager.getTodayStats()) }
 
-    var showCupSizeDialog by remember { mutableStateOf(false) }
     var showGoalDialog by remember { mutableStateOf(false) }
-    var showHistoryDialog by remember { mutableStateOf(false) }
     var showSettingsScreen by remember { mutableStateOf(false) }
+
+    // 热力图数据（过去6个月）
+    val dailySummary = remember(stats) {
+        manager.store.getRecentMonthsDailySummary(6)
+    }
+
+    // 记录喝水并刷新统计
+    fun doRecord(amountMl: Int) {
+        if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        manager.recordDrink(amountMl)
+        stats = manager.getTodayStats()
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -105,99 +115,152 @@ fun WaterReminderTabScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp, vertical = 18.dp)
             ) {
-                // 今日统计卡片
+                // ── 圆环进度 ──
+                Text(
+                    "今日喝水",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+                Spacer(Modifier.height(16.dp))
+                WaterProgressRing(
+                    progress = stats.progressPercent(),
+                    totalText = stats.formatTotal(),
+                    percentText = "${(stats.progressPercent() * 100).toInt()}% · ${stats.drinkCount}次",
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+
+                Spacer(Modifier.height(Spacings.md))
+
+                // 目标行
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "目标 ${stats.formatGoal()}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { showGoalDialog = true }) {
+                        Text("修改", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
+                Spacer(Modifier.height(Spacings.md))
+
+                // ── 快速喝水按钮 ──
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    listOf(100, 250, 500).forEach { ml ->
+                        var animating by remember { mutableStateOf(false) }
+                        val scale by animateFloatAsState(
+                            targetValue = if (animating) 0.9f else 1f,
+                            animationSpec = tween(120),
+                            label = "btn_scale"
+                        )
+                        Button(
+                            onClick = {
+                                animating = true
+                                doRecord(ml)
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("💧 +${ml}ml")
+                        }
+                        if (animating) {
+                            LaunchedEffect(animating) {
+                                delay(120)
+                                animating = false
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(Spacings.xl))
+
+                // ── 月度热力图 ──
+                Text(
+                    "喝水日历",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(Spacings.sm))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    MonthHeatMap(
+                        dailySummary = dailySummary,
+                        dailyGoalMl = stats.dailyGoalMl,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(Spacings.md))
+
+                // ── 今日记录列表 ──
+                Text(
+                    "今日记录",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(Spacings.sm))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = CardShapes.cardCorner,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    val recentLogs = remember(stats) { manager.store.getRecentLogs() }
+                    val todayLogs = remember(recentLogs) {
+                        val todayStart = java.time.LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        recentLogs.filter { it.timestamp >= todayStart }
+                    }
+                    val dateFormat = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
+
+                    if (todayLogs.isEmpty()) {
                         Text(
-                            "今日喝水",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                            "今天还没有喝水记录",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
                         )
-                        Spacer(Modifier.height(16.dp))
-
-                        val animatedProgress by animateFloatAsState(
-                            targetValue = stats.progressPercent(),
-                            animationSpec = tween(durationMillis = 1000),
-                            label = "progress"
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // 左侧圆环
-                            Box(
-                                modifier = Modifier.size(100.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
+                    } else {
+                        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            todayLogs.forEach { log ->
+                                Row(
                                     modifier = Modifier
-                                        .size(100.dp)
-                                        .drawBehind {
-                                            drawArc(
-                                                color = Color.Gray.copy(alpha = 0.2f),
-                                                startAngle = -90f,
-                                                sweepAngle = 360f,
-                                                useCenter = false,
-                                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-                                            )
-                                        }
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(100.dp)
-                                        .drawBehind {
-                                            drawArc(
-                                                color = Color(0xFF4CAF50),
-                                                startAngle = -90f,
-                                                sweepAngle = 360f * animatedProgress,
-                                                useCenter = false,
-                                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-                                            )
-                                        }
-                                )
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        "${(animatedProgress * 100).toInt()}%",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        dateFormat.format(java.util.Date(log.timestamp)),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Text(
-                                        "完成",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        "+${log.amountMl}ml",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
-                            }
-
-                            Spacer(Modifier.width(24.dp))
-
-                            // 右侧统计
-                            Column(modifier = Modifier.weight(1f)) {
-                                RollingDigits(
-                                    text = stats.formatTotal(),
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    "目标 ${stats.formatGoal()}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    "共 ${stats.drinkCount} 次饮水",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
                     }
@@ -205,7 +268,7 @@ fun WaterReminderTabScreen(
 
                 Spacer(Modifier.height(Spacings.md))
 
-                // 提醒设置入口
+                // ── 提醒设置入口 ──
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -240,109 +303,6 @@ fun WaterReminderTabScreen(
                     }
                 }
 
-                Spacer(Modifier.height(Spacings.md))
-
-                // 手动记录
-                SectionHeader("手动记录")
-                Spacer(Modifier.height(Spacings.sm))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("杯子容量: ${manager.getCupSizeMl()}ml", style = MaterialTheme.typography.bodyMedium)
-                            TextButton(onClick = { showCupSizeDialog = true }) { Text("修改") }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("每日目标: ${stats.formatGoal()}", style = MaterialTheme.typography.bodyMedium)
-                            TextButton(onClick = { showGoalDialog = true }) { Text("修改") }
-                        }
-                        // 杯子容量
-                        Spacer(Modifier.height(4.dp))
-                        var cupSize by remember { mutableStateOf(manager.getCupSizeMl().toFloat()) }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("杯子容量", style = MaterialTheme.typography.bodyMedium)
-                            Text(
-                                "${cupSize.toInt()}ml",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Slider(
-                            value = cupSize,
-                            onValueChange = { cupSize = it },
-                            onValueChangeFinished = { manager.setCupSizeMl(cupSize.toInt()) },
-                            valueRange = 50f..500f,
-                            steps = 8,
-                            colors = SliderDefaults.colors(
-                                thumbColor = MaterialTheme.colorScheme.primary,
-                                activeTrackColor = MaterialTheme.colorScheme.primary
-                            )
-                        )
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("50ml", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("500ml", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        var drinkAnimating by remember { mutableStateOf(false) }
-                        val drinkScale by animateFloatAsState(
-                            targetValue = if (drinkAnimating) 1.1f else 1f,
-                            animationSpec = tween(150),
-                            label = "drinkScale"
-                        )
-                        Button(
-                            onClick = {
-                                if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                drinkAnimating = true
-                                manager.recordDrink()
-                                stats = manager.getTodayStats()
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    scaleX = drinkScale
-                                    scaleY = drinkScale
-                                },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("💧 已喝水 (${manager.getCupSizeMl()}ml)")
-                        }
-                        if (drinkAnimating) {
-                            LaunchedEffect(drinkAnimating) {
-                                delay(150)
-                                drinkAnimating = false
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(
-                            onClick = { showHistoryDialog = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("📋 查看喝水记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-
                 Spacer(Modifier.height(Spacings.xxl))
             }
         }
@@ -361,10 +321,8 @@ fun WaterReminderTabScreen(
         }
     }
 
-    // 对话框们
-    CupSizeDialog(show = showCupSizeDialog, manager = manager, onDismiss = { showCupSizeDialog = false })
+    // 对话框
     GoalDialog(show = showGoalDialog, manager = manager, onDismiss = { showGoalDialog = false }, onUpdate = { stats = manager.getTodayStats() })
-    HistoryDialog(show = showHistoryDialog, manager = manager, onDismiss = { showHistoryDialog = false })
 }
 
 /**
@@ -794,35 +752,6 @@ private fun WaterReminderSettingsScreen(
     }
 }
 
-// ── 对话框组件 ──
-
-@Composable
-private fun CupSizeDialog(show: Boolean, manager: WaterReminderManager, onDismiss: () -> Unit) {
-    if (!show) return
-    var sliderValue by remember { mutableStateOf(manager.getCupSizeMl().toFloat()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("杯子容量") },
-        text = {
-            Column {
-                Text("设置你常用的杯子容量", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(16.dp))
-                Text("${sliderValue.toInt()}ml", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-                Spacer(Modifier.height(16.dp))
-                Slider(value = sliderValue, onValueChange = { sliderValue = it }, valueRange = 50f..500f, steps = 8,
-                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("50ml", style = MaterialTheme.typography.labelSmall)
-                    Text("500ml", style = MaterialTheme.typography.labelSmall)
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = { manager.setCupSizeMl(sliderValue.toInt()); onDismiss() }) { Text("确认") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-        shape = RoundedCornerShape(8.dp)
-    )
-}
-
 @Composable
 private fun GoalDialog(show: Boolean, manager: WaterReminderManager, onDismiss: () -> Unit, onUpdate: () -> Unit) {
     if (!show) return
@@ -849,42 +778,6 @@ private fun GoalDialog(show: Boolean, manager: WaterReminderManager, onDismiss: 
         },
         confirmButton = { TextButton(onClick = { manager.setDailyGoalMl(sliderValue.toInt()); onUpdate(); onDismiss() }) { Text("确认") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-        shape = RoundedCornerShape(8.dp)
-    )
-}
-
-@Composable
-private fun HistoryDialog(show: Boolean, manager: WaterReminderManager, onDismiss: () -> Unit) {
-    if (!show) return
-    val recentLogs = remember { manager.store.getRecentLogs() }
-    val dateFormat = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("喝水记录") },
-        text = {
-            Column {
-                if (recentLogs.isEmpty()) {
-                    Text("暂无喝水记录", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
-                } else {
-                    Text("最近 ${recentLogs.size} 条记录", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.height(8.dp))
-                    Column(modifier = Modifier.fillMaxWidth().height(300.dp).verticalScroll(rememberScrollState())) {
-                        recentLogs.forEach { log ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(dateFormat.format(java.util.Date(log.timestamp)), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${log.amountMl}ml", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            }
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
         shape = RoundedCornerShape(8.dp)
     )
 }

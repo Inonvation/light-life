@@ -181,8 +181,8 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
                     )
                     RollingStatCard(
                         icon = Icons.Outlined.BarChart,
-                        label = "累计",
-                        text = "${state.totalWaterCount} 次",
+                        label = "今日积分",
+                        text = "${state.todayPointsEarned}",
                         accentColor = StatColors.totalWater,
                         modifier = Modifier.weight(1f)
                     )

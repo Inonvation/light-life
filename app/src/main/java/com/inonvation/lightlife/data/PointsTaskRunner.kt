@@ -17,6 +17,7 @@ class TaskCancelledException : Exception()
 class PointsTaskRunner(
     private val tokenProvider: () -> String?,
     private val context: Context? = null,
+    private val pointsStatsStore: PointsStatsStore? = null,
 ) {
     @Volatile
     var cancelled = false
@@ -84,11 +85,23 @@ class PointsTaskRunner(
         if (cancelled) throw TaskCancelledException()
     }
 
-    /** 随机延迟 2~6 秒，仅在 randomDelay 开启时生效。前缀 \u200B 标记居中显示 */
+    /** 随机延迟 2~6 秒，仅在 randomDelay 开启时生效。显示一次延迟时间后静默等待 */
     private suspend fun maybeRandomDelay(log: (suspend (String) -> Unit)? = null) {
         if (randomDelay) {
-            log?.invoke("\u200B随机延迟生效中")
-            delay(2000L + (Math.random() * 4000).toLong())
+            val delayMs = 2000L + (Math.random() * 4000).toLong()
+            val delaySec = (delayMs / 1000).toInt()
+            log?.invoke("随机延迟 ${delaySec}秒")
+            delay(delayMs)
+        }
+    }
+
+    /** 随机延迟 2~6 秒，仅在 randomDelay 开启时生效，每 maxCount 次循环触发一次。显示一次延迟时间后静默等待 */
+    private suspend fun maybeRandomDelayEvery(currentIndex: Int, maxCount: Int, log: (suspend (String) -> Unit)? = null) {
+        if (randomDelay && currentIndex > 0 && currentIndex % maxCount == 0) {
+            val delayMs = 2000L + (Math.random() * 4000).toLong()
+            val delaySec = (delayMs / 1000).toInt()
+            log?.invoke("随机延迟 ${delaySec}秒")
+            delay(delayMs)
         }
     }
 
@@ -112,6 +125,7 @@ class PointsTaskRunner(
         log(if (userName.isNullOrBlank()) "当前账号未设置昵称" else "当前账号：$userName")
 
         var lastBalance = balance(token, userAgent)
+        val initialBalance = lastBalance  // 保存初始余额用于计算今日总增量
         log("任务前积分：${lastBalance ?: "-"}")
 
         // 本地状态检查：完成过的步骤直接跳过
@@ -210,8 +224,12 @@ class PointsTaskRunner(
             val diff = after - lastBalance
             log("支付宝广告：+${diff} (${after})")
         }
-        val totalGained = after?.let { a -> lastBalance?.let { _ -> a - (lastBalance ?: a) } }
+        val totalGained = after?.let { a -> initialBalance?.let { b -> a - b } }
         log("任务完成，当前积分：${after ?: "-"}（今日 +${totalGained ?: 0}）")
+        // 保存今日获得的积分
+        if (totalGained != null && totalGained > 0) {
+            pointsStatsStore?.addTodayEarned(totalGained)
+        }
     }
 
     private suspend fun signIn(token: String, ua: String, log: suspend (String) -> Unit) {
@@ -392,7 +410,7 @@ class PointsTaskRunner(
                     }
                     return@repeat
                 }
-                if (index < limit - 1) { delay(10_000); maybeRandomDelay(log) }
+                if (index < limit - 1) { delay(10_000); maybeRandomDelayEvery(index, 5, log) }
             }
 
             // 任务循环结束后处理本地状态
@@ -497,7 +515,7 @@ class PointsTaskRunner(
                 setAdCount("alipay_video_task", index + 1)
                 onProgress?.invoke("alipay_video_task", index + 1, total)
                 delay(15_000)
-                maybeRandomDelay(log)
+                maybeRandomDelayEvery(index, 5, log)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""
@@ -552,7 +570,7 @@ class PointsTaskRunner(
                 setAdCount("alipay_video", index + 1)
                 onProgress?.invoke("alipay_video", index + 1, 50)
                 delay(15_000)
-                maybeRandomDelay(log)
+                maybeRandomDelayEvery(index, 5, log)
                 val cur = balance(token, ua)
                 val diff = if (cur != null && lastBalance != null) cur - lastBalance else null
                 val suffix = if (diff != null && diff > 0) " +$diff" else ""

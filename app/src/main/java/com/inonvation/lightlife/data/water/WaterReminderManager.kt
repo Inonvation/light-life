@@ -21,9 +21,13 @@ class WaterReminderManager(private val context: Context) {
         if (enabled) {
             val slot = store.getTimeSlots().find { it.id == slotId } ?: return false
             val eventId = calendarManager.enableTimeSlot(slot)
+            if (eventId != null) {
+                store.updateTimeSlot(slotId, enabled = true)
+            }
             return eventId != null
         } else {
             calendarManager.disableTimeSlot(slotId)
+            store.updateTimeSlot(slotId, enabled = false)
             return true
         }
     }

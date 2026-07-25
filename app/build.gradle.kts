@@ -74,6 +74,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-moshi:2.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
+    implementation("com.kizitonwose.calendar:compose:2.6.0")
     implementation("com.google.errorprone:error_prone_annotations:2.36.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

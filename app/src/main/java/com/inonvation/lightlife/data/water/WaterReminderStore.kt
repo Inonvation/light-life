@@ -234,23 +234,26 @@ class WaterReminderStore(context: Context) {
     fun recordDrink(amountMl: Int) {
         val today = getTodayDateString()
         val savedDate = prefs.getString("last_drink_date", null)
-        
+
         var totalMl = if (savedDate == today) prefs.getInt("today_total_ml", 0) else 0
         var count = if (savedDate == today) prefs.getInt("today_drink_count", 0) else 0
-        
+
         totalMl += amountMl
         count++
-        
+
         prefs.edit()
             .putString("last_drink_date", today)
             .putInt("today_total_ml", totalMl)
             .putInt("today_drink_count", count)
             .apply()
-        
+
+        // 保存每日汇总（供热力图使用）
+        saveDailySummary(today, totalMl)
+
         // 保存喝水记录（最近100条）
         saveWaterLog(WaterLog(amountMl = amountMl))
     }
-    
+
     /** 保存喝水记录 */
     private fun saveWaterLog(log: WaterLog) {
         val logs = getRecentLogs().toMutableList()
@@ -258,17 +261,60 @@ class WaterReminderStore(context: Context) {
         if (logs.size > 100) {
             logs.removeAt(logs.size - 1)
         }
-        
         val json = waterLogListAdapter.toJson(logs)
         prefs.edit().putString("water_logs", json).apply()
     }
-    
+
     /** 获取最近的喝水记录 */
     fun getRecentLogs(): List<WaterLog> {
         val json = prefs.getString("water_logs", null) ?: return emptyList()
         return runCatching { waterLogListAdapter.fromJson(json) }.getOrNull() ?: emptyList()
     }
-    
+
+    // ── 每日汇总（热力图用）──
+
+    /** 保存每日汇总 */
+    private fun saveDailySummary(dateKey: String, totalMl: Int) {
+        prefs.edit().putInt("daily_summary_$dateKey", totalMl).apply()
+    }
+
+    /** 获取指定日期的喝水总量 */
+    fun getDailySummary(dateKey: String): Int {
+        return prefs.getInt("daily_summary_$dateKey", 0)
+    }
+
+    /** 获取指定月份的每日汇总 (日期字符串 -> 毫升) */
+    fun getMonthDailySummary(year: Int, month: Int): Map<String, Int> {
+        val result = mutableMapOf<String, Int>()
+        val calendar = java.time.YearMonth.of(year, month)
+        for (day in 1..calendar.lengthOfMonth()) {
+            val key = "$year-$month-$day"
+            val ml = prefs.getInt("daily_summary_$key", 0)
+            if (ml > 0) {
+                result[key] = ml
+            }
+        }
+        return result
+    }
+
+    /** 获取过去N个月的每日汇总 (日期字符串 -> 毫升) */
+    fun getRecentMonthsDailySummary(months: Int = 6): Map<String, Int> {
+        val result = mutableMapOf<String, Int>()
+        val now = java.time.LocalDate.now()
+        val startMonth = java.time.YearMonth.from(now).minusMonths(months.toLong() - 1)
+        
+        var currentMonth = startMonth
+        val endMonth = java.time.YearMonth.from(now)
+        
+        while (!currentMonth.isAfter(endMonth)) {
+            val monthData = getMonthDailySummary(currentMonth.year, currentMonth.monthValue)
+            result.putAll(monthData)
+            currentMonth = currentMonth.plusMonths(1)
+        }
+        
+        return result
+    }
+
     /** 获取今日日期字符串 */
     private fun getTodayDateString(): String {
         val now = java.time.LocalDate.now()

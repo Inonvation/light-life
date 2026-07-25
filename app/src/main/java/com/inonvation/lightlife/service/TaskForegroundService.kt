@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import com.inonvation.lightlife.MainActivity
 import com.inonvation.lightlife.R
 import com.inonvation.lightlife.data.DebugLogStore
+import com.inonvation.lightlife.data.PointsStatsStore
 import com.inonvation.lightlife.data.PointsTaskRunner
 import com.inonvation.lightlife.data.TaskCancelledException
 import com.inonvation.lightlife.data.TokenStore
@@ -69,6 +70,7 @@ class TaskForegroundService : Service() {
                         store.readToken()
                     },
                     context = this,
+                    pointsStatsStore = PointsStatsStore(this),
                 )
                 runner.setDebugLog(DebugLogStore(this))
                 runner.randomDelay = intent.getBooleanExtra(EXTRA_RANDOM_DELAY, false)
@@ -165,10 +167,11 @@ class TaskForegroundService : Service() {
                 line.substring(parenIdx + 1).trimEnd('）', ')').toIntOrNull()?.let { balance = it }
             }
 
-            // 解析 +N 累加
-            val plusIdx = line.indexOf('+')
-            if (plusIdx >= 0) {
-                line.substring(plusIdx + 1).takeWhile { it.isDigit() }.toIntOrNull()?.let {
+            // 解析汇总行中的 +N 累加（仅匹配 "：+N" 格式的汇总行，如 "签到：+2"、"支付宝广告：+150"）
+            // 排除单步行如 "支付宝广告（1/50） +3" 中的 +3
+            val colonPlus = line.indexOf("：+")
+            if (colonPlus >= 0) {
+                line.substring(colonPlus + 2).takeWhile { it.isDigit() }.toIntOrNull()?.let {
                     if (it > 0) earned = s.todayEarned + it
                 }
             }
@@ -321,8 +324,8 @@ class TaskForegroundService : Service() {
     private fun progressStepName(stage: String): String = when (stage) {
         "signin" -> "签到"
         "app_video" -> "APP视频"
-        "alipay_video" -> "支付宝视频"
-        "alipay_video_task" -> "支付宝免费赚"
+        "alipay_video_task" -> "支付宝视频"
+        "alipay_video" -> "支付宝广告"
         "ad_task" -> "看广告"
         "task_list" -> "任务列表"
         "home_page" -> "首页浏览"

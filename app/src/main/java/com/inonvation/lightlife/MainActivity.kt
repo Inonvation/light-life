@@ -28,6 +28,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -369,7 +370,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
                 val lastPointsTabClicks = remember { mutableListOf<Long>() }
                 tabList.forEachIndexed { index, tab ->
                     val label = when (tab) { DeviceTab.Control -> "首页"; DeviceTab.Points -> "积分任务"; DeviceTab.Water -> "喝水"; DeviceTab.Me -> "我的" }
-                    val icon = when (tab) { DeviceTab.Control -> Icons.Outlined.Home; DeviceTab.Points -> Icons.Outlined.PlayArrow; DeviceTab.Water -> Icons.Outlined.Person; DeviceTab.Me -> Icons.Outlined.Person }
+                    val icon = when (tab) { DeviceTab.Control -> Icons.Outlined.Home; DeviceTab.Points -> Icons.Outlined.PlayArrow; DeviceTab.Water -> Icons.Outlined.WaterDrop; DeviceTab.Me -> Icons.Outlined.Person }
                     NavigationBarItem(
                         selected = state.currentTab == tab,
                         onClick = {
@@ -434,19 +435,19 @@ private fun DeviceControlApp(vm: AppViewModel) {
 
     // 设置页平滑滑入（Scaffold 外部，覆盖全屏包括导航栏）
     val settingsOffset by animateFloatAsState(
-            targetValue = if (state.showSettings) 0f else 1f,
-            animationSpec = tween(300, easing = FastOutSlowInEasing),
-            label = "settingsSlide"
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    translationX = settingsOffset * size.width
-                }
-        ) {
-            SettingsScreen(state = state, vm = vm)
-        }
+        targetValue = if (state.showSettings) 0f else 1f,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "settingsSlide"
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                translationX = settingsOffset * size.width
+            }
+    ) {
+        SettingsScreen(state = state, vm = vm)
+    }
 
         AnimatedVisibility(
             visible = state.showLogCenter,

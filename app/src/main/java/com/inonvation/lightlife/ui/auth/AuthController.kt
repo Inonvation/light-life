@@ -141,6 +141,7 @@ class AuthController(
             todayWaterCount = 0,
             todayWaterAmount = "0.00",
             totalWaterCount = 0,
+            todayPointsEarned = 0,
             orderHistory = emptyList(),
             pointsLogs = emptyList(),
             totalPointsDeducted = "0.00",

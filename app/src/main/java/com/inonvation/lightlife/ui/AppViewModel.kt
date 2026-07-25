@@ -105,7 +105,7 @@ class AppViewModel(
         )
     }
 
-    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, context).also { it.setDebugLog(debugLogStore) }
+    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, context, pointsStatsStore).also { it.setDebugLog(debugLogStore) }
 
     private val pointsController: PointsTaskController by lazy {
         PointsTaskController(
@@ -171,6 +171,7 @@ class AppViewModel(
         pointsStatsStore?.let {
             _state.update { s -> s.copy(
                 totalPointsDeducted = it.getTotalDeductedAmount(),
+                todayPointsEarned = it.getTodayEarned(),
             )}
         }
         // 加载快捷链接
@@ -743,6 +744,7 @@ class AppViewModel(
         pointsStatsStore?.let {
             _state.update { s -> s.copy(
                 totalPointsDeducted = it.getTotalDeductedAmount(),
+                todayPointsEarned = it.getTodayEarned(),
             )}
         }
         refreshTodayWater()

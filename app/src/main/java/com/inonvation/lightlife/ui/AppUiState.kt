@@ -104,6 +104,7 @@ data class AppUiState(
     val todayWaterCount: Int = 0,
     val todayWaterAmount: String = "0.00",
     val totalWaterCount: Int = 0,
+    val todayPointsEarned: Int = 0,
     val totalPointsDeducted: String = "0.00",
     val orderHistory: List<OrderHistoryItem> = emptyList(),
 
