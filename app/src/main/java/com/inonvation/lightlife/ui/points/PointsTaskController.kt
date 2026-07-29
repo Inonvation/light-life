@@ -68,25 +68,28 @@ class PointsTaskController(
     }
 
     fun pausePointsTask() {
+        pointsTaskRunner.paused = true
         if (state.value.backgroundTaskEnabled) TaskForegroundService.pause(context)
         TaskServiceState.update { it.copy(isPaused = true) }
         appendPointLog("任务已暂停")
     }
 
     fun resumePointsTask() {
+        pointsTaskRunner.paused = false
         if (state.value.backgroundTaskEnabled) TaskForegroundService.resume(context)
         TaskServiceState.update { it.copy(isPaused = false) }
         appendPointLog("任务已继续")
     }
 
     fun stopPointsTask() {
+        pointsTaskRunner.paused = false
+        pointsTaskRunner.cancelled = true
         if (state.value.backgroundTaskEnabled) {
             TaskForegroundService.stop(context)
             TaskServiceState.reset()
         } else {
             pointsTaskJob?.cancel()
             pointsTaskJob = null
-            pointsTaskRunner.cancelled = true
         }
         observeJob?.cancel()
         observeJob = null

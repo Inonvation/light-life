@@ -22,6 +22,8 @@ class PointsTaskRunner(
     @Volatile
     var cancelled = false
     @Volatile
+    var paused = false
+    @Volatile
     var randomDelay = false
     private var debugLog: DebugLogStore? = null
     fun setDebugLog(log: DebugLogStore?) { debugLog = log }
@@ -84,6 +86,14 @@ class PointsTaskRunner(
         if (cancelled) throw TaskCancelledException()
     }
 
+    private suspend fun waitIfPaused(log: (suspend (String) -> Unit)? = null) {
+        if (paused) log?.invoke("​⏸ 任务已暂停，等待继续...")
+        while (paused) {
+            delay(1000)
+            if (cancelled) throw TaskCancelledException()
+        }
+    }
+
     /** 随机延迟 2~6 秒，仅在 randomDelay 开启时生效。显示一次延迟时间后静默等待 */
     private suspend fun maybeRandomDelay(log: (suspend (String) -> Unit)? = null) {
         if (randomDelay) {
@@ -116,6 +126,7 @@ class PointsTaskRunner(
 
     suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
         checkCancelled()
+        waitIfPaused(log)
         homePageSubtaskIndex = 0
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
 
@@ -385,6 +396,7 @@ class PointsTaskRunner(
 
             repeat(limit) { index ->
                 checkCancelled()
+                waitIfPaused(log)
                 if (isAdTask && index < getAdCount("ad_task")) return@repeat
                 val taskRes = completeTask(token, ua, taskCode)
                 val code = taskRes.codeInt()

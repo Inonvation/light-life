@@ -210,7 +210,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     Text("切换积分任务日志的显示样式", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(LogStyle.BUBBLE to "气泡", LogStyle.TERMINAL to "终端").forEach { (style, label) ->
+                        listOf(LogStyle.BUBBLE to "气泡", LogStyle.TERMINAL to "终端", LogStyle.TIMELINE to "时间线").forEach { (style, label) ->
                             FilterChip(
                                 selected = state.logStyle == style,
                                 onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateLogStyle(style) },
