@@ -73,6 +73,7 @@ class AppViewModel(
             "sockettimeoutexception" in lower || "timeout" in lower -> "请求超时，请检查网络后重试"
             "sslhandshakeexception" in lower -> "网络安全验证失败"
             "eofexception" in lower -> "数据传输中断，请重试"
+            "成功" in raw -> "操作成功"
             "请先登录" in raw -> "请先登录"
             "500" in raw || "502" in raw || "503" in raw || "504" in raw -> "服务器繁忙，请稍后再试"
             " 401 " in raw || " 403 " in raw || "http 401" in lower || "http 403" in lower -> "请求被拒绝，请检查权限"

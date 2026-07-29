@@ -131,18 +131,6 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(vm) {
                     shortcutRequestFromIntent(intent)?.let(vm::openDeviceShortcut)
                 }
-                // 从后台切回时自动刷新数据
-                val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
-                androidx.compose.runtime.DisposableEffect(vm) {
-                    val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-                        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
-                            vm.refreshBalance()
-                            vm.refreshDevices()
-                        }
-                    }
-                    lifecycleOwner.lifecycle.addObserver(observer)
-                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-                }
                 DeviceControlApp(vm)
             }
         }
