@@ -10,11 +10,11 @@ data class ApiEnvelope<T>(
 ) {
     fun requireData(): T {
         if (data != null) return data
-        val errorMsg = message ?: msg ?: "接口未返回 data"
-        if (TokenExpiredException.isTokenExpired(code, errorMsg)) {
-            throw TokenExpiredException(errorMsg)
+        val rawMsg = message ?: msg ?: "接口未返回 data"
+        if (TokenExpiredException.isTokenExpired(code, rawMsg)) {
+            throw TokenExpiredException(rawMsg)
         }
-        error(errorMsg)
+        error("接口未返回数据，请稍后重试")
     }
 }
 

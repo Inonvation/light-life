@@ -46,6 +46,7 @@ class AppViewModel(
 ) : ViewModel() {
     private val context: Context = application.applicationContext
     private val unlockMutex = kotlinx.coroutines.sync.Mutex()
+    private var devicesLoadAttempted = false
 
     // ── State ──
     private val _state = MutableStateFlow(
@@ -73,7 +74,6 @@ class AppViewModel(
             "sockettimeoutexception" in lower || "timeout" in lower -> "请求超时，请检查网络后重试"
             "sslhandshakeexception" in lower -> "网络安全验证失败"
             "eofexception" in lower -> "数据传输中断，请重试"
-            "成功" in raw -> "操作成功"
             "请先登录" in raw -> "请先登录"
             "500" in raw || "502" in raw || "503" in raw || "504" in raw -> "服务器繁忙，请稍后再试"
             " 401 " in raw || " 403 " in raw || "http 401" in lower || "http 403" in lower -> "请求被拒绝，请检查权限"
@@ -210,7 +210,7 @@ class AppViewModel(
 
     fun selectTab(tab: DeviceTab) {
         _state.update { it.copy(currentTab = tab) }
-        if (tab == DeviceTab.Control && state.value.hasToken && state.value.devices.isEmpty()) {
+        if (tab == DeviceTab.Control && state.value.hasToken && state.value.devices.isEmpty() && !devicesLoadAttempted) {
             refreshDevices()
         }
     }
@@ -236,16 +236,19 @@ class AppViewModel(
 
     fun refreshDevices() = viewModelScope.launch {
         if (!state.value.hasToken) return@launch
+        if (state.value.loadingDevices) return@launch
         runCatching {
             _state.update { it.copy(loadingDevices = true) }
             repository.latestDevices()
         }.onSuccess { devices ->
             _state.update { it.copy(devices = devices, loadingDevices = false) }
+            devicesLoadAttempted = false
             consumePendingShortcut(devices)
         }.onFailure {
             _state.update { it.copy(loadingDevices = false) }
             if (it is TokenExpiredException) { authController.handleTokenExpired(); return@launch }
             showError(it.message ?: "查询历史设备失败")
+            devicesLoadAttempted = true
         }
     }
 
