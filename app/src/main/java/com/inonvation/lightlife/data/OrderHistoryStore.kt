@@ -1,16 +1,11 @@
 ﻿package com.inonvation.lightlife.data
 
 import android.content.Context
-import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 class OrderHistoryStore(context: Context) {
     private val prefs = context.getSharedPreferences("order_history", Context.MODE_PRIVATE)
-    private val adapter = Moshi.Builder()
-        .add(LenientStringJsonAdapter())
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    private val adapter = MoshiProvider.instance
         .adapter<List<OrderHistoryItem>>(
             Types.newParameterizedType(List::class.java, OrderHistoryItem::class.java),
         )

@@ -1,9 +1,7 @@
 package com.inonvation.lightlife.data
 
 import android.content.Context
-import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 /**
  * 定时任务配置存储。
@@ -12,9 +10,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 class ScheduleStore(context: Context) {
     private val prefs = context.getSharedPreferences("schedule_config", Context.MODE_PRIVATE)
     
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi = MoshiProvider.instance
     private val timeSlotListAdapter = moshi.adapter<List<TimeSlot>>(
         Types.newParameterizedType(List::class.java, TimeSlot::class.java)
     )

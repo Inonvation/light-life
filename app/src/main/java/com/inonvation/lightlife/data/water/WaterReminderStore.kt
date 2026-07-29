@@ -1,9 +1,8 @@
 package com.inonvation.lightlife.data.water
 
 import android.content.Context
-import com.squareup.moshi.Moshi
+import com.inonvation.lightlife.data.MoshiProvider
 import com.squareup.moshi.Types
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 
 /**
  * 喝水提醒数据存储。
@@ -12,9 +11,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 class WaterReminderStore(context: Context) {
     private val prefs = context.getSharedPreferences("water_reminder", Context.MODE_PRIVATE)
     
-    private val moshi = Moshi.Builder()
-        .addLast(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi = MoshiProvider.instance
     
     private val waterLogListAdapter = moshi.adapter<List<WaterLog>>(
         Types.newParameterizedType(List::class.java, WaterLog::class.java)
