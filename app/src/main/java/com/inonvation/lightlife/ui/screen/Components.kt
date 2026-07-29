@@ -36,6 +36,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.ui.DeviceTab
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.delay
 
 /**
@@ -195,6 +197,9 @@ fun StatCard(
  * 按位滚动数字组件
  * 每个数字独立动画，只有变化的位才滚动
  */
+/**
+ * 按位滚动数字组件
+ */
 @Composable
 fun RollingDigits(
     text: String,
@@ -273,4 +278,29 @@ fun RollingStatCard(
             Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/** 页面分区标题 */
+@Composable
+fun SectionHeader(title: String) {
+    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+}
+
+/**
+ * 下拉刷新保持最少显示时长，避免一闪而过
+ * @param loading 实际的加载状态
+ * @return 实际应显示的刷新状态（加载中 + 400ms 保持）
+ */
+@Composable
+fun rememberMinRefreshDuration(loading: Boolean): Boolean {
+    var forceShow by remember { mutableStateOf(false) }
+    LaunchedEffect(loading) {
+        if (loading) {
+            forceShow = true
+        } else if (forceShow) {
+            delay(400)
+            forceShow = false
+        }
+    }
+    return loading || forceShow
 }

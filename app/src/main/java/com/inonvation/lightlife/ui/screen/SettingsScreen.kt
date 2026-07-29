@@ -575,11 +575,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
 // ── 辅助组件 ──
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-}
-
-@Composable
 private fun SettingSwitch(
     title: String,
     subtitle: String,

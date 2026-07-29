@@ -114,20 +114,10 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
     LaunchedEffect(Unit) { cardVisible = true }
 
     val refreshState = rememberPullToRefreshState()
-
-    // 下拉刷新完毕后，图标至少停留 400ms
-    var forceShowRefresh by remember { mutableStateOf(false) }
-    LaunchedEffect(state.loadingDevices) {
-        if (state.loadingDevices) {
-            forceShowRefresh = true
-        } else if (forceShowRefresh) {
-            delay(400)
-            forceShowRefresh = false
-        }
-    }
+    val isRefreshing = rememberMinRefreshDuration(state.loadingDevices)
 
     PullToRefreshBox(
-        isRefreshing = state.loadingDevices || forceShowRefresh,
+        isRefreshing = isRefreshing,
         onRefresh = {
             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             vm.refreshDevices()
@@ -137,7 +127,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
         indicator = {
             PullToRefreshDefaults.Indicator(
                 modifier = Modifier.align(Alignment.TopCenter),
-                isRefreshing = state.loadingDevices || forceShowRefresh,
+                isRefreshing = isRefreshing,
                 state = refreshState,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 color = MaterialTheme.colorScheme.onPrimaryContainer

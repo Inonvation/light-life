@@ -173,7 +173,7 @@ fun WaterReminderTabScreen(
                                     scaleX = scale
                                     scaleY = scale
                                 },
-                            shape = RoundedCornerShape(12.dp)
+                            shape = CardShapes.cardCorner
                         ) {
                             Text("💧 +${ml}ml")
                         }
@@ -784,10 +784,7 @@ private fun GoalDialog(show: Boolean, manager: WaterReminderManager, onDismiss: 
 
 // ── 工具组件 ──
 
-@Composable
-private fun SectionHeader(title: String) {
-    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-}
+
 
 @Composable
 private fun SettingItem(title: String, value: String, onClick: () -> Unit) {

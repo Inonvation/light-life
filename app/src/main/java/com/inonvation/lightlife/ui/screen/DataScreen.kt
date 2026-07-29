@@ -204,7 +204,7 @@ fun DataScreen(state: AppUiState, vm: AppViewModel) {
             Button(
                 onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showClearAllLogsConfirm() },
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = CardShapes.cardCorner,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
                 Text("清除所有记录和日志", color = MaterialTheme.colorScheme.onError)

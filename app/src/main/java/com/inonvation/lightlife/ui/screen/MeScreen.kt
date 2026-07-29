@@ -101,20 +101,10 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
     }
 
     val refreshState = rememberPullToRefreshState()
-
-    // 下拉刷新完毕后，图标至少停留 400ms，避免一闪而过
-    var forceShowRefresh by remember { mutableStateOf(false) }
-    LaunchedEffect(state.loadingBalance) {
-        if (state.loadingBalance) {
-            forceShowRefresh = true
-        } else if (forceShowRefresh) {
-            delay(400)
-            forceShowRefresh = false
-        }
-    }
+    val isRefreshing = rememberMinRefreshDuration(state.loadingBalance)
 
     PullToRefreshBox(
-        isRefreshing = state.loadingBalance || forceShowRefresh,
+        isRefreshing = isRefreshing,
         onRefresh = {
             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             vm.refreshBalance()
@@ -124,7 +114,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
         indicator = {
             PullToRefreshDefaults.Indicator(
                 modifier = Modifier.align(Alignment.TopCenter),
-                isRefreshing = state.loadingBalance || forceShowRefresh,
+                isRefreshing = isRefreshing,
                 state = refreshState,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
