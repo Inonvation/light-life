@@ -51,9 +51,10 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
 # ========================
-# Security Crypto
+# Security Crypto (Tink)
 # ========================
 -keep class androidx.security.crypto.** { *; }
+-dontwarn com.google.errorprone.annotations.**
 
 # ========================
 # 通用优化
