@@ -2,6 +2,7 @@ package com.inonvation.lightlife.ui.screen
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +45,8 @@ import androidx.compose.ui.unit.sp
 import com.inonvation.lightlife.ui.LogEntry
 import com.inonvation.lightlife.ui.LogStyle
 import com.inonvation.lightlife.ui.theme.LogColors
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 private const val MAX_LOG_LINES = 200
 
@@ -98,8 +101,8 @@ private fun BubbleLogPanel(
                             val animAlpha = remember { Animatable(0f) }
                             val animSlide = remember { Animatable(20f) }
                             LaunchedEffect(Unit) {
-                                animAlpha.animateTo(1f, animationSpec = tween(300))
-                                animSlide.animateTo(0f, animationSpec = tween(300))
+                                animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
+                                animSlide.animateTo(0f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
                             }
                             BubbleLogItem(entry, animAlpha, animSlide)
                         }
@@ -179,10 +182,14 @@ private fun TimelineLogPanel(
                     } else {
                         items(displayLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
                             val animAlpha = remember { Animatable(0f) }
+                            val animScale = remember { Animatable(0.92f) }
                             LaunchedEffect(Unit) {
-                                animAlpha.animateTo(1f, animationSpec = tween(250))
+                                coroutineScope {
+                                    launch { animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) }
+                                    launch { animScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 250f)) }
+                                }
                             }
-                            TimelineLogItem(entry, animAlpha)
+                            TimelineLogItem(entry, animAlpha, animScale)
                         }
                     }
                 }
@@ -192,21 +199,21 @@ private fun TimelineLogPanel(
 }
 
 @Composable
-private fun TimelineLogItem(entry: LogEntry, animAlpha: Animatable<Float, AnimationVector1D>) {
+private fun TimelineLogItem(entry: LogEntry, animAlpha: Animatable<Float, AnimationVector1D>, animScale: Animatable<Float, AnimationVector1D>) {
     val levelColor = entry.color
     val dotColor = levelColor
     val lineColor = LogColors.timestamp.copy(alpha = 0.2f)
 
     if (entry.centered) {
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 6.dp).graphicsLayer { alpha = animAlpha.value },
+            Modifier.fillMaxWidth().padding(vertical = 6.dp).graphicsLayer { alpha = animAlpha.value; scaleX = animScale.value; scaleY = animScale.value },
             horizontalArrangement = Arrangement.Center
         ) {
             Text(entry.message, color = LogColors.warn, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     } else {
         Row(
-            Modifier.fillMaxWidth().padding(vertical = 2.dp).height(IntrinsicSize.Min).graphicsLayer { alpha = animAlpha.value },
+            Modifier.fillMaxWidth().padding(vertical = 2.dp).height(IntrinsicSize.Min).graphicsLayer { alpha = animAlpha.value; scaleX = animScale.value; scaleY = animScale.value },
             verticalAlignment = Alignment.Top,
         ) {
             // 时间戳
@@ -285,8 +292,14 @@ private fun TerminalLogPanel(
                     } else {
                         items(displayLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
                             val animAlpha = remember { Animatable(0f) }
-                            LaunchedEffect(Unit) { animAlpha.animateTo(1f, animationSpec = tween(250)) }
-                            TerminalLogItem(entry, animAlpha)
+                            val animScale = remember { Animatable(0.92f) }
+                            LaunchedEffect(Unit) {
+                                coroutineScope {
+                                    launch { animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) }
+                                    launch { animScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 250f)) }
+                                }
+                            }
+                            TerminalLogItem(entry, animAlpha, animScale)
                         }
                     }
                 }
@@ -296,18 +309,18 @@ private fun TerminalLogPanel(
 }
 
 @Composable
-private fun TerminalLogItem(entry: LogEntry, animAlpha: Animatable<Float, AnimationVector1D>) {
+private fun TerminalLogItem(entry: LogEntry, animAlpha: Animatable<Float, AnimationVector1D>, animScale: Animatable<Float, AnimationVector1D>) {
     val levelColor = entry.color
     if (entry.centered) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp).graphicsLayer { alpha = animAlpha.value },
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp).graphicsLayer { alpha = animAlpha.value; scaleX = animScale.value; scaleY = animScale.value },
             horizontalArrangement = Arrangement.Center
         ) {
             Text(entry.message, color = LogColors.warn, style = MaterialTheme.typography.bodySmall, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         }
     } else {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp).graphicsLayer { alpha = animAlpha.value },
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 3.dp).graphicsLayer { alpha = animAlpha.value; scaleX = animScale.value; scaleY = animScale.value },
             verticalAlignment = Alignment.Top,
         ) {
             Box(Modifier.padding(top = 5.dp).size(6.dp).clip(CircleShape).background(levelColor))
