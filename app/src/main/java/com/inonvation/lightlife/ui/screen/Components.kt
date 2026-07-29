@@ -52,6 +52,41 @@ import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.ui.DeviceTab
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
+import kotlinx.coroutines.delay
+
+/**
+ * 脉动运行指示器（绿色圆点 + 可选文字）
+ */
+@Composable
+fun RunningIndicator(
+    modifier: Modifier = Modifier,
+    showLabel: Boolean = true,
+) {
+    val pulse by rememberInfiniteTransition(label = "dot")
+        .animateFloat(0.3f, 1f, infiniteRepeatable(
+            tween(900), RepeatMode.Reverse
+        ), label = "dotA")
+    androidx.compose.foundation.layout.Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+    ) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.size(8.dp)
+                .alpha(pulse)
+                .background(Color(0xFF4CAF50).copy(alpha = 0.4f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.size(4.dp)
+                    .background(Color(0xFF4CAF50), CircleShape)
+            )
+        }
+        if (showLabel) {
+            Spacer(Modifier.width(6.dp))
+            Text("执行中", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4CAF50))
+        }
+    }
+}
 
 @Composable
 fun TopBar(
@@ -93,20 +128,9 @@ fun TopBar(
                     )
                     Spacer(Modifier.width(Spacings.sm))
                     if (taskRunning) {
-                        val pulse by rememberInfiniteTransition(label = "dot")
-                            .animateFloat(0.3f, 1f, infiniteRepeatable(
-                                tween(900), RepeatMode.Reverse
-                            ), label = "dotA")
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 3.dp)) {
-                            Box(
-                                Modifier.size(8.dp).alpha(pulse).background(Color(0xFF4CAF50).copy(alpha = 0.4f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(Modifier.size(4.dp).background(Color(0xFF4CAF50), CircleShape))
-                            }
-                            Spacer(Modifier.width(6.dp))
-                            Text("执行中", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4CAF50))
-                        }
+                        RunningIndicator(
+                            modifier = Modifier.padding(bottom = 3.dp),
+                        )
                     } else {
                         Text(
                             text = when (tab) {

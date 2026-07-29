@@ -269,6 +269,7 @@ class PointsTaskRunner(
         log("屏蔽：${res.messageText()}")
     }
 
+    @Volatile
     private var homePageSubtaskIndex = 0
 
     private val homePageSubtasks = listOf(

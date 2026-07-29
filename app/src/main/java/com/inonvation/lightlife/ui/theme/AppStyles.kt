@@ -23,6 +23,13 @@ object CardShapes {
     val cardCorner = RoundedCornerShape(12.dp)
     val headerCorner = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
     val smallCardCorner = RoundedCornerShape(10.dp)
+    val dialogCorner = RoundedCornerShape(8.dp)
+}
+
+// Standard component heights
+object ComponentHeights {
+    val button = 48.dp
+    val smallButton = 32.dp
 }
 
 

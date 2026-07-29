@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import com.inonvation.lightlife.R
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
+import com.inonvation.lightlife.ui.LogStyle
 import com.inonvation.lightlife.ui.PROJECT_URL
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.ColorTheme
@@ -117,21 +118,8 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     }
                     Text("设置", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                     if (state.runningPointsTask) {
-                        val pulse by rememberInfiniteTransition(label = "dot")
-                            .animateFloat(0.3f, 1f, infiniteRepeatable(
-                                tween(900), RepeatMode.Reverse
-                            ), label = "dotA")
                         Spacer(Modifier.width(Spacings.sm))
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 2.dp)) {
-                            Box(
-                                Modifier.size(8.dp).alpha(pulse).background(Color(0xFF4CAF50).copy(alpha = 0.4f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(Modifier.size(4.dp).background(Color(0xFF4CAF50), CircleShape))
-                            }
-                            Spacer(Modifier.width(6.dp))
-                            Text("执行中", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4CAF50))
-                        }
+                        RunningIndicator(showLabel = true)
                     }
                 }
             }
@@ -208,6 +196,24 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             FilterChip(
                                 selected = state.colorTheme == theme,
                                 onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateColorTheme(theme) },
+                                label = { Text(label) },
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+
+                    // 日志风格
+                    Text("日志风格", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("切换积分任务日志的显示样式", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(LogStyle.BUBBLE to "气泡", LogStyle.TERMINAL to "终端").forEach { (style, label) ->
+                            FilterChip(
+                                selected = state.logStyle == style,
+                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateLogStyle(style) },
                                 label = { Text(label) },
                             )
                         }

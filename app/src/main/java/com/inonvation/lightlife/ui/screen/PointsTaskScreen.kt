@@ -1,7 +1,6 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -18,10 +17,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,28 +43,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.LogLevel
+import com.inonvation.lightlife.ui.LogStyle
 import com.inonvation.lightlife.ui.theme.AppColors
+import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.LogColors
+import com.inonvation.lightlife.ui.theme.Spacings
 import kotlinx.coroutines.delay
 
 @Composable
@@ -87,7 +77,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         vm.syncTodayTaskStateFromPrefs()
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 14.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(horizontal = Spacings.xl, vertical = 14.dp)) {
 
         // 保险模式：隐藏所有积分任务功能
         if (state.safeModeEnabled) {
@@ -97,7 +87,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             ) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = CardShapes.cardCorner,
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
@@ -128,7 +118,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
         ) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = CardShapes.cardCorner,
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
@@ -140,20 +130,7 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                     ) {
                         Text("积分任务", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                         if (state.runningPointsTask) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val pa by androidx.compose.animation.core.rememberInfiniteTransition(label = "dot")
-                                    .animateFloat(0.3f, 1f, androidx.compose.animation.core.infiniteRepeatable(
-                                        androidx.compose.animation.core.tween(900), androidx.compose.animation.core.RepeatMode.Reverse
-                                    ), label = "dotA")
-                                Box(
-                                    Modifier.size(8.dp).alpha(pa).background(Color(0xFF4CAF50).copy(alpha = 0.4f), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Box(Modifier.size(4.dp).background(Color(0xFF4CAF50), CircleShape))
-                                }
-                                Spacer(Modifier.width(8.dp))
-                                Text("执行中", style = MaterialTheme.typography.bodySmall, color = Color(0xFF4CAF50))
-                            }
+                            RunningIndicator()
                         } else {
                             val lastLog = state.pointsLogs.findLast {
                                 it.message.startsWith("总积分：") || it.message.startsWith("任务前积分：")
@@ -197,25 +174,44 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                             )
                         }
                     }
-                    // 今日任务状态
-                    Spacer(Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        StatusTag("签到", state.signInDone)
-                        StatusTag("首页浏览 ${state.homePageCount}/3", state.homePageDone)
-                        StatusTag("看广告 ${state.adTaskCount}/10", state.adTaskDone)
-                        StatusTag("APP视频 ${state.appVideoCount}/20", state.appVideoDone)
-                        StatusTag("其他", state.otherTaskDone)
+                    // 今日任务进度
+                    Spacer(Modifier.height(8.dp))
+                    val doneItems = buildList {
+                        if (state.signInDone) add("签到" to null)
+                        if (state.homePageDone) add("首页浏览" to "${state.homePageCount}/3")
+                        if (state.adTaskDone) add("看广告" to "${state.adTaskCount}/10")
+                        if (state.appVideoDone) add("APP视频" to "${state.appVideoCount}/20")
+                        if (state.otherTaskDone) add("其他" to null)
+                        if (state.alipayVideoTaskDone) add("支付宝视频" to "${state.alipayVideoTaskCount}/10")
+                        if (state.alipayVideoCount >= 50) add("支付宝广告" to "${state.alipayVideoCount}/50")
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        StatusTag("支付宝视频 ${state.alipayVideoTaskCount}/10", state.alipayVideoTaskDone)
-                        StatusTag("支付宝广告 ${state.alipayVideoCount}/50", state.alipayVideoCount >= 50)
+                    val pendingItems = buildList {
+                        if (!state.signInDone) add("签到" to null)
+                        if (!state.homePageDone) add("首页浏览" to "${state.homePageCount}/3")
+                        if (!state.adTaskDone) add("看广告" to "${state.adTaskCount}/10")
+                        if (!state.appVideoDone) add("APP视频" to "${state.appVideoCount}/20")
+                        if (!state.otherTaskDone) add("其他" to null)
+                        if (!state.alipayVideoTaskDone) add("支付宝视频" to "${state.alipayVideoTaskCount}/10")
+                        if (state.alipayVideoCount < 50) add("支付宝广告" to "${state.alipayVideoCount}/50")
+                    }
+                    if (doneItems.isNotEmpty()) {
+                        SectionDivider("已完成")
+                        Spacer(Modifier.height(2.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            doneItems.forEach { (name, count) ->
+                                StatusRow(name, count = count, done = true)
+                            }
+                        }
+                    }
+                    if (pendingItems.isNotEmpty()) {
+                        if (doneItems.isNotEmpty()) Spacer(Modifier.height(8.dp))
+                        SectionDivider("未完成")
+                        Spacer(Modifier.height(2.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            pendingItems.forEach { (name, count) ->
+                                StatusRow(name, count = count, done = false)
+                            }
+                        }
                     }
                 }
             }
@@ -228,7 +224,8 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(tween(400, delayMillis = 200), initialOffsetY = { it / 4 }),
             modifier = Modifier.weight(1f)
         ) {
-            LogPanelInline(
+            LogPanel(
+                logStyle = state.logStyle,
                 logs = state.pointsLogs,
                 onClear = { vm.clearPointsLogs() },
             )
@@ -283,7 +280,14 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
 
     if (state.showPointsTaskWarning) {
         WarningDialog(
-            onDismiss = { vm.dismissPointsTaskWarning() },
+            onDismiss = {
+                // X 关闭时也先保存"不再提示"状态
+                if (dialogSuppressChecked) {
+                    suppressWarning = true
+                    prefs.edit().putBoolean("suppress_warning", true).apply()
+                }
+                vm.dismissPointsTaskWarning()
+            },
             onConfirm = {
                 if (dialogSuppressChecked) {
                     suppressWarning = true
@@ -301,206 +305,74 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
 }
 
 @Composable
-private fun LogPanelInline(
-    logs: List<com.inonvation.lightlife.ui.LogEntry>,
-    onClear: () -> Unit,
-) {
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(logs.size) {
-        if (logs.isNotEmpty()) {
-            listState.animateScrollToItem(logs.lastIndex)
-        }
-    }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("执行日志", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
-            if (logs.isNotEmpty()) {
-                OutlinedButton(
-                    onClick = onClear,
-                    modifier = Modifier.height(32.dp)
-                ) { Text("清空", style = MaterialTheme.typography.labelSmall, fontSize = 11.sp) }
-            }
-        }
-        Spacer(Modifier.height(6.dp))
-
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            Surface(
-                Modifier.fillMaxSize(),
-                color = LogColors.background,
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp)
-                ) {
-                    if (logs.isEmpty()) {
-                        item {
-                            Row(
-                                Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    "等待执行任务...",
-                                    color = LogColors.info.copy(alpha = 0.5f),
-                                    fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-                    } else {
-                        items(logs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                            val animAlpha = remember { Animatable(0f) }
-                            val animSlide = remember { Animatable(20f) }
-                            LaunchedEffect(Unit) {
-                                animAlpha.animateTo(1f, animationSpec = tween(300))
-                                animSlide.animateTo(0f, animationSpec = tween(300))
-                            }
-                            val levelColor = entry.color
-                            val hasPoints = Regex("\\+\\d+").containsMatchIn(entry.message)
-                            if (entry.centered) {
-                                // 居中显示的提示（如随机延迟）
-                                Row(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .animateItem()
-                                        .padding(horizontal = 4.dp, vertical = 3.dp)
-                                        .graphicsLayer {
-                                            alpha = animAlpha.value
-                                            translationY = animSlide.value
-                                        },
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Text(
-                                        entry.message,
-                                        color = LogColors.warn,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            } else {
-                                Row(
-                                    Modifier
-                                    .fillMaxWidth()
-                                    .animateItem()
-                                    .padding(horizontal = 4.dp, vertical = 3.dp)
-                                    .graphicsLayer {
-                                        alpha = animAlpha.value
-                                        translationY = animSlide.value
-                                    },
-                                verticalAlignment = Alignment.Top,
-                                horizontalArrangement = if (hasPoints) Arrangement.End else Arrangement.Start
-                            ) {
-                                if (!hasPoints) {
-                                    // 左侧：圆点 + 气泡
-                                    Box(
-                                        Modifier
-                                            .padding(top = 5.dp)
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(levelColor)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = levelColor.copy(alpha = 0.08f),
-                                        tonalElevation = 0.dp,
-                                        shadowElevation = 0.dp,
-                                        modifier = Modifier.widthIn(max = 280.dp)
-                                    ) {
-                                        Text(
-                                            buildAnnotatedString {
-                                                val text = entry.message.trimStart()
-                                                val regex = Regex("\\+\\d+")
-                                                var lastIndex = 0
-                                                regex.findAll(text).forEach { match ->
-                                                    append(text.substring(lastIndex, match.range.first))
-                                                    pushStyle(SpanStyle(color = Color(0xFF4CAF50)))
-                                                    append(match.value)
-                                                    pop()
-                                                    lastIndex = match.range.last + 1
-                                                }
-                                                append(text.substring(lastIndex))
-                                            },
-                                            color = levelColor,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                } else {
-                                    // 右侧：气泡（蓝色底） + 圆点
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = Color(0xFF4FC3F7).copy(alpha = 0.12f),
-                                        tonalElevation = 0.dp,
-                                        shadowElevation = 0.dp,
-                                        modifier = Modifier.widthIn(max = 280.dp)
-                                    ) {
-                                        Text(
-                                            buildAnnotatedString {
-                                                val text = entry.message.trimStart()
-                                                val regex = Regex("\\+\\d+")
-                                                var lastIndex = 0
-                                                regex.findAll(text).forEach { match ->
-                                                    append(text.substring(lastIndex, match.range.first))
-                                                    pushStyle(SpanStyle(color = Color(0xFF4CAF50)))
-                                                    append(match.value)
-                                                    pop()
-                                                    lastIndex = match.range.last + 1
-                                                }
-                                                append(text.substring(lastIndex))
-                                            },
-                                            color = levelColor,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontSize = 12.sp,
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                        )
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                    Box(
-                                        Modifier
-                                            .padding(top = 5.dp)
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFF4FC3F7))
-                                    )
-                                }
-                            }
-                            } // end else (not centered)
-                        }
-                    }
-                }
-            }
-        }
+private fun SectionDivider(title: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            title,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(Modifier.width(8.dp))
+        HorizontalDivider(
+            modifier = Modifier.weight(1f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
     }
 }
 
-
 @Composable
-private fun StatusTag(label: String, done: Boolean) {
-    val bgColor = if (done) Color(0xFF4CAF50).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    val textColor = if (done) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
-    val icon = if (done) "✓" else "○"
-    Surface(
-        shape = RoundedCornerShape(6.dp),
-        color = bgColor,
-        modifier = Modifier.height(22.dp)
+private fun StatusRow(
+    name: String,
+    count: String? = null,
+    done: Boolean,
+) {
+    val dotColor = if (done) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+    val textColor = if (done) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+    val countColor = if (done) Color(0xFF4CAF50).copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(icon, fontSize = 10.sp, color = textColor, fontWeight = FontWeight.Bold)
-            Text(label, fontSize = 10.sp, color = textColor, fontWeight = FontWeight.Medium)
+        // 状态圆点
+        Box(
+            Modifier
+                .size(7.dp)
+                .clip(CircleShape)
+                .background(dotColor)
+        )
+        Spacer(Modifier.width(8.dp))
+        // 任务名称
+        Text(
+            name,
+            fontSize = 13.sp,
+            color = textColor,
+            fontWeight = if (done) FontWeight.SemiBold else FontWeight.Normal
+        )
+        Spacer(Modifier.weight(1f))
+        // 右侧计数/完成标记
+        if (count != null) {
+            Text(
+                count,
+                fontSize = 13.sp,
+                color = countColor,
+                fontWeight = FontWeight.Medium
+            )
+        } else if (done) {
+            Text(
+                "✓",
+                fontSize = 12.sp,
+                color = Color(0xFF4CAF50),
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
@@ -562,6 +434,6 @@ private fun WarningDialog(
                 }
             }
         },
-        shape = RoundedCornerShape(8.dp),
+        shape = CardShapes.dialogCorner,
     )
 }

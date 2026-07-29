@@ -62,7 +62,9 @@ import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.data.DeviceItem
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
+import com.inonvation.lightlife.ui.LogStyle
 import com.inonvation.lightlife.ui.UnlockFlowState
+import com.inonvation.lightlife.ui.theme.ComponentHeights
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.LogColors
 import com.inonvation.lightlife.ui.theme.Spacings
@@ -143,6 +145,14 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(Modifier.height(Spacings.lg))
+                    Button(
+                        onClick = { vm.showSettings() },
+                        modifier = Modifier.fillMaxWidth().height(ComponentHeights.button),
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("前往设置切换模式", fontWeight = FontWeight.SemiBold)
+                    }
                 }
                 return@LazyColumn
             }
@@ -448,58 +458,13 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                             Spacer(Modifier.height(8.dp))
 
                             // 执行日志区域
-                            Surface(
-                                modifier = Modifier.fillMaxWidth().height(180.dp),
-                                color = LogColors.background.copy(alpha = 0.85f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                val logListState = rememberLazyListState()
-                                LaunchedEffect(state.pointsLogs.size) {
-                                    if (state.pointsLogs.isNotEmpty()) {
-                                        logListState.animateScrollToItem(state.pointsLogs.lastIndex)
-                                    }
-                                }
-                                LazyColumn(state = logListState, modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp)) {
-                                    if (state.pointsLogs.isEmpty()) {
-                                        item {
-                                            Text(
-                                                "等待执行任务…",
-                                                color = LogColors.info.copy(alpha = 0.5f),
-                                                fontFamily = FontFamily.Monospace,
-                                                style = MaterialTheme.typography.bodySmall
-                                            )
-                                        }
-                                    } else {
-                                        items(state.pointsLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                                            val color = entry.color
-                                            if (entry.centered) {
-                                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                                                    Text(
-                                                        entry.message, color = LogColors.warn,
-                                                        fontFamily = FontFamily.Monospace,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                }
-                                            } else {
-                                                Row {
-                                                Text(
-                                                    "[${entry.timestamp}]", color = LogColors.info.copy(alpha = 0.6f),
-                                                    fontFamily = FontFamily.Monospace,
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Spacer(Modifier.width(4.dp))
-                                                Text(
-                                                    entry.message, color = color,
-                                                    fontFamily = FontFamily.Monospace,
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                            }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            LogPanel(
+                                logStyle = state.logStyle,
+                                logs = state.pointsLogs,
+                                onClear = { vm.clearPointsLogs() },
+                                modifier = Modifier.fillMaxWidth(),
+                                contentHeight = 180.dp,
+                            )
 
                             Spacer(Modifier.height(10.dp))
 

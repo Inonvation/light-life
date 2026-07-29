@@ -66,41 +66,14 @@ fun DataScreen(state: AppUiState, vm: AppViewModel) {
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val json = vm.prepareBackupJson()
-            if (json.isBlank()) {
-                android.widget.Toast.makeText(ctx, "备份数据为空", android.widget.Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            withContext(Dispatchers.IO) {
-                ctx.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-            }
-            android.widget.Toast.makeText(ctx, "备份导出成功", android.widget.Toast.LENGTH_SHORT).show()
-        }
+        vm.performExportBackup(ctx, uri, scope)
     }
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            try {
-                val json = withContext(Dispatchers.IO) {
-                    runCatching {
-                        ctx.contentResolver.openInputStream(uri)?.use { input ->
-                            java.io.BufferedReader(java.io.InputStreamReader(input, Charsets.UTF_8)).readText()
-                        }
-                    }.getOrNull()
-                }
-                if (json.isNullOrBlank()) {
-                    android.widget.Toast.makeText(ctx, "文件内容为空", android.widget.Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                vm.restoreFromBackupJson(json)
-            } catch (e: Exception) {
-                android.widget.Toast.makeText(ctx, "导入失败：" + (e.message ?: "无法读取文件"), android.widget.Toast.LENGTH_LONG).show()
-            }
-        }
+        vm.performImportBackup(ctx, uri, scope)
     }
 
     Column(

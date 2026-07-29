@@ -2,6 +2,7 @@
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -27,10 +28,12 @@ import com.inonvation.lightlife.ui.theme.ThemeMode
 import com.inonvation.lightlife.ui.theme.ThemePreferences
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AppViewModel(
     application: Application,
@@ -161,6 +164,7 @@ class AppViewModel(
                 waterReminderEnabled = it.isWaterReminderEnabled(),
                 debugLogEnabled = debugLogStore?.isEnabled() ?: false,
                 userAgent = it.getUserAgent(),
+                logStyle = try { LogStyle.valueOf(it.getLogStyle()) } catch (_: Exception) { LogStyle.BUBBLE },
             ) }
         }
         themePreferences?.let {
@@ -217,8 +221,6 @@ class AppViewModel(
 
     fun showSettings() { _state.update { it.copy(showSettings = true) } }
     fun dismissSettings() { _state.update { it.copy(showSettings = false) } }
-    fun showLogCenter() { _state.update { it.copy(showLogCenter = true) } }
-    fun dismissLogCenter() { _state.update { it.copy(showLogCenter = false) } }
     fun showDataScreen() { _state.update { it.copy(showDataScreen = true) } }
     fun dismissDataScreen() { _state.update { it.copy(showDataScreen = false) } }
     fun showTaskSettings() { _state.update { it.copy(showTaskSettings = true) } }
@@ -453,6 +455,43 @@ class AppViewModel(
     fun confirmBackupImportOrdersOnly() = backupController.confirmBackupImportOrdersOnly()
     fun dismissBackupTokenExpiredDialog() = backupController.dismissBackupTokenExpiredDialog()
 
+    /** 统一备份导出：写入文件到指定 URI */
+    fun performExportBackup(context: Context, uri: Uri, scope: kotlinx.coroutines.CoroutineScope) {
+        scope.launch {
+            val json = prepareBackupJson()
+            if (json.isBlank()) {
+                android.widget.Toast.makeText(context, "备份数据为空", android.widget.Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            withContext(Dispatchers.IO) {
+                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+            }
+            android.widget.Toast.makeText(context, "备份导出成功", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** 统一备份导入：从指定 URI 读取文件并恢复 */
+    fun performImportBackup(context: Context, uri: Uri, scope: kotlinx.coroutines.CoroutineScope) {
+        scope.launch {
+            try {
+                val json: String? = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            java.io.BufferedReader(java.io.InputStreamReader(input, Charsets.UTF_8)).readText()
+                        }
+                    }.getOrNull()
+                }
+                if (json.isNullOrBlank()) {
+                    android.widget.Toast.makeText(context, "文件内容为空", android.widget.Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                restoreFromBackupJson(json)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(context, "导入失败：" + (e.message ?: "无法读取文件"), android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     fun toggleHaptic() {
         val v = !state.value.hapticEnabled
         taskStateStore?.setHapticEnabled(v)
@@ -648,6 +687,11 @@ class AppViewModel(
     fun updateColorTheme(theme: ColorTheme) {
         themePreferences?.setColorTheme(theme)
         _state.update { it.copy(colorTheme = theme) }
+    }
+
+    fun updateLogStyle(style: LogStyle) {
+        taskStateStore?.setLogStyle(style.name)
+        _state.update { it.copy(logStyle = style) }
     }
 
     fun showDebugLogs() {

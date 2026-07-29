@@ -289,6 +289,13 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
         // ── 解锁状态卡片 ──
         if (state.unlockFlowState !is UnlockFlowState.Idle && !state.unlockFlowHidden) {
             item(key = "unlock_status") {
+                // 30秒超时自动关闭（防止用户忘记关）
+                LaunchedEffect(state.unlockFlowState) {
+                    if (state.unlockFlowState is UnlockFlowState.Success || state.unlockFlowState is UnlockFlowState.Failed) {
+                        delay(30_000)
+                        vm.dismissUnlockFlow()
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 when (val flow = state.unlockFlowState) {
                     is UnlockFlowState.PreChecking -> PreCheckingCard()

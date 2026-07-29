@@ -137,10 +137,6 @@ internal fun WorkingCard(step: String, elapsed: Int, onDismiss: (() -> Unit)? = 
 internal fun SuccessCard(result: UnlockResult, onDismiss: () -> Unit) {
     var showDetail by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("MM-dd HH:mm", Locale.CHINA) }
-    LaunchedEffect(Unit) {
-        delay(5000)
-        onDismiss()
-    }
     Card(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
         shape = CardShapes.cardCorner,

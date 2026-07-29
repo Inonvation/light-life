@@ -76,7 +76,6 @@ import com.inonvation.lightlife.ui.screen.MeScreen
 import com.inonvation.lightlife.ui.screen.OrderHistoryBottomSheet
 import com.inonvation.lightlife.ui.screen.PointsTaskScreen
 import com.inonvation.lightlife.ui.screen.SettingsScreen
-import com.inonvation.lightlife.ui.screen.LogCenterScreen
 import com.inonvation.lightlife.ui.screen.DataScreen
 import com.inonvation.lightlife.ui.screen.QuickLinksSettingsScreen
 import com.inonvation.lightlife.ui.screen.TaskSettingsScreen
@@ -157,8 +156,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
     }
 
     BackHandler(
-        enabled = state.showOrderHistory || state.showLogoutConfirm || state.tokenDialogText != null || 
-                  state.showBackupTokenExpiredDialog || state.showSettings || state.showLogCenter || 
+        enabled = state.showOrderHistory || state.showLogoutConfirm || state.tokenDialogText != null ||
+                  state.showBackupTokenExpiredDialog || state.showSettings ||
                   state.showDataScreen || state.showTaskSettings || state.showQuickLinksSettings
     ) {
         when {
@@ -170,7 +169,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
             state.showDataScreen -> vm.dismissDataScreen()
             state.showQuickLinksSettings -> vm.dismissQuickLinksSettings()
             state.showSettings -> vm.dismissSettings()
-            state.showLogCenter -> vm.dismissLogCenter()
         }
     }
 
@@ -184,14 +182,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
         state.errorMessage?.let { msg -> snackbarHostState.showSnackbar(msg); vm.consumeError() }
     }
 
-    state.tokenDialogText?.let { TokenDialog(token = it, onDismiss = vm::dismissCurrentToken) }
-
-    if (state.showOrderHistory) {
-        OrderHistoryBottomSheet(orders = state.orderHistory, onDismiss = vm::dismissOrderHistory)
-    }
-
-
-
     // 退出登录确认对话框（简洁/普通模式共用）
     if (state.showLogoutConfirm) {
         val context = LocalContext.current
@@ -200,17 +190,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
             contract = ActivityResultContracts.CreateDocument("application/json")
         ) { uri: Uri? ->
             if (uri == null) return@rememberLauncherForActivityResult
-            scope.launch {
-                val json = vm.prepareBackupJson()
-                if (json.isBlank()) {
-                    Toast.makeText(context, "备份数据为空", Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                withContext(Dispatchers.IO) {
-                    context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-                }
-                Toast.makeText(context, "备份导出成功", Toast.LENGTH_SHORT).show()
-            }
+            vm.performExportBackup(context, uri, scope)
         }
         AlertDialog(
             onDismissRequest = vm::dismissLogoutConfirm,
@@ -347,7 +327,7 @@ private fun DeviceControlApp(vm: AppViewModel) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             AnimatedVisibility(
-                visible = !state.showSettings && !state.showLogCenter && !state.showQuickLinksSettings,
+                visible = !state.showSettings && !state.showQuickLinksSettings,
                 enter = fadeIn(tween(200)),
                 exit = fadeOut(tween(200))
             ) {
@@ -369,7 +349,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
                                 lastPointsTabClicks.removeAll { now - it > 2000 }
                                 if (lastPointsTabClicks.size >= 5) {
                                     lastPointsTabClicks.clear()
-                                    vm.showLogCenter()
+                                    vm.showDataScreen()
+                                    Toast.makeText(context, "已进入数据管理", Toast.LENGTH_SHORT).show()
                                     return@NavigationBarItem
                                 }
                             }
@@ -438,14 +419,6 @@ private fun DeviceControlApp(vm: AppViewModel) {
     }
 
         AnimatedVisibility(
-            visible = state.showLogCenter,
-            enter = slideInHorizontally { it },
-            exit = slideOutHorizontally { it },
-        ) {
-            LogCenterScreen(state = state, vm = vm)
-        }
-
-        AnimatedVisibility(
             visible = state.showDataScreen,
             enter = slideInHorizontally { it },
             exit = slideOutHorizontally { it },
@@ -469,5 +442,11 @@ private fun DeviceControlApp(vm: AppViewModel) {
             QuickLinksSettingsScreen(state = state, vm = vm)
         }
 
+        // ── 对话框 / BottomSheet 统一渲染区 ──
+        state.tokenDialogText?.let { TokenDialog(token = it, onDismiss = vm::dismissCurrentToken) }
+
+        if (state.showOrderHistory) {
+            OrderHistoryBottomSheet(orders = state.orderHistory, onDismiss = vm::dismissOrderHistory)
+        }
 
 }

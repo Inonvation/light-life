@@ -34,6 +34,9 @@ class PointsTaskStateStore(context: Context) {
     fun isWaterReminderEnabled(): Boolean = prefs.getBoolean("water_reminder_enabled", true)
     fun setWaterReminderEnabled(v: Boolean) { prefs.edit().putBoolean("water_reminder_enabled", v).apply() }
 
+    fun getLogStyle(): String = prefs.getString("log_style", "BUBBLE") ?: "BUBBLE"
+    fun setLogStyle(v: String) { prefs.edit().putString("log_style", v).apply() }
+
     fun getUserAgent(): String = prefs.getString("user_agent", "") ?: ""
     fun setUserAgent(ua: String) { prefs.edit().putString("user_agent", ua).apply() }
 

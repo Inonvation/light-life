@@ -7,6 +7,7 @@ import com.inonvation.lightlife.data.QuickLink
 import com.inonvation.lightlife.data.UnlockResult
 import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
+import com.inonvation.lightlife.ui.LogStyle
 
 enum class DeviceTab { Control, Points, Water, Me }
 
@@ -114,6 +115,7 @@ data class AppUiState(
     // ── 设置 ──
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val colorTheme: ColorTheme = ColorTheme.GREEN,
+    val logStyle: LogStyle = LogStyle.BUBBLE,
     val hapticEnabled: Boolean = true,
     val backupPrivacySafe: Boolean = false,
     val simpleModeEnabled: Boolean = false,
@@ -134,7 +136,6 @@ data class AppUiState(
 
     // ── 弹窗/对话框 ──
     val showSettings: Boolean = false,
-    val showLogCenter: Boolean = false,
     val showDataScreen: Boolean = false,
     val showOrderHistory: Boolean = false,
     val showLogoutConfirm: Boolean = false,
