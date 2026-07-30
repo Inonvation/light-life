@@ -351,13 +351,15 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 数据 ═══
             SectionHeader("数据")
             Spacer(Modifier.height(Spacings.sm))
-            ClickableRow(
-                title = "数据管理",
-                subtitle = "日志、数据备份与清除",
-                hapticEnabled = state.hapticEnabled,
-                haptic = haptic,
-                onClick = { vm.showDataScreen() }
-            )
+            StandardCard {
+                ClickableRow(
+                    title = "数据管理",
+                    subtitle = "日志、数据备份与清除",
+                    hapticEnabled = state.hapticEnabled,
+                    haptic = haptic,
+                    onClick = { vm.showDataScreen() }
+                )
+            }
 
             Spacer(Modifier.height(Spacings.md))
 
