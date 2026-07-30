@@ -326,7 +326,7 @@ class AppViewModel(
         if (!unlockMutex.tryLock()) return@launch
         try {
             _state.update {
-                it.copy(unlocking = true, unlockingDeviceId = device.goodsName.ifBlank { device.id }, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0, unlockFlowHidden = false)
+                it.copy(unlocking = true, unlockingDeviceId = device.goodsName.ifBlank { device.id }, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking(), unlockElapsedSeconds = 0, unlockFlowHidden = false)
             }
             unlockTimerJob?.cancel()
             unlockTimerJob = viewModelScope.launch {
@@ -361,9 +361,10 @@ class AppViewModel(
             }
             runCatching {
                 repository.unlockDevice(device, usePoints = state.value.usePointsForUnlock) { step ->
-                    val isWorking = step.contains("等待完成") || step.contains("设备工作")
+                    val isWorking = step.contains("等待") || step.contains("设备工作") ||
+                        step.contains("创建后付") || step.contains("查询订单")
                     _state.update {
-                        it.copy(unlockStatus = step, unlockFlowState = if (isWorking) UnlockFlowState.Working(step, state.value.unlockElapsedSeconds) else UnlockFlowState.Working(step, 0))
+                        it.copy(unlockStatus = step, unlockFlowState = if (isWorking) UnlockFlowState.Working(step, state.value.unlockElapsedSeconds) else UnlockFlowState.PreChecking(step))
                     }
                 }
             }.onSuccess { result ->

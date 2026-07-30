@@ -19,7 +19,7 @@ data class DeviceShortcutRequest(
 
 sealed class UnlockFlowState {
     data object Idle : UnlockFlowState()
-    data object PreChecking : UnlockFlowState()
+    data class PreChecking(val step: String = "正在准备…") : UnlockFlowState()
     data class Working(val step: String, val elapsedSeconds: Int = 0) : UnlockFlowState()
     data class Success(val result: UnlockResult) : UnlockFlowState()
     data class Failed(

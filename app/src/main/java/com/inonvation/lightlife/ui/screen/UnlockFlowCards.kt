@@ -74,7 +74,7 @@ import java.util.Locale
 // ── 内联解锁状态组件（嵌入设备卡片下方） ──
 
 @Composable
-internal fun InlinePreChecking() {
+internal fun InlinePreChecking(step: String) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.4f,
@@ -93,7 +93,12 @@ internal fun InlinePreChecking() {
             strokeCap = StrokeCap.Round,
         )
         Spacer(Modifier.height(8.dp))
-        Text("正在检测设备…", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            step.ifBlank { "正在检测设备…" },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            maxLines = 1,
+        )
     }
 }
 
@@ -144,8 +149,13 @@ internal fun InlineSuccess(result: UnlockResult, onShowDetail: () -> Unit) {
             Spacer(Modifier.width(8.dp))
             Text("开水成功", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = AppColors.runningIndicator)
             Spacer(Modifier.weight(1f))
+            val costText = when {
+                result.integralCost != "-" -> "消耗积分 ${result.integralCost}"
+                result.ticketCost != "-" -> "花费小票 ${result.ticketCost}"
+                else -> "原价 ¥${result.originPrice}"
+            }
             Text(
-                "花费 ¥${result.originPrice}",
+                costText,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -217,7 +227,7 @@ internal fun InlineUnlockStatus(
         label = "inlineUnlockStatus",
     ) { state ->
         when (state) {
-            is UnlockFlowState.PreChecking -> InlinePreChecking()
+            is UnlockFlowState.PreChecking -> InlinePreChecking(step = state.step)
             is UnlockFlowState.Working -> InlineWorking(step = state.step, elapsed = elapsedSeconds)
             is UnlockFlowState.Success -> InlineSuccess(result = state.result, onShowDetail = onShowDetail)
             is UnlockFlowState.Failed -> InlineFailed(message = state.message, onShowDetail = onShowDetail)
