@@ -512,10 +512,16 @@ class AppViewModel(
                 android.widget.Toast.makeText(context, "备份数据为空", android.widget.Toast.LENGTH_SHORT).show()
                 return@launch
             }
-            withContext(Dispatchers.IO) {
-                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) } != null
+                }.getOrDefault(false)
             }
-            android.widget.Toast.makeText(context, "备份导出成功", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                context,
+                if (ok) "备份导出成功" else "导出失败：无法写入所选位置",
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
         }
     }
 
@@ -523,6 +529,17 @@ class AppViewModel(
     fun performImportBackup(context: Context, uri: Uri, scope: kotlinx.coroutines.CoroutineScope) {
         scope.launch {
             try {
+                // 读取前限制文件大小，防止超大文件导致 OOM
+                val size = withContext(Dispatchers.IO) {
+                    runCatching {
+                        context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: -1L
+                    }.getOrDefault(-1L)
+                }
+                val MAX_BACKUP_SIZE = 10L * 1024 * 1024 // 10MB
+                if (size > MAX_BACKUP_SIZE) {
+                    android.widget.Toast.makeText(context, "备份文件过大，无法导入", android.widget.Toast.LENGTH_LONG).show()
+                    return@launch
+                }
                 val json: String? = withContext(Dispatchers.IO) {
                     runCatching {
                         context.contentResolver.openInputStream(uri)?.use { input ->
