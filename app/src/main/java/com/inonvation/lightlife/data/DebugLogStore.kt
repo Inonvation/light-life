@@ -31,7 +31,7 @@ class DebugLogStore(private val context: Context) {
      */
     fun markSessionStart() {
         if (!isEnabled()) return
-        closeWriter()
+        flushWriter()
         val content = currentFile?.readText(Charsets.UTF_8) ?: ""
         sessionStartLine = if (content.isBlank()) 0 else content.lines().size
     }
@@ -41,7 +41,7 @@ class DebugLogStore(private val context: Context) {
      */
     fun getSessionContent(): String {
         if (!isEnabled()) return ""
-        closeWriter()
+        flushWriter()
         val content = currentFile?.readText(Charsets.UTF_8) ?: ""
         if (content.isBlank()) return ""
         val lines = content.lines()
@@ -113,6 +113,11 @@ class DebugLogStore(private val context: Context) {
         currentFile = null
     }
 
+    /** 只 flush 不关闭，保持 writer 常驻，避免读操作反复开关文件流 */
+    private fun flushWriter() {
+        try { writer?.flush() } catch (_: Exception) {}
+    }
+
     private fun pruneOldFiles() {
         val files = logDir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
         if (files.size > MAX_FILES) {
@@ -121,7 +126,7 @@ class DebugLogStore(private val context: Context) {
     }
 
     fun listFiles(): List<Pair<String, String>> {
-        closeWriter() // 确保当前文件写入完毕再读
+        flushWriter() // 确保当前文件写入完毕再读，不关闭常驻 writer
         return logDir.listFiles()
             ?.sortedByDescending { it.lastModified() }
             ?.map { it.name to it.readText(Charsets.UTF_8) }
@@ -129,7 +134,7 @@ class DebugLogStore(private val context: Context) {
     }
 
     fun getLatestContent(): String {
-        closeWriter()
+        flushWriter()
         return logDir.listFiles()
             ?.maxByOrNull { it.lastModified() }
             ?.readText(Charsets.UTF_8)
