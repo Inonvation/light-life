@@ -435,19 +435,19 @@ private fun HeaderSection(visible: Boolean) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(gradient, CardShapes.headerCorner)
-                .padding(horizontal = 24.dp, vertical = 28.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Column {
                 Text(
                     text = "LightLife",
-                    style = MaterialTheme.typography.headlineLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = greeting,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.9f)
                 )
             }
