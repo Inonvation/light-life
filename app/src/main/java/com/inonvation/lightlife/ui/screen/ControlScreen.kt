@@ -87,6 +87,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.inonvation.lightlife.data.DeviceItem
 import com.inonvation.lightlife.data.QuickLink
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
@@ -124,6 +125,9 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
     var showDetailDialog by remember { mutableStateOf(false) }
     val successResult = (state.unlockFlowState as? UnlockFlowState.Success)?.result
     val failedState = state.unlockFlowState as? UnlockFlowState.Failed
+
+    // 缓存最近一次解锁的设备，供失败重试使用
+    var lastUnlockedDevice by remember { mutableStateOf<DeviceItem?>(null) }
 
     // 30秒自动关闭解锁状态
     LaunchedEffect(state.unlockFlowState) {
@@ -291,6 +295,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
                         isUnlocking = isThisDevice && state.unlocking,
                         onUnlock = {
                             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            lastUnlockedDevice = device
                             vm.unlock(device)
                         },
                         onAddShortcut = {
@@ -369,8 +374,20 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showDetailDialog = false; vm.dismissUnlockFlow() }) {
-                    Text("关闭")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { showDetailDialog = false }) {
+                        Text("关闭")
+                    }
+                    if (lastUnlockedDevice != null) {
+                        Button(
+                            onClick = {
+                                showDetailDialog = false
+                                vm.dismissUnlockFlow()
+                                vm.unlock(lastUnlockedDevice!!)
+                            },
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                        ) { Text("重试") }
+                    }
                 }
             },
         )

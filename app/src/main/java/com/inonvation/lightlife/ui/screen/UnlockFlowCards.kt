@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -161,23 +162,23 @@ internal fun InlineSuccess(result: UnlockResult, onShowDetail: () -> Unit) {
 
 @Composable
 internal fun InlineFailed(message: String, onShowDetail: () -> Unit) {
-    val infiniteTransition = rememberInfiniteTransition(label = "shake")
-    val offset by infiniteTransition.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(120, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "shakeOffset",
-    )
+    // 进入时左右抖动 3 次后停止，避免无限抖动带来的焦虑感
+    val shake = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        repeat(3) {
+            shake.snapTo(0f)
+            shake.animateTo(-3f, animationSpec = tween(60, easing = LinearEasing))
+            shake.animateTo(3f, animationSpec = tween(90, easing = LinearEasing))
+            shake.animateTo(0f, animationSpec = tween(60, easing = LinearEasing))
+        }
+    }
     Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 Icons.Filled.Error,
                 contentDescription = "失败",
                 tint = AppColors.stop,
-                modifier = Modifier.size(18.dp).offset(x = offset.dp)
+                modifier = Modifier.size(18.dp).offset(x = shake.value.dp)
             )
             Spacer(Modifier.width(8.dp))
             Text("开水失败", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = AppColors.stop)
