@@ -101,7 +101,9 @@ class PointsTaskController(
         updateState { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
         syncTodayTaskStateFromPrefs()
         appendPointLog("用户已结束任务")
-        scope.launch { saveLog() }
+        // 先同步取出日志内容，避免异步保存期间 pointsLogs 被清空导致存空文件
+        val fullLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
+        scope.launch { logStore?.save(fullLog) }
     }
 
     fun clearPointsLogs() {
@@ -121,14 +123,21 @@ class PointsTaskController(
                 }
                 if (s.logs.isNotEmpty()) {
                     // Service 端 logs 按追加顺序增长（takeLast 500）；用已同步条数做增量，避免相同文案日志被误过滤
-                    val effectiveSynced = if (syncedLogCount > s.logs.size) 0 else syncedLogCount
-                    val newLogs = s.logs.drop(effectiveSynced)
-                    if (newLogs.isNotEmpty()) {
-                        val now = java.time.LocalTime.now().format(timeFmt)
+                    val now = java.time.LocalTime.now().format(timeFmt)
+                    if (syncedLogCount > s.logs.size) {
+                        // Service 端发生截断（logs 超 500 被裁剪），直接用当前 logs 全量替换，避免追加导致重复
                         updateState { st ->
-                            st.copy(pointsLogs = (st.pointsLogs + newLogs.map { LogEntry(now, it, resolveLogLevel(it)) }).takeLast(500))
+                            st.copy(pointsLogs = s.logs.map { LogEntry(now, it, resolveLogLevel(it)) }.takeLast(500))
                         }
                         syncedLogCount = s.logs.size
+                    } else {
+                        val newLogs = s.logs.drop(syncedLogCount)
+                        if (newLogs.isNotEmpty()) {
+                            updateState { st ->
+                                st.copy(pointsLogs = (st.pointsLogs + newLogs.map { LogEntry(now, it, resolveLogLevel(it)) }).takeLast(500))
+                            }
+                            syncedLogCount = s.logs.size
+                        }
                     }
                 }
                 if (!s.isRunning && state.value.runningPointsTask) {
