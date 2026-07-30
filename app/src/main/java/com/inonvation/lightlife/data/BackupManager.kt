@@ -271,20 +271,13 @@ class BackupManager(private val context: Context) {
         payload.adVideoState?.let { avs ->
             val adPrefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
             val editor = adPrefs.edit()
-            editor.putBoolean("signin_done", avs.signinDone)
-            editor.putString("signin_done_date", avs.signinDoneDate)
-            editor.putBoolean("tasklist_done", avs.tasklistDone)
-            editor.putString("tasklist_done_date", avs.tasklistDoneDate)
-            editor.putInt("app_video", avs.appVideo)
-            editor.putString("app_video_date", avs.appVideoDate)
-            editor.putInt("alipay_video", avs.alipayVideo)
-            editor.putString("alipay_video_date", avs.alipayVideoDate)
-            editor.putInt("ad_task", avs.adTask)
-            editor.putString("ad_task_date", avs.adTaskDate)
-            editor.putInt("alipay_video_task", avs.alipayVideoTask)
-            editor.putString("alipay_video_task_date", avs.alipayVideoTaskDate)
-            editor.putInt("home_page_count", avs.homePageCount)
-            editor.putString("home_page_count_date", avs.homePageCountDate)
+            editor.putTaskState("signin_done", avs.signinDone, "signin_done_date", avs.signinDoneDate)
+            editor.putTaskState("tasklist_done", avs.tasklistDone, "tasklist_done_date", avs.tasklistDoneDate)
+            editor.putTaskCount("app_video", avs.appVideo, avs.appVideoDate)
+            editor.putTaskCount("alipay_video", avs.alipayVideo, avs.alipayVideoDate)
+            editor.putTaskCount("ad_task", avs.adTask, avs.adTaskDate)
+            editor.putTaskCount("alipay_video_task", avs.alipayVideoTask, avs.alipayVideoTaskDate)
+            editor.putTaskCount("home_page_count", avs.homePageCount, avs.homePageCountDate)
             editor.apply()
         }
 
@@ -292,22 +285,15 @@ class BackupManager(private val context: Context) {
             val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.CHINA).format(java.util.Date())
             if (daily.runDate == today && daily.phase != "none") {
                 val adPrefs = context.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
-                adPrefs.edit()
-                    .putBoolean("signin_done", daily.signInDone)
-                    .putString("signin_done_date", daily.runDate)
-                    .putBoolean("tasklist_done", daily.taskListDone)
-                    .putString("tasklist_done_date", daily.runDate)
-                    .putInt("app_video", daily.appVideoCount)
-                    .putString("app_video_date", daily.runDate)
-                    .putInt("alipay_video", daily.alipayVideoCount)
-                    .putString("alipay_video_date", daily.runDate)
-                    .putInt("ad_task", daily.adTaskCount)
-                    .putString("ad_task_date", daily.runDate)
-                    .putInt("alipay_video_task", daily.alipayVideoTaskCount)
-                    .putString("alipay_video_task_date", daily.runDate)
-                    .putInt("home_page_count", daily.homePageCount)
-                    .putString("home_page_count_date", daily.runDate)
-                    .apply()
+                val editor = adPrefs.edit()
+                editor.putTaskState("signin_done", daily.signInDone, "signin_done_date", daily.runDate)
+                editor.putTaskState("tasklist_done", daily.taskListDone, "tasklist_done_date", daily.runDate)
+                editor.putTaskCount("app_video", daily.appVideoCount, daily.runDate)
+                editor.putTaskCount("alipay_video", daily.alipayVideoCount, daily.runDate)
+                editor.putTaskCount("ad_task", daily.adTaskCount, daily.runDate)
+                editor.putTaskCount("alipay_video_task", daily.alipayVideoTaskCount, daily.runDate)
+                editor.putTaskCount("home_page_count", daily.homePageCount, daily.runDate)
+                editor.apply()
             }
         }
 
@@ -321,6 +307,24 @@ class BackupManager(private val context: Context) {
         }
 
         return RestoreCounts(orderCount, logCount)
+    }
+
+    /** 写入一个布尔任务状态及其日期 */
+    private fun android.content.SharedPreferences.Editor.putTaskState(
+        key: String, value: Boolean, dateKey: String, date: String
+    ): android.content.SharedPreferences.Editor {
+        putBoolean(key, value)
+        putString(dateKey, date)
+        return this
+    }
+
+    /** 写入一个计数控件及其日期 */
+    private fun android.content.SharedPreferences.Editor.putTaskCount(
+        key: String, count: Int, date: String
+    ): android.content.SharedPreferences.Editor {
+        putInt(key, count)
+        putString("${key}_date", date)
+        return this
     }
 
     companion object {
