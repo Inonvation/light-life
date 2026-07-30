@@ -66,6 +66,7 @@ import com.inonvation.lightlife.ui.LogStyle
 import com.inonvation.lightlife.ui.UnlockFlowState
 import com.inonvation.lightlife.ui.theme.ComponentHeights
 import com.inonvation.lightlife.ui.theme.CardShapes
+import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.LogColors
 import com.inonvation.lightlife.ui.theme.Spacings
 
@@ -477,7 +478,11 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                             if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask()
                                         },
                                         modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (state.pointsTaskPaused) AppColors.resume else AppColors.pause,
+                                            contentColor = AppColors.white,
+                                        )
                                     ) { Text(if (state.pointsTaskPaused) "继续" else "暂停") }
                                     OutlinedButton(
                                         onClick = {

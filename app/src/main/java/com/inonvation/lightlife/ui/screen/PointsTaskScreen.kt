@@ -133,21 +133,38 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                             }
                         }
                     }
-                    if (!state.runningPointsTask && state.pointsLogs.isNotEmpty()) {
-                        val summary = state.pointsLogs.findLast {
-                            it.message.startsWith("所有任务均已完成") || it.message.startsWith("任务失败") || it.message.startsWith("任务已终止")
-                        }?.message
-                        if (summary != null) {
-                            // 有 405 时不再重复显示原始错误文本，友好提示会代替
-                            val has405 = state.pointsLogs.any { it.level == LogLevel.ERROR && it.message.contains("405") }
-                            if (!has405) {
-                                Spacer(Modifier.height(4.dp))
-                                val color = when {
-                                    summary.contains("已完成") -> Color(0xFF4CAF50)
-                                    summary.contains("失败") || summary.contains("终止") -> Color(0xFFE6A817)
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    if (!state.runningPointsTask) {
+                        // 今日全部完成：醒目绿色横幅
+                        if (state.todayAllDone) {
+                            Spacer(Modifier.height(6.dp))
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color(0xFFE8F5E9),
+                                shape = RoundedCornerShape(8.dp),
+                            ) {
+                                Text(
+                                    "✓ 今日任务已全部完成",
+                                    color = Color(0xFF2E7D32),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(10.dp)
+                                )
+                            }
+                        } else if (state.pointsLogs.isNotEmpty()) {
+                            // 失败/终止态：仍从日志推断（无对应 state 字段）
+                            val summary = state.pointsLogs.findLast {
+                                it.message.startsWith("任务失败") || it.message.startsWith("任务已终止")
+                            }?.message
+                            if (summary != null) {
+                                val has405 = state.pointsLogs.any { it.level == LogLevel.ERROR && it.message.contains("405") }
+                                if (!has405) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        summary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFFE6A817),
+                                    )
                                 }
-                                Text(summary, style = MaterialTheme.typography.bodySmall, color = color)
                             }
                         }
                     }
@@ -239,6 +256,10 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                         },
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(10.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = if (state.pointsTaskPaused) AppColors.resume else AppColors.pause,
+                            contentColor = AppColors.white,
+                        )
                     ) { Text(if (state.pointsTaskPaused) "继续" else "暂停") }
                     OutlinedButton(
                         onClick = {
