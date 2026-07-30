@@ -111,14 +111,15 @@ class QuickLinkStore(private val context: Context) {
         val temp = links[index1]
         links[index1] = links[index2]
         links[index2] = temp
+        val editor = prefs.edit()
         links.forEachIndexed { i, link ->
-            prefs.edit()
+            editor
                 .putString("name_$i", link.name)
                 .putString("url_$i", link.url)
                 .putString("pkg_$i", link.packageName)
                 .putInt("preset_$i", link.presetIndex)
-                .apply()
         }
+        editor.apply()
     }
 
     /** 导出所有快捷链接数据（用于备份） */
