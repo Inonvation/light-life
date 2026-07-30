@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,13 +86,8 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
                 visible = contentVisible,
                 enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 })
             ) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                StandardCard {
+                    Column(modifier = Modifier.padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(Modifier.height(24.dp))
                         Text(
                             "🔒 保险模式已开启",
@@ -116,13 +112,10 @@ fun PointsTaskScreen(state: AppUiState, vm: AppViewModel) {
             visible = contentVisible,
             enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { -it / 4 })
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CardShapes.cardCorner,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            StandardCard(
+                contentPadding = PaddingValues(14.dp)
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,

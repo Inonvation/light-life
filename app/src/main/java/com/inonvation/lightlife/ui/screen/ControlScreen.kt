@@ -1,6 +1,7 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.BarChart
@@ -39,13 +41,18 @@ import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -112,6 +119,19 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
 
     var cardVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { cardVisible = true }
+
+    // 成功/失败详情弹窗
+    var showDetailDialog by remember { mutableStateOf(false) }
+    val successResult = (state.unlockFlowState as? UnlockFlowState.Success)?.result
+    val failedState = state.unlockFlowState as? UnlockFlowState.Failed
+
+    // 30秒自动关闭解锁状态
+    LaunchedEffect(state.unlockFlowState) {
+        if (state.unlockFlowState is UnlockFlowState.Success || state.unlockFlowState is UnlockFlowState.Failed) {
+            kotlinx.coroutines.delay(30_000)
+            vm.dismissUnlockFlow()
+        }
+    }
 
     val refreshState = rememberPullToRefreshState()
     val isRefreshing = rememberMinRefreshDuration(state.loadingDevices)
@@ -261,42 +281,106 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
             }
         } else {
             items(state.devices) { device ->
-                DeviceCard(
-                    name = device.goodsName.ifBlank { "未命名设备" },
-                    enabled = !state.unlocking,
-                    onClick = {
-                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.unlock(device)
-                    },
-                    onAddShortcut = {
-                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        pinDeviceShortcut(context, device)
-                    }
-                )
-            }
-        }
+                val isThisDevice = device.goodsName.ifBlank { device.id } == state.unlockingDeviceId
+                val isUnlockingElsewhere = state.unlocking && !isThisDevice
 
-        // ── 解锁状态卡片 ──
-        if (state.unlockFlowState !is UnlockFlowState.Idle && !state.unlockFlowHidden) {
-            item(key = "unlock_status") {
-                // 30秒超时自动关闭（防止用户忘记关）
-                LaunchedEffect(state.unlockFlowState) {
-                    if (state.unlockFlowState is UnlockFlowState.Success || state.unlockFlowState is UnlockFlowState.Failed) {
-                        delay(30_000)
-                        vm.dismissUnlockFlow()
+                Column(modifier = Modifier.padding(horizontal = 20.dp).animateContentSize(tween(300))) {
+                    DeviceCard(
+                        name = device.goodsName.ifBlank { "未命名设备" },
+                        enabled = !state.unlocking || isThisDevice,
+                        isUnlocking = isThisDevice && state.unlocking,
+                        onUnlock = {
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            vm.unlock(device)
+                        },
+                        onAddShortcut = {
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            pinDeviceShortcut(context, device)
+                        },
+                        isOtherLocked = isUnlockingElsewhere,
+                    )
+
+                    // 内联解锁状态
+                    if (isThisDevice && state.unlockFlowState !is UnlockFlowState.Idle && !state.unlockFlowHidden) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        ) {
+                            InlineUnlockStatus(
+                                flowState = state.unlockFlowState,
+                                elapsedSeconds = state.unlockElapsedSeconds,
+                                result = successResult,
+                                onDismiss = { vm.dismissUnlockFlow() },
+                                onShowDetail = { showDetailDialog = true },
+                            )
+                        }
                     }
-                }
-                Spacer(Modifier.height(8.dp))
-                when (val flow = state.unlockFlowState) {
-                    is UnlockFlowState.PreChecking -> PreCheckingCard()
-                    is UnlockFlowState.Working -> WorkingCard(step = flow.step, elapsed = state.unlockElapsedSeconds, onDismiss = { vm.dismissUnlockAnimation() })
-                    is UnlockFlowState.Success -> SuccessCard(result = flow.result, onDismiss = { vm.dismissUnlockFlow() })
-                    is UnlockFlowState.Failed -> FailedCard(message = flow.message, step = flow.step, rawError = flow.rawError, suggestions = flow.suggestions, onDismiss = { vm.dismissUnlockFlow() })
-                    is UnlockFlowState.Idle -> {}
                 }
             }
         }
     }
+    }
+
+    // 成功/失败详情弹窗
+    if (successResult != null && showDetailDialog) {
+        val dateFormat = remember { java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.CHINA) }
+        AlertDialog(
+            onDismissRequest = { showDetailDialog = false },
+            title = { Text("开水成功", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column {
+                    DetailRow("订单原价", "¥${successResult.originPrice}")
+                    DetailRow("花费小票", successResult.ticketCost)
+                    if (successResult.integralCost != "-") DetailRow("积分抵扣", successResult.integralCost)
+                    successResult.otherPromotions.forEach { p ->
+                        DetailRow("其他优惠", p.discountAmount ?: "-")
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    DetailRow("订单号", successResult.orderNo)
+                    DetailRow("订单 ID", successResult.orderId)
+                    if (successResult.completedAt > 0) DetailRow("完成时间", dateFormat.format(java.util.Date(successResult.completedAt)))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailDialog = false; vm.dismissUnlockFlow() }) {
+                    Text("关闭")
+                }
+            },
+        )
+    }
+    if (failedState != null && showDetailDialog) {
+        AlertDialog(
+            onDismissRequest = { showDetailDialog = false },
+            title = { Text("开水失败", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column {
+                    Text(failedState.message, style = MaterialTheme.typography.bodyMedium)
+                    if (failedState.suggestions.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        failedState.suggestions.forEach { s ->
+                            Text("• $s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    DetailRow("失败步骤", failedState.step)
+                    DetailRow("原始错误", failedState.rawError)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailDialog = false; vm.dismissUnlockFlow() }) {
+                    Text("关闭")
+                }
+            },
+        )
+    }
+}
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 @Composable
@@ -357,21 +441,23 @@ private fun HeaderSection(visible: Boolean) {
 private fun DeviceCard(
     name: String,
     enabled: Boolean,
-    onClick: () -> Unit,
+    isUnlocking: Boolean,
+    onUnlock: () -> Unit,
     onAddShortcut: () -> Unit,
+    isOtherLocked: Boolean = false,
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 5.dp),
+        modifier = Modifier.fillMaxWidth(),
         shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isOtherLocked) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isOtherLocked) 0.dp else 1.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -382,33 +468,80 @@ private fun DeviceCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
+                        .background(
+                            if (isOtherLocked) MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.primaryContainer
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Outlined.Devices,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        contentDescription = "设备图标",
+                        modifier = Modifier.size(20.dp),
+                        tint = if (isOtherLocked) MaterialTheme.colorScheme.outline
+                            else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
                 Spacer(Modifier.width(12.dp))
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+                Column {
+                    Text(
+                        text = name,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = when {
+                            isOtherLocked -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            else -> MaterialTheme.colorScheme.onSurface
+                        }
+                    )
+                    if (isOtherLocked) {
+                        Text(
+                            text = "占用中…",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    }
+                }
             }
-            TextButton(
-                onClick = onAddShortcut,
-                enabled = enabled
-            ) {
-                Icon(Icons.Outlined.Add, contentDescription = "添加到桌面", modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("桌面", style = MaterialTheme.typography.labelSmall)
+
+            if (!isOtherLocked) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onAddShortcut,
+                        enabled = enabled,
+                        modifier = Modifier.size(40.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Icon(Icons.Outlined.Add, contentDescription = "添加到桌面", modifier = Modifier.size(18.dp))
+                    }
+
+                    Button(
+                        onClick = onUnlock,
+                        enabled = enabled,
+                        modifier = Modifier.height(40.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp)
+                    ) {
+                        Icon(
+                            if (isUnlocking) Icons.Filled.CheckCircle else Icons.Outlined.LocalDrink,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            if (isUnlocking) "开水中…" else "开水",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }

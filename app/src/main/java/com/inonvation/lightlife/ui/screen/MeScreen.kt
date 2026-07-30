@@ -73,6 +73,7 @@ import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
+import com.inonvation.lightlife.ui.theme.StatColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -131,13 +132,8 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     visible = !state.hasToken && cardsVisible,
                     enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 3 })
                 ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = CardShapes.cardCorner,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                    StandardCard {
+                        Column {
                             Text("登录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(Spacings.md))
                             OutlinedTextField(
@@ -340,25 +336,20 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     visible = state.hasToken && cardsVisible,
                     enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(tween(400, delayMillis = 200), initialOffsetY = { it / 3 })
                 ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = CardShapes.cardCorner,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(Spacings.lg)) {
+                    StandardCard {
+                        Column {
                             Text("积分统计", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                             Spacer(Modifier.height(Spacings.md))
                             MeStatRow(
                                 icon = Icons.Outlined.Money,
-                                iconColor = Color(0xFFE8A838),
+                                iconColor = StatColors.waterAmount,
                                 label = "累计白嫖金额",
                                 value = "${state.totalPointsDeducted}"
                             )
                             Spacer(Modifier.height(Spacings.sm))
                             MeStatRow(
                                 icon = Icons.Outlined.WaterDrop,
-                                iconColor = Color(0xFF2E7DBA),
+                                iconColor = StatColors.waterCount,
                                 label = "累计开水次数",
                                 value = "${state.totalWaterCount} 次"
                             )
@@ -373,16 +364,9 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     visible = state.hasToken && cardsVisible,
                     enter = fadeIn(tween(400, delayMillis = 300)) + slideInVertically(tween(400, delayMillis = 300), initialOffsetY = { it / 3 })
                 ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                vm.showOrderHistory()
-                            },
-                        shape = CardShapes.cardCorner,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    StandardCard(
+                        onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showOrderHistory() },
+                        contentPadding = PaddingValues(horizontal = Spacings.lg, vertical = 14.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -399,7 +383,7 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                             ) {
                                 Icon(
                                     Icons.Outlined.Receipt,
-                                    contentDescription = null,
+                                    contentDescription = "订单记录",
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
@@ -471,7 +455,7 @@ private fun MeStatRow(
             ) {
                 Icon(
                     icon,
-                    contentDescription = null,
+                    contentDescription = label,
                     modifier = Modifier.size(14.dp),
                     tint = iconColor
                 )
