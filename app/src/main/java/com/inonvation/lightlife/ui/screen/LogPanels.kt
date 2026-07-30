@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -97,12 +97,15 @@ private fun BubbleLogPanel(
                     if (displayLogs.isEmpty()) {
                         item { EmptyPlaceholder() }
                     } else {
-                        items(displayLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                            val animAlpha = remember { Animatable(0f) }
-                            val animSlide = remember { Animatable(20f) }
-                            LaunchedEffect(Unit) {
-                                animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
-                                animSlide.animateTo(0f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
+                        itemsIndexed(displayLogs, key = { _, it -> "${it.timestamp}_${it.id}" }) { index, entry ->
+                            val isLatest = index == displayLogs.lastIndex
+                            val animAlpha = remember { Animatable(if (isLatest) 0f else 1f) }
+                            val animSlide = remember { Animatable(if (isLatest) 20f else 0f) }
+                            if (isLatest) {
+                                LaunchedEffect(entry.id) {
+                                    animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
+                                    animSlide.animateTo(0f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f))
+                                }
                             }
                             BubbleLogItem(entry, animAlpha, animSlide)
                         }
@@ -180,13 +183,16 @@ private fun TimelineLogPanel(
                     if (displayLogs.isEmpty()) {
                         item { EmptyPlaceholder() }
                     } else {
-                        items(displayLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                            val animAlpha = remember { Animatable(0f) }
-                            val animScale = remember { Animatable(0.92f) }
-                            LaunchedEffect(Unit) {
-                                coroutineScope {
-                                    launch { animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) }
-                                    launch { animScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 250f)) }
+                        itemsIndexed(displayLogs, key = { _, it -> "${it.timestamp}_${it.id}" }) { index, entry ->
+                            val isLatest = index == displayLogs.lastIndex
+                            val animAlpha = remember { Animatable(if (isLatest) 0f else 1f) }
+                            val animScale = remember { Animatable(if (isLatest) 0.92f else 1f) }
+                            if (isLatest) {
+                                LaunchedEffect(entry.id) {
+                                    coroutineScope {
+                                        launch { animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) }
+                                        launch { animScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 250f)) }
+                                    }
                                 }
                             }
                             TimelineLogItem(entry, animAlpha, animScale)
@@ -290,13 +296,16 @@ private fun TerminalLogPanel(
                     if (displayLogs.isEmpty()) {
                         item { EmptyPlaceholder() }
                     } else {
-                        items(displayLogs, key = { "${it.timestamp}_${it.id}" }) { entry ->
-                            val animAlpha = remember { Animatable(0f) }
-                            val animScale = remember { Animatable(0.92f) }
-                            LaunchedEffect(Unit) {
-                                coroutineScope {
-                                    launch { animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) }
-                                    launch { animScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 250f)) }
+                        itemsIndexed(displayLogs, key = { _, it -> "${it.timestamp}_${it.id}" }) { index, entry ->
+                            val isLatest = index == displayLogs.lastIndex
+                            val animAlpha = remember { Animatable(if (isLatest) 0f else 1f) }
+                            val animScale = remember { Animatable(if (isLatest) 0.92f else 1f) }
+                            if (isLatest) {
+                                LaunchedEffect(entry.id) {
+                                    coroutineScope {
+                                        launch { animAlpha.animateTo(1f, animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f)) }
+                                        launch { animScale.animateTo(1f, animationSpec = spring(dampingRatio = 0.6f, stiffness = 250f)) }
+                                    }
                                 }
                             }
                             TerminalLogItem(entry, animAlpha, animScale)

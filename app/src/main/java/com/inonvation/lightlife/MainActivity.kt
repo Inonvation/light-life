@@ -14,12 +14,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -281,19 +279,11 @@ private fun DeviceControlApp(vm: AppViewModel) {
         // 简洁模式：仅显示 SimpleScreen
         Box(modifier = Modifier.fillMaxSize()) {
             SimpleScreen(state = state, vm = vm)
-            // 简洁模式下的设置页滑入
-            val settingsOffset by animateFloatAsState(
-                targetValue = if (state.showSettings) 0f else 1f,
-                animationSpec = tween(300, easing = FastOutSlowInEasing),
-                label = "settingsSlide"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        translationX = settingsOffset * size.width
-                        alpha = 1f - settingsOffset
-                    }
+            // 简洁模式下的设置页滑入（动画与普通模式统一）
+            AnimatedVisibility(
+                visible = state.showSettings,
+                enter = slideInHorizontally { it },
+                exit = slideOutHorizontally { it },
             ) {
                 SettingsScreen(state = state, vm = vm)
             }
@@ -418,18 +408,11 @@ private fun DeviceControlApp(vm: AppViewModel) {
         }
     }
 
-    // 设置页平滑滑入（Scaffold 外部，覆盖全屏包括导航栏）
-    val settingsOffset by animateFloatAsState(
-        targetValue = if (state.showSettings) 0f else 1f,
-        animationSpec = tween(300, easing = FastOutSlowInEasing),
-        label = "settingsSlide"
-    )
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .graphicsLayer {
-                translationX = settingsOffset * size.width
-            }
+    // 设置页滑入（与其他全屏设置页动画统一）
+    AnimatedVisibility(
+        visible = state.showSettings,
+        enter = slideInHorizontally { it },
+        exit = slideOutHorizontally { it },
     ) {
         SettingsScreen(state = state, vm = vm)
     }
@@ -452,8 +435,8 @@ private fun DeviceControlApp(vm: AppViewModel) {
 
         AnimatedVisibility(
             visible = state.showQuickLinksSettings,
-            enter = fadeIn(animationSpec = tween(150)),
-            exit = fadeOut(animationSpec = tween(150)),
+            enter = slideInHorizontally { it },
+            exit = slideOutHorizontally { it },
         ) {
             QuickLinksSettingsScreen(state = state, vm = vm)
         }
