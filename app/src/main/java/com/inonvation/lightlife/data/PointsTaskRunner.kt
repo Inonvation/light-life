@@ -2,7 +2,6 @@ package com.inonvation.lightlife.data
 
 import android.content.Context
 import com.squareup.moshi.JsonAdapter
-import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
