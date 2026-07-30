@@ -65,12 +65,16 @@ class AppRepository(
 
     suspend fun queryBalance(): BalanceData {
         val token = requireToken()
-        return api.queryBalance(token).requireData()
+        val resp = api.queryBalance(token)
+        resp.throwIfFailed()
+        return resp.requireData()
     }
 
     suspend fun latestDevices(): List<DeviceItem> {
         val token = requireToken()
-        return api.getLatestUsed(token = token).requireData()
+        val resp = api.getLatestUsed(token = token)
+        resp.throwIfFailed()
+        return resp.data ?: emptyList()
     }
 
     suspend fun unlockDevice(

@@ -14,7 +14,7 @@ data class ApiEnvelope<T>(
         if (TokenExpiredException.isTokenExpired(code, rawMsg)) {
             throw TokenExpiredException(rawMsg)
         }
-        error("接口未返回数据，请稍后重试")
+        error(rawMsg)
     }
 }
 
