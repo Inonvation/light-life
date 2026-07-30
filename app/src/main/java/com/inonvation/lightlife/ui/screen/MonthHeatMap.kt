@@ -106,13 +106,13 @@ fun MonthHeatMap(
                 val ml = dataMap[day.date] ?: 0
                 val level = levelOf(ml)
 
-                if (day.date in startDate..endDate) {
-                    // 有效日期范围内：按热力等级上色
-                    LevelBox(color = colors[level])
-                } else {
-                    // 范围外（startDate 之前或 endDate 之后的未来日期）：用透明格补全，
-                    // 保证每行 7 格对齐，最后一周不会因今天不是周日而残缺
-                    LevelBox(color = Color.Transparent)
+                when {
+                    // 有效日期范围内（含今天）：按热力等级上色
+                    day.date in startDate..endDate -> LevelBox(color = colors[level])
+                    // 今天之后的未来日期（仍在 endMonth 内）：用浅灰空格补全，保证本周格数对齐
+                    day.date > endDate -> LevelBox(color = colors[0])
+                    // startDate 之前的月初补全：透明格占位
+                    else -> LevelBox(color = Color.Transparent)
                 }
             },
             weekHeader = { dayOfWeek ->
