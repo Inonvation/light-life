@@ -287,6 +287,28 @@ private fun DeviceControlApp(vm: AppViewModel) {
             ) {
                 SettingsScreen(state = state, vm = vm)
             }
+            // 二级设置页（与普通模式共用同一套渲染，确保简洁模式下也能进入）
+            AnimatedVisibility(
+                visible = state.showDataScreen,
+                enter = slideInHorizontally { it },
+                exit = slideOutHorizontally { it },
+            ) {
+                DataScreen(state = state, vm = vm)
+            }
+            AnimatedVisibility(
+                visible = state.showTaskSettings,
+                enter = slideInHorizontally { it },
+                exit = slideOutHorizontally { it },
+            ) {
+                TaskSettingsScreen(state = state, vm = vm)
+            }
+            AnimatedVisibility(
+                visible = state.showQuickLinksSettings,
+                enter = slideInHorizontally { it },
+                exit = slideOutHorizontally { it },
+            ) {
+                QuickLinksSettingsScreen(state = state, vm = vm)
+            }
         }
         return
     }
