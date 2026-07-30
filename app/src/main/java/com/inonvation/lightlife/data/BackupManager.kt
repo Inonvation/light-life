@@ -233,10 +233,24 @@ class BackupManager(private val context: Context) {
 
         payload.taskLogs?.let { logs ->
             val logDir = File(context.filesDir, "task_logs").also { it.mkdirs() }
-            logDir.listFiles()?.forEach { it.delete() }
-            for (log in logs) {
-                File(logDir, log.name).writeText(log.content, Charsets.UTF_8)
-                logCount++
+            // 恢复前先把现有日志移到临时目录，恢复失败时回滚，避免直接清空丢失数据
+            val backupDir = File(context.filesDir, "task_logs_restore_backup").also { it.mkdirs() }
+            val existingFiles = logDir.listFiles()?.toList() ?: emptyList()
+            existingFiles.forEach { it.renameTo(File(backupDir, it.name)) }
+            try {
+                for (log in logs) {
+                    File(logDir, log.name).writeText(log.content, Charsets.UTF_8)
+                    logCount++
+                }
+                // 恢复成功，删除临时备份
+                backupDir.listFiles()?.forEach { it.delete() }
+                backupDir.delete()
+            } catch (e: Exception) {
+                // 恢复失败，回滚：清空半恢复的日志，把原日志移回
+                logDir.listFiles()?.forEach { it.delete() }
+                backupDir.listFiles()?.forEach { it.renameTo(File(logDir, it.name)) }
+                backupDir.delete()
+                throw e
             }
         }
 
