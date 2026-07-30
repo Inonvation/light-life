@@ -40,6 +40,7 @@ object AppColors {
     val resume = Color(0xFF4CAF50)
     val stop = Color(0xFFD32F2F)
     val white = Color.White
+    val runningIndicator = Color(0xFF4CAF50)
 }
 
 // Header gradient — follows the active color theme

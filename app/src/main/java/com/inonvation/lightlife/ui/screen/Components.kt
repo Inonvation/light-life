@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,35 +26,41 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.ui.DeviceTab
+import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.delay
 
 /**
@@ -75,17 +82,17 @@ fun RunningIndicator(
         androidx.compose.foundation.layout.Box(
             Modifier.size(8.dp)
                 .alpha(pulse)
-                .background(Color(0xFF4CAF50).copy(alpha = 0.4f), CircleShape),
+                .background(AppColors.runningIndicator.copy(alpha = 0.4f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             androidx.compose.foundation.layout.Box(
                 Modifier.size(4.dp)
-                    .background(Color(0xFF4CAF50), CircleShape)
+                    .background(AppColors.runningIndicator, CircleShape)
             )
         }
         if (showLabel) {
             Spacer(Modifier.width(6.dp))
-            Text("执行中", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4CAF50))
+            Text("执行中", style = MaterialTheme.typography.bodyMedium, color = AppColors.runningIndicator)
         }
     }
 }
@@ -159,48 +166,6 @@ fun TopBar(
 }
 
 @Composable
-fun StatCard(
-    icon: ImageVector,
-    label: String,
-    value: String,
-    accentColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier,
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = Spacings.md, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(accentColor.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = accentColor)
-            }
-            Spacer(Modifier.height(Spacings.sm))
-            Text(text = value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(Modifier.height(2.dp))
-            Text(text = label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-/**
- * 按位滚动数字组件
- * 每个数字独立动画，只有变化的位才滚动
- */
-/**
- * 按位滚动数字组件
- */
-@Composable
 fun RollingDigits(
     text: String,
     style: TextStyle = MaterialTheme.typography.headlineMedium,
@@ -265,7 +230,7 @@ fun RollingStatCard(
                     .background(accentColor.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = accentColor)
+                Icon(icon, contentDescription = label, modifier = Modifier.size(16.dp), tint = accentColor)
             }
             Spacer(Modifier.height(Spacings.sm))
             RollingDigits(
@@ -284,6 +249,163 @@ fun RollingStatCard(
 @Composable
 fun SectionHeader(title: String) {
     Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+}
+
+/**
+ * 通用卡片容器。
+ * 默认使用全局 cardCorner、surface 背景和 1.dp 阴影，统一各页面卡片视觉。
+ */
+@Composable
+fun StandardCard(
+    modifier: Modifier = Modifier,
+    shape: Shape = CardShapes.cardCorner,
+    elevation: Dp = 1.dp,
+    contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(16.dp),
+    onClick: (() -> Unit)? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    val cardModifier = if (onClick != null) modifier.fillMaxWidth().clickable(onClick = onClick) else modifier.fillMaxWidth()
+    Card(
+        modifier = cardModifier,
+        shape = shape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(contentPadding),
+            content = content
+        )
+    }
+}
+
+/**
+ * 设置页面通用顶栏。
+ * 左侧返回按钮 + 标题，支持右侧自定义操作区。
+ */
+@Composable
+fun SettingsTopBar(
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+    hapticEnabled: Boolean = true,
+    haptic: HapticFeedback = LocalHapticFeedback.current,
+    actions: @Composable () -> Unit = {},
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacings.xl, vertical = Spacings.md)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onBack()
+                }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "返回",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            actions()
+        }
+    }
+}
+
+/**
+ * 带右侧箭头的可点击行，常用于设置页面进入二级页。
+ */
+@Composable
+fun ClickableRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    hapticEnabled: Boolean = true,
+    haptic: HapticFeedback = LocalHapticFeedback.current,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable {
+                if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onClick()
+            },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+            contentDescription = "进入",
+            modifier = Modifier.size(18.dp).rotate(180f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
+ * 设置页面开关行，标题 + 副标题 + Switch。
+ */
+@Composable
+fun SettingSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    hapticEnabled: Boolean = true,
+    haptic: HapticFeedback = LocalHapticFeedback.current,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(end = Spacings.md)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = {
+                if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onCheckedChange(it)
+            },
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+        )
+    }
 }
 
 /**
