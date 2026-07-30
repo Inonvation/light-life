@@ -115,8 +115,8 @@ class DebugLogStore(private val context: Context) {
 
     private fun pruneOldFiles() {
         val files = logDir.listFiles()?.sortedByDescending { it.lastModified() } ?: return
-        if (files.size >= MAX_FILES) {
-            files.drop(MAX_FILES - 1).forEach { it.delete() }
+        if (files.size > MAX_FILES) {
+            files.drop(MAX_FILES).forEach { it.delete() }
         }
     }
 
