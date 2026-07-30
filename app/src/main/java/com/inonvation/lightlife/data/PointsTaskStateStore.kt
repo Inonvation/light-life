@@ -40,7 +40,11 @@ class PointsTaskStateStore(context: Context) {
     fun getUserAgent(): String = prefs.getString("user_agent", "") ?: ""
     fun setUserAgent(ua: String) { prefs.edit().putString("user_agent", ua).apply() }
 
+    /**
+     * 清除账号与运行相关状态（如 UserAgent），保留用户偏好设置。
+     * 用于登出、清除日志等场景，避免误清"自动执行""随机延迟"等用户设置。
+     */
     fun reset() {
-        prefs.edit().clear().apply()
+        prefs.edit().remove("user_agent").apply()
     }
 }
