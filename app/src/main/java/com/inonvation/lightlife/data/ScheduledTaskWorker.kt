@@ -40,10 +40,17 @@ class ScheduledTaskWorker(
             return Result.success()
         }
         
-        // 检查当前时间是否在某个时间段内
+        // 检查当前时间是否在某个时间段内（支持跨天时间段，如 22:00-06:00）
         val currentMinutes = getCurrentMinutes()
         val activeSlot = timeSlots.find { slot ->
-            currentMinutes >= slot.toStartMinutes() && currentMinutes <= slot.toEndMinutes()
+            val start = slot.toStartMinutes()
+            val end = slot.toEndMinutes()
+            if (start <= end) {
+                currentMinutes >= start && currentMinutes <= end
+            } else {
+                // 跨天：start > end，落在 [start,24:00) 或 [00:00,end] 内
+                currentMinutes >= start || currentMinutes <= end
+            }
         }
         
         if (activeSlot == null) {
