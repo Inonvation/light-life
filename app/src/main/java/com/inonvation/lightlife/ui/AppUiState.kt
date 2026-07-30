@@ -77,6 +77,7 @@ data class AppUiState(
 
     // ── 解锁 ──
     val unlocking: Boolean = false,
+    val unlockingDeviceId: String? = null,
     val unlockStatus: String? = null,
     val unlockFlowState: UnlockFlowState = UnlockFlowState.Idle,
     val unlockElapsedSeconds: Int = 0,
@@ -150,8 +151,6 @@ data class AppUiState(
     val debugLogs: List<Pair<String, String>> = emptyList(),
 
     // ── 全局 ──
-    val toastMessage: String? = null,
-    val errorMessage: String? = null,
     val appVersion: String = "",
 
     // ── 快捷链接 ──

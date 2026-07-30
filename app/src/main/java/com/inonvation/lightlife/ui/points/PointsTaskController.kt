@@ -13,12 +13,13 @@ import com.inonvation.lightlife.ui.LogLevel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class PointsTaskController(
-    private val state: MutableStateFlow<AppUiState>,
+    private val state: StateFlow<AppUiState>,
+    private val updateState: ((AppUiState) -> AppUiState) -> Unit,
     private val scope: CoroutineScope,
     private val context: Context,
     private val pointsTaskRunner: PointsTaskRunner,
@@ -35,7 +36,7 @@ class PointsTaskController(
 
     fun startPointsTask(userAgent: String) {
         if (state.value.runningPointsTask) return
-        state.update { it.copy(runningPointsTask = true, pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)), userAgent = userAgent) }
+        updateState { it.copy(runningPointsTask = true, pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)), userAgent = userAgent) }
         taskStateStore?.setUserAgent(userAgent)
         pointsTaskRunner.randomDelay = state.value.randomDelayEnabled
         if (state.value.backgroundTaskEnabled) {
@@ -54,7 +55,7 @@ class PointsTaskController(
                 pointsTaskRunner.run(userAgent) { line -> appendPointLog(line) }
             }.onSuccess {
                 appendPointLog("任务流程结束")
-                pointsStatsStore?.let { state.update { s -> s.copy(totalPointsDeducted = it.getTotalDeductedAmount()) } }
+                pointsStatsStore?.let { updateState { s -> s.copy(totalPointsDeducted = it.getTotalDeductedAmount()) } }
                 refreshBalance()
                 saveLog()
             }.onFailure { e ->
@@ -62,7 +63,7 @@ class PointsTaskController(
                 appendPointLog(if (e is com.inonvation.lightlife.data.TaskCancelledException) "任务已终止" else "任务失败：${e.message ?: "未知错误"}")
                 saveLog()
             }
-            state.update { it.copy(runningPointsTask = false) }
+            updateState { it.copy(runningPointsTask = false) }
             syncTodayTaskStateFromPrefs()
         }
     }
@@ -95,14 +96,14 @@ class PointsTaskController(
         observeJob = null
         observing = false
         TaskServiceState.update { it.copy(isRunning = false, isPaused = false) }
-        state.update { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
+        updateState { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
         syncTodayTaskStateFromPrefs()
         appendPointLog("用户已结束任务")
         saveLog()
     }
 
     fun clearPointsLogs() {
-        state.update { it.copy(pointsLogs = emptyList()) }
+        updateState { it.copy(pointsLogs = emptyList()) }
         syncTodayTaskStateFromPrefs()
     }
 
@@ -120,21 +121,21 @@ class PointsTaskController(
                     val lastLog = s.logs.last()
                     val now = java.time.LocalTime.now().format(timeFmt)
                     val level = resolveLogLevel(lastLog)
-                    state.update { st ->
+                    updateState { st ->
                         val existing = st.pointsLogs.map { it.message }
                         val newLogs = s.logs.filter { it !in existing }
-                        if (newLogs.isEmpty()) return@update st
+                        if (newLogs.isEmpty()) return@updateState st
                         st.copy(pointsLogs = (st.pointsLogs + newLogs.map { LogEntry(now, it, level) }).takeLast(500))
                     }
                 }
                 if (!s.isRunning && state.value.runningPointsTask) {
-                    state.update { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
+                    updateState { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
                     saveLog()
                     refreshBalance()
                     syncTodayTaskStateFromPrefs()
                 }
                 if (s.isPaused != state.value.pointsTaskPaused) {
-                    state.update { it.copy(pointsTaskPaused = s.isPaused) }
+                    updateState { it.copy(pointsTaskPaused = s.isPaused) }
                 }
             }
         }
@@ -162,7 +163,7 @@ class PointsTaskController(
         val appDone = done("app_video_done")
         val aliTaskDone = done("alipay_video_task_done")
         val all = done("signin_done") && app >= 20 && ali >= 50 && aliTask >= 10 && adt >= 10 && adDone && otherDone && homeDone && appDone && aliTaskDone
-        state.update { it.copy(
+        updateState { it.copy(
             signInDone = done("signin_done"),
             taskListDone = done("tasklist_done"),
             appVideoCount = app,
@@ -189,18 +190,18 @@ class PointsTaskController(
     fun connectToRunningService() {
         if (!isServiceRunning()) return
         observeServiceState()
-        state.update { it.copy(runningPointsTask = true) }
+        updateState { it.copy(runningPointsTask = true) }
         val existingLogs = TaskServiceState.snapshot().logs
         if (existingLogs.isEmpty()) return
         val now = java.time.LocalTime.now().format(timeFmt)
         val entries = existingLogs.map { msg -> LogEntry(now, msg, resolveLogLevel(msg)) }
-        state.update { st -> st.copy(pointsLogs = (st.pointsLogs + entries).takeLast(500)) }
+        updateState { st -> st.copy(pointsLogs = (st.pointsLogs + entries).takeLast(500)) }
     }
 
     private fun appendPointLog(line: String, centered: Boolean = false) {
         val isCentered = centered || line.startsWith("\u200B")
         val displayLine = if (line.startsWith("\u200B")) line.removePrefix("\u200B") else line
-        state.update { st ->
+        updateState { st ->
             st.copy(pointsLogs = (st.pointsLogs + LogEntry(java.time.LocalTime.now().format(timeFmt), displayLine, resolveLogLevel(displayLine), centered = isCentered)).takeLast(500))
         }
     }
@@ -208,6 +209,11 @@ class PointsTaskController(
     private fun saveLog() {
         val fullLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
         logStore?.save(fullLog)
+    }
+
+    fun cleanup() {
+        observeJob?.cancel()
+        pointsTaskJob?.cancel()
     }
 
     companion object {

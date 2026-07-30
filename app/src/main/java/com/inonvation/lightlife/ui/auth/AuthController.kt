@@ -8,12 +8,13 @@ import com.inonvation.lightlife.data.TaskLogStore
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.DeviceTab
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AuthController(
-    private val state: MutableStateFlow<AppUiState>,
+    private val state: StateFlow<AppUiState>,
+    private val updateState: ((AppUiState) -> AppUiState) -> Unit,
     private val scope: CoroutineScope,
     private val repository: AppRepository,
     private val taskStateStore: PointsTaskStateStore?,
@@ -29,28 +30,28 @@ class AuthController(
     private var codeSentTimestamp: Long = 0
 
     fun updatePhone(value: String) {
-        state.update { it.copy(phone = value, phoneError = null) }
+        updateState { it.copy(phone = value, phoneError = null) }
         val trimmed = value.trim()
         if (trimmed.isNotEmpty() && !PHONE_REGEX.matches(trimmed)) {
-            state.update { it.copy(phoneError = "请输入正确格式的手机号") }
+            updateState { it.copy(phoneError = "请输入正确格式的手机号") }
         }
     }
 
     fun updateCode(value: String) {
         val filtered = value.filter { it.isDigit() }
-        state.update { it.copy(code = filtered) }
+        updateState { it.copy(code = filtered) }
     }
 
     fun toggleTokenLogin() {
-        state.update { it.copy(showTokenLogin = !it.showTokenLogin, tokenLoginInput = "", tokenLoginVisible = false) }
+        updateState { it.copy(showTokenLogin = !it.showTokenLogin, tokenLoginInput = "", tokenLoginVisible = false) }
     }
 
     fun updateTokenLoginInput(value: String) {
-        state.update { it.copy(tokenLoginInput = value) }
+        updateState { it.copy(tokenLoginInput = value) }
     }
 
     fun toggleTokenLoginVisibility() {
-        state.update { it.copy(tokenLoginVisible = !it.tokenLoginVisible) }
+        updateState { it.copy(tokenLoginVisible = !it.tokenLoginVisible) }
     }
 
     fun loginWithToken() = scope.launch {
@@ -60,15 +61,15 @@ class AuthController(
             return@launch
         }
         runCatching {
-            state.update { it.copy(tokenLoggingIn = true) }
+            updateState { it.copy(tokenLoggingIn = true) }
             repository.saveToken(token)
             repository.validateToken()
         }.onSuccess {
-            state.update { it.copy(hasToken = true, tokenLoggingIn = false, showTokenLogin = false, tokenLoginInput = "") }
+            updateState { it.copy(hasToken = true, tokenLoggingIn = false, showTokenLogin = false, tokenLoginInput = "") }
             showToast("登录成功")
             onAuthSuccess()
         }.onFailure {
-            state.update { it.copy(tokenLoggingIn = false) }
+            updateState { it.copy(tokenLoggingIn = false) }
             repository.clearToken()
             showError(it.message ?: "Token 无效或已过期")
         }
@@ -82,11 +83,11 @@ class AuthController(
             return@launch
         }
         if (phone.isBlank() || !PHONE_REGEX.matches(phone)) {
-            state.update { it.copy(phoneError = "请输入正确格式的手机号") }
+            updateState { it.copy(phoneError = "请输入正确格式的手机号") }
             return@launch
         }
         runCatching {
-            state.update { it.copy(sendingCode = true) }
+            updateState { it.copy(sendingCode = true) }
             repository.sendCode(phone)
         }.onSuccess {
             codeSentTimestamp = System.currentTimeMillis()
@@ -94,14 +95,14 @@ class AuthController(
         }.onFailure {
             showError(it.message ?: "验证码发送失败")
         }
-        state.update { it.copy(sendingCode = false) }
+        updateState { it.copy(sendingCode = false) }
     }
 
     fun login() = scope.launch {
         val phone = state.value.phone.trim()
         val code = state.value.code.trim()
         if (phone.isBlank() || !PHONE_REGEX.matches(phone)) {
-            state.update { it.copy(phoneError = "请输入正确格式的手机号") }
+            updateState { it.copy(phoneError = "请输入正确格式的手机号") }
             return@launch
         }
         if (code.isBlank()) {
@@ -109,15 +110,15 @@ class AuthController(
             return@launch
         }
         runCatching {
-            state.update { it.copy(loggingIn = true) }
+            updateState { it.copy(loggingIn = true) }
             repository.login(phone, code)
         }.onSuccess {
-            state.update { it.copy(hasToken = true, loggingIn = false, phoneError = null) }
+            updateState { it.copy(hasToken = true, loggingIn = false, phoneError = null) }
             showToast("登录成功")
             repository.savePhone(phone)
             onAuthSuccess()
         }.onFailure {
-            state.update { it.copy(loggingIn = false) }
+            updateState { it.copy(loggingIn = false) }
             showError(it.message ?: "登录失败")
         }
     }
@@ -131,7 +132,7 @@ class AuthController(
         clearAdVideoState()
         logStore?.clearAll()
         debugLogStore?.clearAll()
-        state.update { it.copy(
+        updateState { it.copy(
             hasToken = false,
             phone = "",
             code = "",
@@ -153,7 +154,7 @@ class AuthController(
     fun handleTokenExpired() {
         debugLogStore?.d("VM", "handleTokenExpired: token expired")
         repository.clearToken()
-        state.update { it.copy(
+        updateState { it.copy(
             hasToken = false,
             devices = emptyList(),
             balance = null,

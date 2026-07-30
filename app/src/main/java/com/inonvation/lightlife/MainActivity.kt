@@ -71,6 +71,7 @@ import com.inonvation.lightlife.data.TokenStore
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.AppViewModelFactory
 import com.inonvation.lightlife.ui.DeviceTab
+import com.inonvation.lightlife.ui.UiEvent
 import com.inonvation.lightlife.ui.screen.ControlScreen
 import com.inonvation.lightlife.ui.screen.MeScreen
 import com.inonvation.lightlife.ui.screen.OrderHistoryBottomSheet
@@ -172,14 +173,13 @@ private fun DeviceControlApp(vm: AppViewModel) {
         }
     }
 
-    LaunchedEffect(state.toastMessage) {
-        state.toastMessage?.let { msg ->
-            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-            vm.consumeToast()
+    LaunchedEffect(Unit) {
+        vm.events.collect { event ->
+            when (event) {
+                is UiEvent.Toast -> Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+                is UiEvent.Error -> snackbarHostState.showSnackbar(event.message)
+            }
         }
-    }
-    LaunchedEffect(state.errorMessage) {
-        state.errorMessage?.let { msg -> snackbarHostState.showSnackbar(msg); vm.consumeError() }
     }
 
     // 退出登录确认对话框（简洁/普通模式共用）

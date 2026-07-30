@@ -27,13 +27,20 @@ import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
 import com.inonvation.lightlife.ui.theme.ThemePreferences
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+sealed class UiEvent {
+    data class Toast(val message: String) : UiEvent()
+    data class Error(val message: String) : UiEvent()
+}
 
 class AppViewModel(
     application: Application,
@@ -65,9 +72,13 @@ class AppViewModel(
     // 公开 quickLinkStore 供快捷方式图标使用
     fun getQuickLinkStore(): QuickLinkStore? = quickLinkStore
 
+    // ── 一次性事件通道（Toast / Error）──
+    private val _events = Channel<UiEvent>(Channel.BUFFERED)
+    val events = _events.receiveAsFlow()
+
     // ── 内部工具 ──
-    private fun showToast(message: String) { _state.update { it.copy(toastMessage = message) } }
-    private fun showError(message: String) { _state.update { it.copy(errorMessage = friendlyErrorMessage(message)) } }
+    private fun showToast(message: String) { _events.trySend(UiEvent.Toast(message)) }
+    private fun showError(message: String) { _events.trySend(UiEvent.Error(friendlyErrorMessage(message))) }
 
     private fun friendlyErrorMessage(raw: String): String {
         val lower = raw.lowercase()
@@ -91,7 +102,8 @@ class AppViewModel(
     // ── Controllers ──
     private val authController: AuthController by lazy {
         AuthController(
-            state = _state,
+            state = state,
+            updateState = { _state.update(it) },
             scope = viewModelScope,
             repository = repository,
             taskStateStore = taskStateStore,
@@ -113,7 +125,8 @@ class AppViewModel(
 
     private val pointsController: PointsTaskController by lazy {
         PointsTaskController(
-            state = _state,
+            state = state,
+            updateState = { _state.update(it) },
             scope = viewModelScope,
             context = context,
             pointsTaskRunner = pointsTaskRunner,
@@ -127,7 +140,8 @@ class AppViewModel(
 
     private val backupController: BackupController by lazy {
         BackupController(
-            state = _state,
+            state = state,
+            updateState = { _state.update(it) },
             scope = viewModelScope,
             repository = repository,
             backupManager = backupManager,
@@ -148,6 +162,7 @@ class AppViewModel(
     // ── 快捷方式 ──
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private var unlockTimerJob: Job? = null
+    private var unlockTimeoutJob: Job? = null
 
     // ── Init ──
     init {
@@ -236,6 +251,16 @@ class AppViewModel(
     fun login() = authController.login()
     fun logout() = authController.logout()
 
+    private fun handleApiError(error: Throwable, fallbackMessage: String = "操作失败"): Boolean {
+        return if (error is TokenExpiredException) {
+            authController.handleTokenExpired()
+            true
+        } else {
+            showError(error.message ?: fallbackMessage)
+            false
+        }
+    }
+
     fun refreshDevices() = viewModelScope.launch {
         if (!state.value.hasToken) return@launch
         if (state.value.loadingDevices) return@launch
@@ -248,9 +273,9 @@ class AppViewModel(
             consumePendingShortcut(devices)
         }.onFailure {
             _state.update { it.copy(loadingDevices = false) }
-            if (it is TokenExpiredException) { authController.handleTokenExpired(); return@launch }
-            showError(it.message ?: "查询历史设备失败")
-            devicesLoadAttempted = true
+            if (!handleApiError(it, "查询历史设备失败")) {
+                devicesLoadAttempted = true
+            }
         }
     }
 
@@ -263,8 +288,7 @@ class AppViewModel(
             _state.update { it.copy(balance = balance, loadingBalance = false) }
         }.onFailure {
             _state.update { it.copy(loadingBalance = false) }
-            if (it is TokenExpiredException) { authController.handleTokenExpired(); return@launch }
-            showError(it.message ?: "查询资产失败")
+            handleApiError(it, "查询资产失败")
         }
     }
 
@@ -302,7 +326,7 @@ class AppViewModel(
         if (!unlockMutex.tryLock()) return@launch
         try {
             _state.update {
-                it.copy(unlocking = true, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0, unlockFlowHidden = false)
+                it.copy(unlocking = true, unlockingDeviceId = device.goodsName.ifBlank { device.id }, unlockStatus = "准备解锁", unlockFlowState = UnlockFlowState.PreChecking, unlockElapsedSeconds = 0, unlockFlowHidden = false)
             }
             unlockTimerJob?.cancel()
             unlockTimerJob = viewModelScope.launch {
@@ -314,6 +338,27 @@ class AppViewModel(
                     }
                 }
             }
+            unlockTimeoutJob?.cancel()
+            unlockTimeoutJob = viewModelScope.launch {
+                delay(165_000)
+                if (state.value.unlockFlowState is UnlockFlowState.Working) {
+                    unlockTimerJob?.cancel()
+                    _state.update {
+                        it.copy(
+                            unlocking = false,
+                            unlockStatus = null,
+                            unlockFlowState = UnlockFlowState.Idle,
+                            unlockElapsedSeconds = 0,
+                            unlockFlowHidden = false,
+                            unlockingDeviceId = null,
+                            orderHistory = repository.orderHistory(),
+                        )
+                    }
+                    refreshBalance()
+                    refreshDevices()
+                    showToast("饮水机已自动关闭并结算")
+                }
+            }
             runCatching {
                 repository.unlockDevice(device, usePoints = state.value.usePointsForUnlock) { step ->
                     val isWorking = step.contains("等待完成") || step.contains("设备工作")
@@ -323,11 +368,13 @@ class AppViewModel(
                 }
             }.onSuccess { result ->
                 unlockTimerJob?.cancel()
+                unlockTimeoutJob?.cancel()
                 _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, unlockFlowHidden = false, orderHistory = repository.orderHistory()) }
                 if (result.integralCost != "-") { pointsStatsStore?.addDeducted(result.integralCost); refreshPointsStats() }
                 refreshBalance()
             }.onFailure { e ->
                 unlockTimerJob?.cancel()
+                unlockTimeoutJob?.cancel()
                 if (e is TokenExpiredException) {
                     _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0, unlockFlowHidden = false) }
                     authController.handleTokenExpired()
@@ -345,7 +392,8 @@ class AppViewModel(
 
     fun dismissUnlockFlow() {
         unlockTimerJob?.cancel()
-        _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0) }
+        unlockTimeoutJob?.cancel()
+        _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0, unlockingDeviceId = null) }
     }
 
     fun updateQuickLink(index: Int, name: String, url: String, packageName: String, presetIndex: Int = -1) {
@@ -435,6 +483,7 @@ class AppViewModel(
 
     fun dismissUnlockAnimation() {
         unlockTimerJob?.cancel()
+        unlockTimeoutJob?.cancel()
         _state.update { it.copy(unlockFlowHidden = true, unlockElapsedSeconds = 0) }
     }
 
@@ -763,9 +812,6 @@ class AppViewModel(
     }
     fun dismissOrderDetail() { _state.update { it.copy(orderDetail = null) } }
 
-    fun consumeToast() { _state.update { it.copy(toastMessage = null) } }
-    fun consumeError() { _state.update { it.copy(errorMessage = null) } }
-
     fun refreshTodayWater() {
         val todayStart = with(java.util.Calendar.getInstance()) {
             set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -801,6 +847,8 @@ class AppViewModel(
     // ── Lifecycle ──
     override fun onCleared() {
         unlockTimerJob?.cancel()
+        unlockTimeoutJob?.cancel()
+        pointsController.cleanup()
         super.onCleared()
     }
 }

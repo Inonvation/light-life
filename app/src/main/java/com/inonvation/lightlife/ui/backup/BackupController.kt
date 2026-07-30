@@ -15,12 +15,13 @@ import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
 import com.inonvation.lightlife.ui.theme.ThemePreferences
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class BackupController(
-    private val state: MutableStateFlow<AppUiState>,
+    private val state: StateFlow<AppUiState>,
+    private val updateState: ((AppUiState) -> AppUiState) -> Unit,
     private val scope: CoroutineScope,
     private val repository: AppRepository,
     private val backupManager: BackupManager?,
@@ -86,9 +87,9 @@ class BackupController(
                         else repository.clearToken()
                         if (hasTokenNow) {
                             pendingBackup = backup
-                            state.update { it.copy(showBackupTokenExpiredDialog = true) }
+                            updateState { it.copy(showBackupTokenExpiredDialog = true) }
                         } else {
-                            state.update { it.copy(hasToken = false) }
+                            updateState { it.copy(hasToken = false) }
                             showToast("备份文件登录凭证已过期，请使用验证码登录")
                         }
                         return@launch
@@ -108,24 +109,24 @@ class BackupController(
         debugLogStore?.d("VM", "confirmBackupImportOrdersOnly")
         val backup = pendingBackup ?: return
         pendingBackup = null
-        state.update { it.copy(showBackupTokenExpiredDialog = false) }
+        updateState { it.copy(showBackupTokenExpiredDialog = false) }
         val originalToken = repository.localToken()
         doRestoreBackup(backup)
         // 恢复原来的 token（覆盖备份中的过期 token）
         if (originalToken != null) repository.saveToken(originalToken)
-        state.update { s -> s.copy(hasToken = repository.localToken() != null) }
+        updateState { s -> s.copy(hasToken = repository.localToken() != null) }
         onRestoreFinished()
         showToast("已导入订单和日志")
     }
 
     fun dismissBackupTokenExpiredDialog() {
         pendingBackup = null
-        state.update { it.copy(showBackupTokenExpiredDialog = false) }
+        updateState { it.copy(showBackupTokenExpiredDialog = false) }
     }
 
     private fun doRestoreBackup(backup: BackupData): RestoreCounts {
         val counts = backupManager?.restore(backup, quickLinkStore) ?: RestoreCounts()
-        state.update { it.copy(
+        updateState { it.copy(
             hasToken = repository.localToken() != null,
             orderHistory = repository.orderHistory(),
             totalPointsDeducted = pointsStatsStore?.getTotalDeductedAmount() ?: "0.00",
@@ -135,34 +136,34 @@ class BackupController(
             try {
                 val mode = ThemeMode.valueOf(modeName)
                 themePreferences?.setThemeMode(mode)
-                state.update { it.copy(themeMode = mode) }
+                updateState { it.copy(themeMode = mode) }
             } catch (_: IllegalArgumentException) {}
         }
         backup.data.colorTheme?.let { themeName ->
             try {
                 val theme = ColorTheme.valueOf(themeName)
                 themePreferences?.setColorTheme(theme)
-                state.update { it.copy(colorTheme = theme) }
+                updateState { it.copy(colorTheme = theme) }
             } catch (_: IllegalArgumentException) {}
         }
         backup.data.hapticEnabled?.let { enabled ->
             taskStateStore?.setHapticEnabled(enabled)
-            state.update { s -> s.copy(hapticEnabled = enabled) }
+            updateState { s -> s.copy(hapticEnabled = enabled) }
         }
         backup.data.userAgent?.let { ua ->
             if (ua.isNotBlank()) {
                 taskStateStore?.setUserAgent(ua)
-                state.update { s -> s.copy(userAgent = ua) }
+                updateState { s -> s.copy(userAgent = ua) }
             }
         }
         backup.data.simpleModeEnabled?.let { enabled ->
             taskStateStore?.setSimpleModeEnabled(enabled)
-            state.update { s -> s.copy(simpleModeEnabled = enabled) }
+            updateState { s -> s.copy(simpleModeEnabled = enabled) }
         }
         // 恢复快捷链接后重新加载状态
         if (backup.data.quickLinks != null) {
             quickLinkStore?.let { store ->
-                state.update { s -> s.copy(quickLinks = store.getLinks()) }
+                updateState { s -> s.copy(quickLinks = store.getLinks()) }
             }
         }
         return counts
