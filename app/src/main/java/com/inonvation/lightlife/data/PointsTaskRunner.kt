@@ -125,7 +125,8 @@ class PointsTaskRunner(
     suspend fun run(userAgent: String, log: suspend (String) -> Unit) {
         checkCancelled()
         waitIfPaused(log)
-        homePageSubtaskIndex = 0
+        // 按本地标签快进首页浏览子任务指针，今天已完成的子任务直接跳过、不重跑、不显示积分
+        homePageSubtaskIndex = getAdCount("home_page_count").coerceAtMost(homePageSubtasks.size)
         val token = tokenProvider()?.takeIf { it.isNotBlank() } ?: error("请先在我的页面登录")
 
         val user = request("https://userapi.qiekj.com/user/info", token, userAgent, mapOf("token" to token))
@@ -157,9 +158,9 @@ class PointsTaskRunner(
 
         // 首页浏览第1次（5s）
         log("首页浏览...")
-        runNextHomePageSubtask(token, userAgent, log)
+        val home1Executed = runNextHomePageSubtask(token, userAgent, log)
         delay(1000)
-        run {
+        if (home1Executed) {
             val cur = balance(token, userAgent)
             if (cur != null && lastBalance != null) {
                 val diff = cur - lastBalance
@@ -174,9 +175,9 @@ class PointsTaskRunner(
 
         // 首页浏览第2次（10s）
         checkCancelled()
-        runNextHomePageSubtask(token, userAgent, log)
+        val home2Executed = runNextHomePageSubtask(token, userAgent, log)
         delay(1000)
-        run {
+        if (home2Executed) {
             val cur = balance(token, userAgent)
             if (cur != null && lastBalance != null) {
                 val diff = cur - lastBalance
@@ -219,9 +220,9 @@ class PointsTaskRunner(
 
         // 首页浏览第3次（30s）
         checkCancelled()
-        runNextHomePageSubtask(token, userAgent, log)
+        val home3Executed = runNextHomePageSubtask(token, userAgent, log)
         delay(1000)
-        run {
+        if (home3Executed) {
             val cur = balance(token, userAgent)
             if (cur != null && lastBalance != null) {
                 val diff = cur - lastBalance
@@ -287,11 +288,11 @@ class PointsTaskRunner(
         "f3814d95-38f0-4778-8da3-6b8e3fc113d0" to "30s",
     )
 
-    /** 执行首页浏览的下一个子任务 */
-    private suspend fun runNextHomePageSubtask(token: String, ua: String, log: suspend (String) -> Unit) {
+    /** 执行首页浏览的下一个子任务，返回是否真正执行了请求（false 表示已跳过） */
+    private suspend fun runNextHomePageSubtask(token: String, ua: String, log: suspend (String) -> Unit): Boolean {
         if (homePageSubtaskIndex >= homePageSubtasks.size) {
             log("首页浏览：已完成，跳过")
-            return
+            return false
         }
         val current = homePageSubtaskIndex + 1
         val (subtaskCode, label) = homePageSubtasks[homePageSubtaskIndex]
@@ -309,7 +310,7 @@ class PointsTaskRunner(
         } catch (e: Exception) {
             log("首页浏览 $current/3（${label}）：请求失败 ${e.message}")
             homePageSubtaskIndex++
-            return
+            return true
         }
         if (res.codeInt() == 0 && res["data"] == true) {
             log("首页浏览 $current/3（${label}）：成功")
@@ -319,6 +320,7 @@ class PointsTaskRunner(
         onProgress?.invoke("home_page", current, 3)
         setAdCount("home_page_count", current)
         homePageSubtaskIndex++
+        return true
     }
 
     /**
