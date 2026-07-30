@@ -444,16 +444,6 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("积分任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                                if (state.pointsLogs.isNotEmpty()) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            vm.clearPointsLogs()
-                                        },
-                                        modifier = Modifier.height(32.dp),
-                                        shape = RoundedCornerShape(6.dp)
-                                    ) { Text("清空", style = MaterialTheme.typography.labelSmall) }
-                                }
                             }
 
                             Spacer(Modifier.height(8.dp))
