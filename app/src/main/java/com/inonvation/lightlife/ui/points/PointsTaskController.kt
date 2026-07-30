@@ -99,7 +99,7 @@ class PointsTaskController(
         updateState { it.copy(runningPointsTask = false, pointsTaskPaused = false) }
         syncTodayTaskStateFromPrefs()
         appendPointLog("用户已结束任务")
-        saveLog()
+        scope.launch { saveLog() }
     }
 
     fun clearPointsLogs() {
@@ -206,7 +206,7 @@ class PointsTaskController(
         }
     }
 
-    private fun saveLog() {
+    private suspend fun saveLog() {
         val fullLog = state.value.pointsLogs.joinToString("\n") { "[${it.timestamp}] ${it.message}" }
         logStore?.save(fullLog)
     }

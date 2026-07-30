@@ -1,12 +1,14 @@
 ﻿package com.inonvation.lightlife.data
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class TaskLogStore(private val context: Context) {
     private val logDir = File(context.filesDir, "task_logs").also { it.mkdirs() }
 
-    fun save(content: String) {
+    suspend fun save(content: String) = withContext(Dispatchers.IO) {
         val now = java.text.SimpleDateFormat("MMdd_HHmmss", java.util.Locale.CHINA).format(java.util.Date())
         val file = File(logDir, "run_${now}.txt")
         // Keep only last 10 files
