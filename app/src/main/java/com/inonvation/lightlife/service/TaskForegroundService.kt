@@ -124,12 +124,14 @@ class TaskForegroundService : Service() {
             }
 
             ACTION_PAUSE -> {
+                currentRunner?.paused = true
                 TaskServiceState.update { it.copy(isPaused = true) }
                 val notification = buildProgressNotification("已暂停", 0, 0)
                 notificationManager.notify(notificationId, notification)
             }
 
             ACTION_RESUME -> {
+                currentRunner?.paused = false
                 TaskServiceState.update { it.copy(isPaused = false) }
             }
 
