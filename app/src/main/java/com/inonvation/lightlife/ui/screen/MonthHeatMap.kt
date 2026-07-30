@@ -105,22 +105,21 @@ fun MonthHeatMap(
             dayContent = { day, week ->
                 val ml = dataMap[day.date] ?: 0
                 val level = levelOf(ml)
-                val isFuture = day.date > endDate
-                val weekDates = week.days.map { it.date }
-                
-                // 只在有效日期范围内显示格子
+
                 if (day.date in startDate..endDate) {
+                    // 有效日期范围内：按热力等级上色
                     LevelBox(color = colors[level])
-                } else if (weekDates.contains(startDate)) {
-                    // 在第一周中为开始日期之前的日期绘制透明格子
+                } else {
+                    // 范围外（startDate 之前或 endDate 之后的未来日期）：用透明格补全，
+                    // 保证每行 7 格对齐，最后一周不会因今天不是周日而残缺
                     LevelBox(color = Color.Transparent)
                 }
             },
             weekHeader = { dayOfWeek ->
-                // 显示星期标签（周一、周三、周五）
-                if (dayOfWeek == DayOfWeek.MONDAY || 
-                    dayOfWeek == DayOfWeek.WEDNESDAY || 
-                    dayOfWeek == DayOfWeek.FRIDAY) {
+                // 显示星期标签（周二、周四、周六，对称排列）
+                if (dayOfWeek == DayOfWeek.TUESDAY ||
+                    dayOfWeek == DayOfWeek.THURSDAY ||
+                    dayOfWeek == DayOfWeek.SATURDAY) {
                     WeekHeader(dayOfWeek = dayOfWeek)
                 } else {
                     Spacer(modifier = Modifier.height(18.dp))
