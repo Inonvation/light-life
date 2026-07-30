@@ -44,7 +44,7 @@ class PointsTaskRunner(
         context?.getSharedPreferences("ad_video_state", Context.MODE_PRIVATE)
     }
 
-    private fun today(): String = java.time.LocalDate.now().toString()
+    private fun today(): String = DateUtils.today()
 
     /** 读取今天某个广告任务已完成的次数，跨天自动归零 */
     private fun getAdCount(key: String): Int {
@@ -419,7 +419,7 @@ class PointsTaskRunner(
                             adTaskDiff = if (cur != null && curBalance != null) cur - curBalance else null
                             curBalance = cur ?: curBalance
                         }
-                        val suffix = if (adTaskDiff != null && adTaskDiff!! > 0) " +${adTaskDiff}" else ""
+                        val suffix = adTaskDiff?.takeIf { it > 0 }?.let { " +$it" } ?: ""
                         log("$title 第${index + 1}/${limit}次完成$suffix")
                     } else {
                         // 非广告任务：正常调 balance 算差值

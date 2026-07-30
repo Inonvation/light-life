@@ -18,13 +18,13 @@ class PointsStatsStore(context: Context) {
     /** 获取今日获得的积分 */
     fun getTodayEarned(): Int {
         val savedDate = prefs.getString(KEY_EARNED_DATE, "") ?: ""
-        val today = java.time.LocalDate.now().toString()
+        val today = DateUtils.today()
         return if (savedDate == today) prefs.getInt(KEY_EARNED, 0) else 0
     }
 
     /** 记录今日获得的积分（累加） */
     fun addTodayEarned(points: Int) {
-        val today = java.time.LocalDate.now().toString()
+        val today = DateUtils.today()
         val savedDate = prefs.getString(KEY_EARNED_DATE, "") ?: ""
         val current = if (savedDate == today) prefs.getInt(KEY_EARNED, 0) else 0
         prefs.edit()
