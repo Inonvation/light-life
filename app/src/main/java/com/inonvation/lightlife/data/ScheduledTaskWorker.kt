@@ -69,6 +69,9 @@ class ScheduledTaskWorker(
     
     /** 执行积分任务 */
     private suspend fun executePointsTask() {
+        // 如果已有任务在跑，跳过，避免重复启动覆盖前台服务中的 runner
+        if (com.inonvation.lightlife.service.TaskServiceState.snapshot().isRunning) return
+
         // 这里需要调用现有的任务执行逻辑
         // 由于 PointsTaskRunner 需要 Context 和 tokenProvider，
         // 我们需要通过 TaskForegroundService 来执行

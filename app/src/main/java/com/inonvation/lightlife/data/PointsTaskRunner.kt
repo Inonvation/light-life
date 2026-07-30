@@ -38,8 +38,7 @@ class PointsTaskRunner(
 
     private val client = HttpClientProvider.client
 
-    private val jsonAdapter: JsonAdapter<Map<String, Any?>> = Moshi.Builder()
-        .build()
+    private val jsonAdapter: JsonAdapter<Map<String, Any?>> = MoshiProvider.instance
         .adapter(Types.newParameterizedType(Map::class.java, String::class.java, Any::class.java))
 
     private val statePrefs by lazy {
@@ -584,8 +583,9 @@ class PointsTaskRunner(
             client.newCall(req).execute().use { response ->
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
-                    debugLog?.e("Runner", "HTTP ${response.code}: ${url.substringAfterLast("/")}, body=${body.take(300)}")
-                    error("HTTP ${response.code}: ${body.take(300)}")
+                    val path = url.substringAfterLast("/")
+                    debugLog?.e("Runner", "HTTP ${response.code}: $path, body=${body.take(300)}")
+                    error("HTTP ${response.code} ($path): ${body.take(300)}")
                 }
                 val result = runCatching { jsonAdapter.fromJson(body).orEmpty() }
                     .getOrElse { error("响应解析失败：${it.message ?: body.take(300)}") }

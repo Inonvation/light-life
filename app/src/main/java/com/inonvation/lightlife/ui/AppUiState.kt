@@ -118,7 +118,7 @@ data class AppUiState(
     val colorTheme: ColorTheme = ColorTheme.GREEN,
     val logStyle: LogStyle = LogStyle.BUBBLE,
     val hapticEnabled: Boolean = true,
-    val backupPrivacySafe: Boolean = false,
+    val backupPrivacySafe: Boolean = true,
     val simpleModeEnabled: Boolean = false,
     val safeModeEnabled: Boolean = false,
     val debugLogEnabled: Boolean = false,

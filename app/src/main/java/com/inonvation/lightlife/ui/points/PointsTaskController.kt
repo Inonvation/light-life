@@ -32,10 +32,12 @@ class PointsTaskController(
     private var observing = false
     private var observeJob: Job? = null
     private var pointsTaskJob: Job? = null
+    private var syncedLogCount = 0  // 已从 Service 同步的日志条数，用于增量追加避免重复文案被误过滤
     private val timeFmt = java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")
 
     fun startPointsTask(userAgent: String) {
         if (state.value.runningPointsTask) return
+        syncedLogCount = 0
         updateState { it.copy(runningPointsTask = true, pointsLogs = listOf(LogEntry("", "准备执行自动化任务", LogLevel.INFO)), userAgent = userAgent) }
         taskStateStore?.setUserAgent(userAgent)
         pointsTaskRunner.randomDelay = state.value.randomDelayEnabled
@@ -118,14 +120,15 @@ class PointsTaskController(
                     if (!s.isRunning) return@collect
                 }
                 if (s.logs.isNotEmpty()) {
-                    val lastLog = s.logs.last()
-                    val now = java.time.LocalTime.now().format(timeFmt)
-                    val level = resolveLogLevel(lastLog)
-                    updateState { st ->
-                        val existing = st.pointsLogs.map { it.message }
-                        val newLogs = s.logs.filter { it !in existing }
-                        if (newLogs.isEmpty()) return@updateState st
-                        st.copy(pointsLogs = (st.pointsLogs + newLogs.map { LogEntry(now, it, level) }).takeLast(500))
+                    // Service 端 logs 按追加顺序增长（takeLast 500）；用已同步条数做增量，避免相同文案日志被误过滤
+                    val effectiveSynced = if (syncedLogCount > s.logs.size) 0 else syncedLogCount
+                    val newLogs = s.logs.drop(effectiveSynced)
+                    if (newLogs.isNotEmpty()) {
+                        val now = java.time.LocalTime.now().format(timeFmt)
+                        updateState { st ->
+                            st.copy(pointsLogs = (st.pointsLogs + newLogs.map { LogEntry(now, it, resolveLogLevel(it)) }).takeLast(500))
+                        }
+                        syncedLogCount = s.logs.size
                     }
                 }
                 if (!s.isRunning && state.value.runningPointsTask) {
@@ -192,6 +195,7 @@ class PointsTaskController(
         observeServiceState()
         updateState { it.copy(runningPointsTask = true) }
         val existingLogs = TaskServiceState.snapshot().logs
+        syncedLogCount = existingLogs.size
         if (existingLogs.isEmpty()) return
         val now = java.time.LocalTime.now().format(timeFmt)
         val entries = existingLogs.map { msg -> LogEntry(now, msg, resolveLogLevel(msg)) }

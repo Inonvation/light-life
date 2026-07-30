@@ -132,6 +132,12 @@ class TaskForegroundService : Service() {
             ACTION_RESUME -> {
                 TaskServiceState.update { it.copy(isPaused = false) }
             }
+
+            else -> {
+                // 未知或空 action（如系统重启后无有效 intent），不启动任务
+                stopSelf()
+                return START_NOT_STICKY
+            }
         }
         return START_STICKY
     }

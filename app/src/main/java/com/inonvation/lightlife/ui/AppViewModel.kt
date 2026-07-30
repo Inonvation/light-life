@@ -32,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -330,7 +331,7 @@ class AppViewModel(
             }
             unlockTimerJob?.cancel()
             unlockTimerJob = viewModelScope.launch {
-                while (true) {
+                while (isActive) {
                     delay(1000)
                     val cur = state.value.unlockFlowState
                     if (cur is UnlockFlowState.Working) {

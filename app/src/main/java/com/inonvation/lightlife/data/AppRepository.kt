@@ -1,13 +1,9 @@
 ﻿package com.inonvation.lightlife.data
 
 import kotlinx.coroutines.delay
-import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
-import java.util.concurrent.TimeUnit
 
 class NotLoggedInException(message: String = "请先登录") : Exception(message)
 
@@ -26,16 +22,10 @@ class AppRepository(
             .addInterceptor(HeaderInterceptor { tokenStore.readToken() })
             .addInterceptor(logging)
             .build()
-        val moshi = Moshi.Builder()
-            .add(EmptyDataJsonAdapter())
-            .add(LenientStringJsonAdapter())
-            .add(KotlinJsonAdapterFactory())
-            .build()
-
         api = Retrofit.Builder()
             .baseUrl(ApiConfig.BASE_URL)
             .client(client)
-            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .addConverterFactory(MoshiConverterFactory.create(MoshiProvider.instance))
             .build()
             .create(DeviceApi::class.java)
     }
@@ -93,8 +83,9 @@ class AppRepository(
         onStep("正在检测设备状态")
         runCatching {
             api.syncWater(skuId = skuId, token = token)
-        }.getOrElse { _ ->
-            // 预检失败不阻断流程
+        }.getOrElse { e ->
+            // 预检失败不阻断流程，但记录原因以便排查
+            debugLog?.e("Repo", "syncWater 预检失败（不阻断）：${e.message}")
         }
 
         onStep("正在获取 IMEI")

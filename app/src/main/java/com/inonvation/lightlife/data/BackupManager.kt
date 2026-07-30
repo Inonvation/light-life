@@ -76,10 +76,7 @@ data class DailyTaskStatePayload(
 class BackupManager(private val context: Context) {
 
 
-    private val moshi = Moshi.Builder()
-        .add(LenientStringJsonAdapter())
-        .add(KotlinJsonAdapterFactory())
-        .build()
+    private val moshi = MoshiProvider.instance
 
     private val backupAdapter = moshi.adapter(BackupData::class.java)
 

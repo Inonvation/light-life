@@ -28,7 +28,7 @@ class PointsTaskStateStore(context: Context) {
     fun isSimpleModeEnabled(): Boolean = prefs.getBoolean("simple_mode", false)
     fun setSimpleModeEnabled(v: Boolean) { prefs.edit().putBoolean("simple_mode", v).apply() }
 
-    fun isBackupPrivacySafe(): Boolean = prefs.getBoolean("backup_privacy_safe", false)
+    fun isBackupPrivacySafe(): Boolean = prefs.getBoolean("backup_privacy_safe", true)
     fun setBackupPrivacySafe(v: Boolean) { prefs.edit().putBoolean("backup_privacy_safe", v).apply() }
 
     fun isWaterReminderEnabled(): Boolean = prefs.getBoolean("water_reminder_enabled", true)
