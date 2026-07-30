@@ -33,6 +33,6 @@ object TaskServiceState {
     fun snapshot(): TaskServiceStatus = _state.value
 
     fun reset() {
-        _state.value = TaskServiceStatus()
+        _state.update { TaskServiceStatus() }
     }
 }
