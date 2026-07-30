@@ -229,7 +229,11 @@ class BackupManager(private val context: Context) {
         payload.taskLogs?.let { logs ->
             val logDir = File(context.filesDir, "task_logs").also { it.mkdirs() }
             // 恢复前先把现有日志移到临时目录，恢复失败时回滚，避免直接清空丢失数据
-            val backupDir = File(context.filesDir, "task_logs_restore_backup").also { it.mkdirs() }
+            // 先清空可能残留的临时目录，否则 Windows 上 renameTo 遇到同名文件会失败
+            val backupDir = File(context.filesDir, "task_logs_restore_backup").also { dir ->
+                dir.mkdirs()
+                dir.listFiles()?.forEach { it.delete() }
+            }
             val existingFiles = logDir.listFiles()?.toList() ?: emptyList()
             existingFiles.forEach { it.renameTo(File(backupDir, it.name)) }
             try {
