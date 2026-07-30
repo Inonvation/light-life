@@ -21,6 +21,26 @@ class QuickLinkStore(private val context: Context) {
     private val count = 9
     private val iconDir = File(context.filesDir, "quicklink_icons").apply { mkdirs() }
 
+    init {
+        // 首次安装或清空数据后，prefs 完全为空，自动写入 3 个预设快捷方式及其图标
+        if (prefs.all.isEmpty()) {
+            ensureDefaults()
+        }
+    }
+
+    /** 写入默认预设快捷方式（前 3 个槽位）及对应预设图标 */
+    private fun ensureDefaults() {
+        DEFAULT_QUICK_LINKS.forEachIndexed { index, link ->
+            prefs.edit()
+                .putString("name_$index", link.name)
+                .putString("url_$index", link.url)
+                .putString("pkg_$index", link.packageName)
+                .putInt("preset_$index", link.presetIndex)
+                .apply()
+            savePresetIcon(index, link.presetIndex)
+        }
+    }
+
     fun isEnabled(): Boolean = prefs.getBoolean("enabled", true)
     fun setEnabled(v: Boolean) { prefs.edit().putBoolean("enabled", v).apply() }
 
