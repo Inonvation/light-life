@@ -72,71 +72,41 @@ fun TaskSettingsScreen(state: AppUiState, vm: AppViewModel) {
             StandardCard {
                 Column(modifier = Modifier.animateContentSize(tween(300))) {
                     // 启动自动执行任务
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp).alpha(if (state.safeModeEnabled) 0.5f else 1f)) {
-                            Text("启动自动执行任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("打开 App 时自动检测并执行未完成的积分任务", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-                        }
-                        Switch(
-                            checked = state.autoStartTaskEnabled && !state.safeModeEnabled,
-                            onCheckedChange = {
-                                if (state.safeModeEnabled) {
-                                    android.widget.Toast.makeText(ctx, "请先关闭保险模式", android.widget.Toast.LENGTH_SHORT).show()
-                                } else {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.toggleAutoStartTask()
-                                }
-                            },
-                            modifier = Modifier.alpha(if (state.safeModeEnabled) 0.5f else 1f),
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                        )
-                    }
+                    TaskSettingSwitchRow(
+                        title = "启动自动执行任务",
+                        subtitle = "打开 App 时自动检测并执行未完成的积分任务",
+                        checked = state.autoStartTaskEnabled && !state.safeModeEnabled,
+                        safeMode = state.safeModeEnabled,
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleAutoStartTask() },
+                    )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                     // 后台刷积分
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp).alpha(if (state.safeModeEnabled) 0.5f else 1f)) {
-                            Text("后台刷积分", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("退出应用后任务仍在通知栏持续执行，需开启通知权限", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-                        }
-                        Switch(
-                            checked = state.backgroundTaskEnabled && !state.safeModeEnabled,
-                            onCheckedChange = {
-                                if (state.safeModeEnabled) {
-                                    android.widget.Toast.makeText(ctx, "请先关闭保险模式", android.widget.Toast.LENGTH_SHORT).show()
-                                } else {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.toggleBackgroundTask()
-                                }
-                            },
-                            modifier = Modifier.alpha(if (state.safeModeEnabled) 0.5f else 1f),
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                        )
-                    }
+                    TaskSettingSwitchRow(
+                        title = "后台刷积分",
+                        subtitle = "退出应用后任务仍在通知栏持续执行，需开启通知权限",
+                        checked = state.backgroundTaskEnabled && !state.safeModeEnabled,
+                        safeMode = state.safeModeEnabled,
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleBackgroundTask() },
+                    )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                     // 随机延迟
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp).alpha(if (state.safeModeEnabled) 0.5f else 1f)) {
-                            Text("随机延迟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("执行步骤间随机等待几秒，降低风控风险，会略微增加总耗时", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-                        }
-                        Switch(
-                            checked = state.randomDelayEnabled && !state.safeModeEnabled,
-                            onCheckedChange = {
-                                if (state.safeModeEnabled) {
-                                    android.widget.Toast.makeText(ctx, "请先关闭保险模式", android.widget.Toast.LENGTH_SHORT).show()
-                                } else {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.toggleRandomDelay()
-                                }
-                            },
-                            modifier = Modifier.alpha(if (state.safeModeEnabled) 0.5f else 1f),
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                        )
-                    }
+                    TaskSettingSwitchRow(
+                        title = "随机延迟",
+                        subtitle = "执行步骤间随机等待几秒，降低风控风险，会略微增加总耗时",
+                        checked = state.randomDelayEnabled && !state.safeModeEnabled,
+                        safeMode = state.safeModeEnabled,
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleRandomDelay() },
+                    )
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -201,5 +171,38 @@ fun TaskSettingsScreen(state: AppUiState, vm: AppViewModel) {
 
             Spacer(Modifier.height(Spacings.xxl))
         }
+    }
+}
+
+/** 任务设置页统一的开关行：标题 + 副标题 + Switch，保险模式下禁用并提示 */
+@Composable
+private fun TaskSettingSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    safeMode: Boolean,
+    hapticEnabled: Boolean,
+    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    onCheckedChange: () -> Unit,
+) {
+    val ctx = LocalContext.current
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp).alpha(if (safeMode) 0.5f else 1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = {
+                if (safeMode) {
+                    android.widget.Toast.makeText(ctx, "请先关闭保险模式", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onCheckedChange()
+                }
+            },
+            modifier = Modifier.alpha(if (safeMode) 0.5f else 1f),
+            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+        )
     }
 }
