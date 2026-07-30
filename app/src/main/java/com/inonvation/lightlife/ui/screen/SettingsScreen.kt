@@ -32,15 +32,11 @@ import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -102,35 +98,24 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
         // 顶栏
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.dismissSettings() }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Text("设置", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                    if (state.runningPointsTask) {
-                        Spacer(Modifier.width(Spacings.sm))
-                        RunningIndicator(showLabel = true)
-                    }
+        SettingsTopBar(
+            title = "设置",
+            onBack = { vm.dismissSettings() },
+            hapticEnabled = state.hapticEnabled,
+            actions = {
+                if (state.runningPointsTask) {
+                    RunningIndicator(showLabel = true)
                 }
             }
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .size(width = 36.dp, height = 3.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-        }
+        )
+        Box(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .padding(horizontal = Spacings.xl)
+                .size(width = 36.dp, height = 3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
         val scrollState = rememberScrollState()
 
         // 滚动触感反馈
@@ -161,8 +146,8 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 外观 ═══
             SectionHeader("外观")
             Spacer(Modifier.height(Spacings.sm))
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            StandardCard {
+                Column {
                     // 主题模式
                     Text("主题模式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text("切换应用的明暗主题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -224,13 +209,13 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     Spacer(Modifier.height(12.dp))
 
                     // 超级简洁版
-                    SettingSwitch(
+                    SettingSwitchRow(
                         title = "超级简洁版",
                         subtitle = "仅显示开水与刷积分功能，立即生效",
                         checked = state.simpleModeEnabled,
-                        onCheckedChange = { vm.toggleSimpleMode() },
                         hapticEnabled = state.hapticEnabled,
-                        haptic = haptic
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleSimpleMode() }
                     )
 
                     Spacer(Modifier.height(12.dp))
@@ -238,13 +223,13 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     Spacer(Modifier.height(12.dp))
 
                     // 触感反馈
-                    SettingSwitch(
+                    SettingSwitchRow(
                         title = "触感反馈",
                         subtitle = "按钮和开关操作时触发振动",
                         checked = state.hapticEnabled,
-                        onCheckedChange = { vm.toggleHaptic() },
                         hapticEnabled = state.hapticEnabled,
-                        haptic = haptic
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleHaptic() }
                     )
                 }
             }
@@ -254,33 +239,30 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 任务 ═══
             SectionHeader("任务")
             Spacer(Modifier.height(Spacings.sm))
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            StandardCard {
+                Column {
                     // 任务设置入口
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clickable { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showTaskSettings() },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("任务设置", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("自动执行、后台刷积分、定时任务等", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    ClickableRow(
+                        title = "任务设置",
+                        subtitle = "自动执行、后台刷积分、定时任务等",
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onClick = { vm.showTaskSettings() }
+                    )
 
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
 
                     // 保险模式
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                            Text("保险模式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("隐藏积分功能，仅保留开水接口", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
-                        }
-                        Switch(checked = state.safeModeEnabled, onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleSafeMode() }, colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary))
-                    }
+                    SettingSwitchRow(
+                        title = "保险模式",
+                        subtitle = "隐藏积分功能，仅保留开水接口",
+                        checked = state.safeModeEnabled,
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleSafeMode() }
+                    )
                     if (state.safeModeEnabled) {
                         Spacer(Modifier.height(8.dp))
                         Surface(
@@ -304,24 +286,17 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 健康 ═══
             SectionHeader("健康")
             Spacer(Modifier.height(Spacings.sm))
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            StandardCard {
+                Column {
                     // 喝水提醒开关
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("💧 喝水提醒", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text("开启后显示喝水提醒Tab页", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(
-                            checked = state.waterReminderEnabled,
-                            onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleWaterReminder() },
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                        )
-                    }
+                    SettingSwitchRow(
+                        title = "💧 喝水提醒",
+                        subtitle = "开启后显示喝水提醒Tab页",
+                        checked = state.waterReminderEnabled,
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleWaterReminder() }
+                    )
                 }
             }
 
@@ -330,29 +305,17 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 快捷链接 ═══
             SectionHeader("快捷链接")
             Spacer(Modifier.height(Spacings.sm))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CardShapes.cardCorner,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp).animateContentSize(tween(300))) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("首页快捷方式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                if (state.quickLinksEnabled) "显示快捷链接区域，${state.quickLinks.count { it.url.isNotBlank() }}/9 已设置"
-                                else "首页不显示快捷链接区域",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Switch(
-                            checked = state.quickLinksEnabled,
-                            onCheckedChange = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.toggleQuickLinksEnabled() },
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary),
-                        )
-                    }
+            StandardCard {
+                Column(modifier = Modifier.animateContentSize(tween(300))) {
+                    SettingSwitchRow(
+                        title = "首页快捷方式",
+                        subtitle = if (state.quickLinksEnabled) "显示快捷链接区域，${state.quickLinks.count { it.url.isNotBlank() }}/9 已设置"
+                            else "首页不显示快捷链接区域",
+                        checked = state.quickLinksEnabled,
+                        hapticEnabled = state.hapticEnabled,
+                        haptic = haptic,
+                        onCheckedChange = { vm.toggleQuickLinksEnabled() }
+                    )
                     AnimatedVisibility(
                         visible = state.quickLinksEnabled,
                         enter = fadeIn() + slideInVertically { -it / 4 },
@@ -388,23 +351,21 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 数据 ═══
             SectionHeader("数据")
             Spacer(Modifier.height(Spacings.sm))
-            Card(modifier = Modifier.fillMaxWidth().clickable { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showDataScreen() }, shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("数据管理", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("日志、数据备份与清除", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
+            ClickableRow(
+                title = "数据管理",
+                subtitle = "日志、数据备份与清除",
+                hapticEnabled = state.hapticEnabled,
+                haptic = haptic,
+                onClick = { vm.showDataScreen() }
+            )
 
             Spacer(Modifier.height(Spacings.md))
 
             // ═══ 账户 ═══
             SectionHeader("账户")
             Spacer(Modifier.height(Spacings.sm))
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            StandardCard {
+                Column {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("我的 Token", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
@@ -439,7 +400,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                                 contentColor = MaterialTheme.colorScheme.onError,
                             )
                         ) {
-                            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "退出登录", modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text("退出登录", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         }
@@ -452,13 +413,8 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             // ═══ 关于 ═══
             SectionHeader("关于")
             Spacer(Modifier.height(Spacings.sm))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = CardShapes.cardCorner,
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+            StandardCard {
+                Column {
                     Box(modifier = Modifier.fillMaxWidth().clickable {
                         if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         uriHandler.openUri(PROJECT_URL)
@@ -472,7 +428,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                                     Text(PROJECT_URL, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                                 }
                             }
-                            Icon(painterResource(R.drawable.ic_github), contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Icon(painterResource(R.drawable.ic_github), contentDescription = "GitHub", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                     HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
@@ -575,28 +531,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
 // ── 辅助组件 ──
 
 @Composable
-private fun SettingSwitch(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: () -> Unit,
-    hapticEnabled: Boolean,
-    haptic: androidx.compose.ui.hapticfeedback.HapticFeedback
-) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = { if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); onCheckedChange() },
-            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-        )
-    }
-}
-
-@Composable
 private fun AboutLink(
     title: String,
     subtitle: String,
@@ -617,7 +551,7 @@ private fun AboutLink(
             )
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "进入", modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

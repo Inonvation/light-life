@@ -20,13 +20,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +47,6 @@ import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
-import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.remember
@@ -71,24 +67,11 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
         // 顶栏
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.dismissQuickLinksSettings() }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Text("快捷链接", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-        }
+        SettingsTopBar(
+            title = "快捷链接",
+            onBack = { vm.dismissQuickLinksSettings() },
+            hapticEnabled = state.hapticEnabled
+        )
 
         // 内容区域
         LazyColumn(
@@ -110,15 +93,10 @@ fun QuickLinksSettingsScreen(state: AppUiState, vm: AppViewModel) {
                     else -> "快捷方式 ${index + 1}"
                 }
                 val expanded = remember { mutableStateOf(false) }
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { expanded.value = !expanded.value },
-                    shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                StandardCard(
+                    onClick = { expanded.value = !expanded.value }
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column {
                         // ── 标题行（始终显示） ──
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(

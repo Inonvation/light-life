@@ -8,9 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,14 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,7 +36,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -51,7 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
-import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 
 @Composable
@@ -66,24 +57,11 @@ fun TaskSettingsScreen(state: AppUiState, vm: AppViewModel) {
             .padding(WindowInsets.statusBars.asPaddingValues())
     ) {
         // 顶栏
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.dismissTaskSettings() }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回", tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                    Text("任务设置", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
-        }
+        SettingsTopBar(
+            title = "任务设置",
+            onBack = { vm.dismissTaskSettings() },
+            hapticEnabled = state.hapticEnabled
+        )
 
         Column(
             modifier = Modifier
@@ -91,8 +69,8 @@ fun TaskSettingsScreen(state: AppUiState, vm: AppViewModel) {
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 18.dp)
         ) {
-            Card(modifier = Modifier.fillMaxWidth(), shape = CardShapes.cardCorner, colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Column(modifier = Modifier.padding(16.dp).animateContentSize(tween(300))) {
+            StandardCard {
+                Column(modifier = Modifier.animateContentSize(tween(300))) {
                     // 启动自动执行任务
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f).padding(end = 8.dp).alpha(if (state.safeModeEnabled) 0.5f else 1f)) {
@@ -188,27 +166,16 @@ fun TaskSettingsScreen(state: AppUiState, vm: AppViewModel) {
                         )
                     }
 
-                    // 管理时间段入口
                     if (state.scheduleEnabled && !state.safeModeEnabled) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                vm.showScheduleSettings()
-                            },
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("管理时间段", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                                Text(
-                                    if (state.scheduleTimeSlots.isEmpty()) "点击添加执行时间段"
-                                    else "已设置 ${state.scheduleTimeSlots.size} 个时间段",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
+                        ClickableRow(
+                            title = "管理时间段",
+                            subtitle = if (state.scheduleTimeSlots.isEmpty()) "点击添加执行时间段" else "已设置 ${state.scheduleTimeSlots.size} 个时间段",
+                            hapticEnabled = state.hapticEnabled,
+                            haptic = haptic,
+                            onClick = { vm.showScheduleSettings() },
+                            modifier = Modifier.alpha(if (state.safeModeEnabled) 0.5f else 1f)
+                        )
                     }
 
                     // 电池优化入口
@@ -219,19 +186,14 @@ fun TaskSettingsScreen(state: AppUiState, vm: AppViewModel) {
                     ) {
                         Column {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.openBatteryOptimizationSettings()
-                                },
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("电池优化", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                                    Text("建议改为无限制，避免被系统省电策略杀掉。执行期间可能耗电加快、轻微发烫，完成后杀掉进程即可", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+                            ClickableRow(
+                                title = "电池优化",
+                                subtitle = "建议改为无限制，避免被系统省电策略杀掉。执行期间可能耗电加快、轻微发烫，完成后杀掉进程即可",
+                                hapticEnabled = state.hapticEnabled,
+                                haptic = haptic,
+                                onClick = { vm.openBatteryOptimizationSettings() },
+                                modifier = Modifier.alpha(if (state.safeModeEnabled) 0.5f else 1f)
+                            )
                         }
                     }
                 }
