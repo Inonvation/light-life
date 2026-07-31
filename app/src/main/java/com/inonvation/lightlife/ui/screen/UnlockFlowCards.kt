@@ -1,21 +1,14 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -148,18 +141,11 @@ internal fun InlineSuccess(result: UnlockResult, onShowDetail: () -> Unit) {
             )
             Spacer(Modifier.width(8.dp))
             Text("开水成功", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = AppColors.runningIndicator)
-            Spacer(Modifier.weight(1f))
-            val costText = when {
-                result.integralCost != "-" -> "消耗积分 ${result.integralCost}"
-                result.ticketCost != "-" -> "花费小票 ${result.ticketCost}"
-                else -> "原价 ¥${result.originPrice}"
-            }
-            Text(
-                costText,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
+        Spacer(Modifier.height(8.dp))
+        InlineSuccessPriceRow("原价", result.originPrice)
+        InlineSuccessPriceRow("抵扣", result.integralCost)
+        InlineSuccessPriceRow("花费", calculateActualCost(result))
         Spacer(Modifier.height(4.dp))
         Text(
             "查看详情",
@@ -168,6 +154,37 @@ internal fun InlineSuccess(result: UnlockResult, onShowDetail: () -> Unit) {
             modifier = Modifier.clickable(onClick = onShowDetail).padding(vertical = 4.dp)
         )
     }
+}
+
+@Composable
+private fun InlineSuccessPriceRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(52.dp)
+        )
+        Text(
+            text = if (value == "-") "-" else "¥$value",
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+private fun calculateActualCost(result: UnlockResult): String {
+    val origin = result.originPrice.toDoubleOrNull()
+    if (origin == null) return result.originPrice
+    val integral = result.integralCost.toDoubleOrNull() ?: 0.0
+    val ticket = result.ticketCost.toDoubleOrNull() ?: 0.0
+    val other = result.otherPromotions.mapNotNull { it.discountAmount?.toDoubleOrNull() }.sum()
+    val cost = (origin - integral - ticket - other).coerceAtLeast(0.0)
+    return "%.2f".format(cost)
 }
 
 @Composable
@@ -210,28 +227,18 @@ internal fun InlineFailed(message: String, onShowDetail: () -> Unit) {
     }
 }
 
-/** 内联状态容器——在状态间做交叉淡入淡出 */
+/** 内联状态容器——状态切换时由外部 animateContentSize 平滑过渡高度，避免内部交叉淡出导致跳动 */
 @Composable
 internal fun InlineUnlockStatus(
     flowState: UnlockFlowState,
     elapsedSeconds: Int,
-    result: UnlockResult?,
-    onDismiss: () -> Unit,
     onShowDetail: () -> Unit,
 ) {
-    AnimatedContent(
-        targetState = flowState,
-        transitionSpec = {
-            fadeIn(spring(stiffness = 300f)) togetherWith fadeOut(spring(stiffness = 300f))
-        },
-        label = "inlineUnlockStatus",
-    ) { state ->
-        when (state) {
-            is UnlockFlowState.PreChecking -> InlinePreChecking(step = state.step)
-            is UnlockFlowState.Working -> InlineWorking(step = state.step, elapsed = elapsedSeconds)
-            is UnlockFlowState.Success -> InlineSuccess(result = state.result, onShowDetail = onShowDetail)
-            is UnlockFlowState.Failed -> InlineFailed(message = state.message, onShowDetail = onShowDetail)
-            is UnlockFlowState.Idle -> {}
-        }
+    when (flowState) {
+        is UnlockFlowState.PreChecking -> InlinePreChecking(step = flowState.step)
+        is UnlockFlowState.Working -> InlineWorking(step = flowState.step, elapsed = elapsedSeconds)
+        is UnlockFlowState.Success -> InlineSuccess(result = flowState.result, onShowDetail = onShowDetail)
+        is UnlockFlowState.Failed -> InlineFailed(message = flowState.message, onShowDetail = onShowDetail)
+        is UnlockFlowState.Idle -> {}
     }
 }
