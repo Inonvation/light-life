@@ -22,7 +22,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = project.findProperty("buildVersionCode")?.toString()?.toIntOrNull() ?: 11
-        versionName = "1.9.2"
+        versionName = "2.0.0"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
 
