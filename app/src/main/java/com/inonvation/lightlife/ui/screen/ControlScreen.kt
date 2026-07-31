@@ -288,7 +288,7 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
                 val isThisDevice = device.goodsName.ifBlank { device.id } == state.unlockingDeviceId
                 val isUnlockingElsewhere = state.unlocking && !isThisDevice
 
-                Column(modifier = Modifier.padding(horizontal = 20.dp).animateContentSize(tween(300))) {
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     DeviceCard(
                         name = device.goodsName.ifBlank { "未命名设备" },
                         enabled = !state.unlocking || isThisDevice,
@@ -308,7 +308,9 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
                     // 内联解锁状态
                     if (isThisDevice && state.unlockFlowState !is UnlockFlowState.Idle && !state.unlockFlowHidden) {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSize(tween(300)),
                             shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -316,8 +318,6 @@ fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Uni
                             InlineUnlockStatus(
                                 flowState = state.unlockFlowState,
                                 elapsedSeconds = state.unlockElapsedSeconds,
-                                result = successResult,
-                                onDismiss = { vm.dismissUnlockFlow() },
                                 onShowDetail = { showDetailDialog = true },
                             )
                         }
