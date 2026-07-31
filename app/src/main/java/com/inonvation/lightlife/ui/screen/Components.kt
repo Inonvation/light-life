@@ -25,17 +25,28 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,8 +66,13 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.DeviceTab
 import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
@@ -425,4 +441,233 @@ fun rememberMinRefreshDuration(loading: Boolean): Boolean {
         }
     }
     return loading || forceShow
+}
+
+@Composable
+fun InfoDialog(
+    title: String,
+    titleColor: Color = Color.Unspecified,
+    subtitle: String,
+    content: List<String>,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, color = titleColor) },
+        text = {
+            Column {
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                content.forEach { item ->
+                    Text("• $item", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("我知道了") } },
+        shape = RoundedCornerShape(8.dp),
+    )
+}
+
+@Composable
+fun LoginCard(
+    state: AppUiState,
+    onUpdatePhone: (String) -> Unit,
+    onUpdateCode: (String) -> Unit,
+    onSendCode: () -> Unit,
+    onLogin: () -> Unit,
+    onImportBackup: () -> Unit,
+    onToggleTokenLogin: () -> Unit,
+    onUpdateTokenLoginInput: (String) -> Unit,
+    onToggleTokenLoginVisibility: () -> Unit,
+    onLoginWithToken: () -> Unit,
+    haptic: HapticFeedback,
+) {
+    StandardCard {
+        Column {
+            Text("登录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(Spacings.md))
+            OutlinedTextField(
+                value = state.phone,
+                onValueChange = onUpdatePhone,
+                label = { Text("手机号") },
+                isError = state.phoneError != null,
+                supportingText = state.phoneError?.let { { Text(it) } },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next
+                ),
+            )
+            Spacer(Modifier.height(Spacings.sm))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = state.code,
+                    onValueChange = onUpdateCode,
+                    label = { Text("验证码") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number, imeAction = ImeAction.Done
+                    ),
+                )
+                Spacer(Modifier.width(Spacings.sm))
+                Button(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSendCode()
+                    },
+                    enabled = !state.sendingCode && state.phone.isNotBlank(),
+                    shape = RoundedCornerShape(Spacings.sm),
+                ) {
+                    Text(if (state.sendingCode) "发送中" else "发送验证码")
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            Button(
+                onClick = {
+                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLogin()
+                },
+                enabled = !state.loggingIn && state.phone.isNotBlank() && state.code.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(Spacings.sm),
+            ) {
+                if (state.loggingIn) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(Modifier.width(Spacings.sm))
+                }
+                Text("登录")
+            }
+            Spacer(Modifier.height(Spacings.xs))
+            Text(
+                "注意：手机号登录会刷新 Token，旧 Token 将失效",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!state.loggingIn) {
+                Spacer(Modifier.height(Spacings.lg))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                    Text(
+                        "其他登录方式",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = Spacings.sm),
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                Spacer(Modifier.height(Spacings.md))
+                OutlinedButton(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onImportBackup()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Spacings.sm),
+                ) {
+                    Text("导入备份登录")
+                }
+                Text(
+                    "导入包含 Token 的备份文件，若已登录则仅导入订单",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacings.md, vertical = 2.dp),
+                )
+                Spacer(Modifier.height(Spacings.sm))
+                OutlinedButton(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onToggleTokenLogin()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Spacings.sm),
+                ) {
+                    Text("Token 登录")
+                }
+            }
+            androidx.compose.animation.AnimatedVisibility(visible = state.showTokenLogin) {
+                Column {
+                    Spacer(Modifier.height(Spacings.sm))
+                    Text(
+                        "粘贴从软件获取的 Token 即可登录",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(Spacings.sm))
+                    OutlinedTextField(
+                        value = state.tokenLoginInput,
+                        onValueChange = onUpdateTokenLoginInput,
+                        label = { Text("Token") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        visualTransformation = if (state.tokenLoginVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = onToggleTokenLoginVisibility) {
+                                Icon(
+                                    if (state.tokenLoginVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                    contentDescription = if (state.tokenLoginVisible) "隐藏" else "显示",
+                                )
+                            }
+                        },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password, imeAction = ImeAction.Done
+                        ),
+                    )
+                    Spacer(Modifier.height(Spacings.md))
+                    Button(
+                        onClick = {
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLoginWithToken()
+                        },
+                        enabled = !state.tokenLoggingIn && state.tokenLoginInput.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(Spacings.sm),
+                    ) {
+                        if (state.tokenLoggingIn) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(Spacings.sm))
+                        }
+                        Text("Token 登录")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AboutLink(
+    title: String,
+    subtitle: String,
+    isError: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 4.dp).clickable { onClick() },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                color = if (isError) MaterialTheme.colorScheme.error else Color.Unspecified
+            )
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "进入", modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }

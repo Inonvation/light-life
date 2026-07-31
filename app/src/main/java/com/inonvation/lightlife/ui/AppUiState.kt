@@ -120,6 +120,7 @@ data class AppUiState(
     val hapticEnabled: Boolean = true,
     val backupPrivacySafe: Boolean = true,
     val simpleModeEnabled: Boolean = false,
+    val simpleModePendingRestart: Boolean = false,  // 用户切换后的目标值，重启生效
     val safeModeEnabled: Boolean = false,
     val debugLogEnabled: Boolean = false,
     val autoStartTaskEnabled: Boolean = false,

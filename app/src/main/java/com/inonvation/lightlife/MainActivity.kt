@@ -85,6 +85,7 @@ import com.inonvation.lightlife.ui.screen.TaskSettingsScreen
 import com.inonvation.lightlife.ui.screen.WaterReminderTabScreen
 import com.inonvation.lightlife.data.water.WaterReminderManager
 import com.inonvation.lightlife.ui.screen.SimpleScreen
+import com.inonvation.lightlife.ui.screen.SimpleSettingsScreen
 import com.inonvation.lightlife.ui.screen.TokenDialog
 import com.inonvation.lightlife.ui.screen.TopBar
 import com.inonvation.lightlife.ui.shortcutRequestFromIntent
@@ -279,15 +280,15 @@ private fun DeviceControlApp(vm: AppViewModel) {
         // 简洁模式：仅显示 SimpleScreen
         Box(modifier = Modifier.fillMaxSize()) {
             SimpleScreen(state = state, vm = vm)
-            // 简洁模式下的设置页滑入（动画与普通模式统一）
+            // 简洁模式下的设置页滑入
             AnimatedVisibility(
                 visible = state.showSettings,
                 enter = slideInHorizontally { it },
                 exit = slideOutHorizontally { it },
             ) {
-                SettingsScreen(state = state, vm = vm)
+                SimpleSettingsScreen(state = state, vm = vm)
             }
-            // 二级设置页（与普通模式共用同一套渲染，确保简洁模式下也能进入）
+            // 二级设置页
             AnimatedVisibility(
                 visible = state.showDataScreen,
                 enter = slideInHorizontally { it },
@@ -302,12 +303,11 @@ private fun DeviceControlApp(vm: AppViewModel) {
             ) {
                 TaskSettingsScreen(state = state, vm = vm)
             }
-            AnimatedVisibility(
-                visible = state.showQuickLinksSettings,
-                enter = slideInHorizontally { it },
-                exit = slideOutHorizontally { it },
-            ) {
-                QuickLinksSettingsScreen(state = state, vm = vm)
+            // ── 对话框 / BottomSheet 统一渲染区 ──
+            state.tokenDialogText?.let { TokenDialog(token = it, onDismiss = vm::dismissCurrentToken) }
+            state.deviceInfoDialogText?.let { TokenDialog(token = it, title = "设备信息", onDismiss = vm::dismissCurrentDeviceInfo) }
+            if (state.showOrderHistory) {
+                OrderHistoryBottomSheet(orders = state.orderHistory, onDismiss = vm::dismissOrderHistory)
             }
         }
         return

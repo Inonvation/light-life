@@ -211,12 +211,23 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     // 超级简洁版
                     SettingSwitchRow(
                         title = "超级简洁版",
-                        subtitle = "仅显示开水与刷积分功能，立即生效",
-                        checked = state.simpleModeEnabled,
+                        subtitle = "仅显示开水与刷积分功能，切换后需重启 App 生效",
+                        checked = state.simpleModePendingRestart,
                         hapticEnabled = state.hapticEnabled,
                         haptic = haptic,
                         onCheckedChange = { vm.toggleSimpleMode() }
                     )
+                    if (state.simpleModePendingRestart != state.simpleModeEnabled) {
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { vm.restartApp() },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("立即重启生效", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
 
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
@@ -533,57 +544,6 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
 // ── 辅助组件 ──
 
 @Composable
-private fun AboutLink(
-    title: String,
-    subtitle: String,
-    isError: Boolean = false,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 4.dp).clickable { onClick() },
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = if (isError) MaterialTheme.colorScheme.error else Color.Unspecified
-            )
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "进入", modifier = Modifier.size(18.dp).rotate(180f), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun InfoDialog(
-    title: String,
-    titleColor: Color = Color.Unspecified,
-    subtitle: String,
-    content: List<String>,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title, color = titleColor) },
-        text = {
-            Column {
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                content.forEach { item ->
-                    Text("• $item", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(4.dp))
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("我知道了") } },
-        shape = RoundedCornerShape(8.dp),
-    )
-}
-
-@Composable
 private fun ScheduleSettingsDialog(
     timeSlots: List<com.inonvation.lightlife.data.ScheduleStore.TimeSlot>,
     onDismiss: () -> Unit,
@@ -734,3 +694,210 @@ private fun AddTimeSlotDialog(
         shape = RoundedCornerShape(8.dp)
     )
 }
+
+@Composable
+fun SimpleSettingsScreen(state: AppUiState, vm: AppViewModel) {
+    val haptic = LocalHapticFeedback.current
+    val uriHandler = LocalUriHandler.current
+
+    var showAccountDialog by remember { mutableStateOf(false) }
+    var showScriptDialog by remember { mutableStateOf(false) }
+    var showDisclaimerDialog by remember { mutableStateOf(false) }
+    var showExtraDialog by remember { mutableStateOf(false) }
+
+    val currentMode = state.themeMode
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(WindowInsets.statusBars.asPaddingValues())
+    ) {
+        SettingsTopBar(
+            title = "设置",
+            onBack = { vm.dismissSettings() },
+            hapticEnabled = state.hapticEnabled,
+            actions = {
+                if (state.runningPointsTask) {
+                    RunningIndicator(showLabel = true)
+                }
+            }
+        )
+        Box(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .padding(horizontal = Spacings.xl)
+                .size(width = 36.dp, height = 3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 18.dp)
+        ) {
+            SectionHeader("外观")
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                Column {
+                    Text("主题模式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("切换应用的明暗主题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(ThemeMode.SYSTEM to "跟随系统", ThemeMode.LIGHT to "浅色", ThemeMode.DARK to "深色").forEach { (mode, label) ->
+                            FilterChip(
+                                selected = currentMode == mode,
+                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateThemeMode(mode) },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    Text("主题配色", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("更换应用的主色调", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(ColorTheme.GREEN to "绿色", ColorTheme.PINK to "粉色", ColorTheme.YELLOW to "黄色", ColorTheme.BLUE to "蓝色", ColorTheme.BROWN to "棕色").forEach { (theme, label) ->
+                            FilterChip(
+                                selected = state.colorTheme == theme,
+                                onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.updateColorTheme(theme) },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    SettingSwitchRow(title = "触感反馈", subtitle = "按钮和开关操作时触发振动", checked = state.hapticEnabled, hapticEnabled = state.hapticEnabled, haptic = haptic, onCheckedChange = { vm.toggleHaptic() })
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            SectionHeader("任务")
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                Column {
+                    ClickableRow(title = "任务设置", subtitle = "自动执行、后台刷积分、定时任务等", hapticEnabled = state.hapticEnabled, haptic = haptic, onClick = { vm.showTaskSettings() })
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    SettingSwitchRow(title = "保险模式", subtitle = "隐藏积分功能，仅保留开水接口", checked = state.safeModeEnabled, hapticEnabled = state.hapticEnabled, haptic = haptic, onCheckedChange = { vm.toggleSafeMode() })
+                    if (state.safeModeEnabled) {
+                        Spacer(Modifier.height(8.dp))
+                        Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f), shape = RoundedCornerShape(8.dp)) {
+                            Text("保险模式开启后，积分任务页面和所有刷积分功能将隐藏，\n不会执行任何自动任务。如需使用积分功能，请在此关闭。", color = MaterialTheme.colorScheme.onErrorContainer, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(10.dp))
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            SectionHeader("数据")
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                ClickableRow(title = "数据管理", subtitle = "日志、数据备份与清除", hapticEnabled = state.hapticEnabled, haptic = haptic, onClick = { vm.showDataScreen() })
+            }
+            Spacer(Modifier.height(Spacings.md))
+            SectionHeader("账户")
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                Column {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("我的 Token", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("查看当前登录凭证，可用于调试", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showCurrentToken() }) {
+                            Icon(Icons.Outlined.Code, contentDescription = "查看 Token", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("设备信息", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            Text("当前设备的 User-Agent", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showCurrentDeviceInfo() }) {
+                            Icon(Icons.Outlined.Code, contentDescription = "查看设备信息", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (state.hasToken) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        Spacer(Modifier.height(Spacings.sm))
+                        Button(
+                            onClick = { if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); vm.showLogoutConfirm() },
+                            modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
+                        ) {
+                            Icon(Icons.AutoMirrored.Outlined.Logout, contentDescription = "退出登录", modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("退出登录", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            SectionHeader("关于")
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                Column {
+                    Box(modifier = Modifier.fillMaxWidth().clickable {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress); uriHandler.openUri(PROJECT_URL)
+                    }) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("LightLife", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("版本 ${state.appVersion}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(PROJECT_URL, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                            Icon(painterResource(R.drawable.ic_github), contentDescription = "GitHub", modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
+                    AboutLink("账号安全", "如何降低被检测的风险") { showAccountDialog = true }
+                    Spacer(Modifier.height(12.dp))
+                    AboutLink("脚本提示", "让脚本更稳定地运行") { showScriptDialog = true }
+                    Spacer(Modifier.height(12.dp))
+                    AboutLink("附加说明", "开水认证等常见问题") { showExtraDialog = true }
+                    Spacer(Modifier.height(12.dp))
+                    AboutLink("免责声明", "使用即代表同意以下条款", isError = true) { showDisclaimerDialog = true }
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            SectionHeader("模式切换")
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                Column {
+                    SettingSwitchRow(title = "超级简洁版", subtitle = "仅显示开水与刷积分功能，切换后需重启 App 生效", checked = state.simpleModePendingRestart, hapticEnabled = state.hapticEnabled, haptic = haptic, onCheckedChange = { vm.toggleSimpleMode() })
+                    if (state.simpleModePendingRestart != state.simpleModeEnabled) {
+                        Spacer(Modifier.height(12.dp))
+                        Button(onClick = { vm.restartApp() }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+                            Text("立即重启生效", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(Spacings.xxl))
+        }
+    }
+
+    if (showAccountDialog) {
+        InfoDialog(title = "账号安全", subtitle = "如何保障账户安全，降低被检测的风险", content = listOf("尽量避免多账号在同一设备、同一网络 IP 下执行刷积分任务", "即使在不同设备的不同账户下，也尽量避免同时执行刷积分任务", "即使在同一固定设备下，也尽量避免每天在同一时间段执行刷积分任务"), onDismiss = { showAccountDialog = false })
+    }
+    if (showScriptDialog) {
+        InfoDialog(title = "脚本提示", subtitle = "让脚本更稳定地运行，减少执行失败的概率", content = listOf("任务持续失败时，重启 APP 再试。仍失败需在官方 APP 手动观看一条广告", "建议在 WiFi 稳定的环境下执行任务"), onDismiss = { showScriptDialog = false })
+    }
+    if (showDisclaimerDialog) {
+        InfoDialog(title = "免责声明", titleColor = MaterialTheme.colorScheme.error, subtitle = "使用即代表同意以下条款，请仔细阅读", content = listOf("本项目为个人兴趣开发，仅供学习和测试使用。自动化积分功能模拟正常用户操作流程，可能违反相关平台服务条款。", "请自行承担账号、设备、接口变更和平台规则风险", "可能面临账户积分清零、永久无法使用积分甚至封号的风险", "本人概不承担因此产生的任何责任"), onDismiss = { showDisclaimerDialog = false })
+    }
+    if (showExtraDialog) {
+        InfoDialog(title = "附加说明", subtitle = "一些你可能遇到的情况和解决方法", content = listOf("如果遇到开水提示需要认证，要去胖乖生活里饮水中勾选使用积分选项，会弹出让你实名认证，按流程认证即可，这是平台正常的防机器人行为，不必惊慌。"), onDismiss = { showExtraDialog = false })
+    }
+    state.deviceInfoDialogText?.let { TokenDialog(token = it, title = "设备信息", onDismiss = vm::dismissCurrentDeviceInfo) }
+}
+

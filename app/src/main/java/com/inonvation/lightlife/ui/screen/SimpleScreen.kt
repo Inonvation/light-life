@@ -49,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,8 +109,10 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
         PullToRefreshBox(
             isRefreshing = state.loadingBalance || state.loadingDevices,
             onRefresh = {
-                vm.refreshDevices()
-                vm.refreshBalance()
+                if (state.hasToken) {
+                    vm.refreshDevices()
+                    vm.refreshBalance()
+                }
             },
             state = pullRefreshState,
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -130,30 +133,28 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
         ) {
             if (!state.hasToken) {
                 item {
-                    Spacer(Modifier.height(Spacings.xxl))
-                    Text(
-                        "请先切换到普通模式登录后再使用简洁版",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                     Spacer(Modifier.height(Spacings.sm))
-                    Text(
-                        "在设置中关闭简洁版即可回到普通模式",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(Spacings.lg))
-                    Button(
-                        onClick = { vm.showSettings() },
-                        modifier = Modifier.fillMaxWidth().height(ComponentHeights.button),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Text("前往设置切换模式", fontWeight = FontWeight.SemiBold)
+                    val scope = rememberCoroutineScope()
+                    val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+                    ) { uri: android.net.Uri? ->
+                        if (uri != null) {
+                            vm.performImportBackup(ctx, uri, scope)
+                        }
                     }
+                    LoginCard(
+                        state = state,
+                        onUpdatePhone = { vm.updatePhone(it) },
+                        onUpdateCode = { vm.updateCode(it) },
+                        onSendCode = { vm.sendCode() },
+                        onLogin = { vm.login() },
+                        onImportBackup = { backupLauncher.launch(arrayOf("application/json", "application/octet-stream")) },
+                        onToggleTokenLogin = { vm.toggleTokenLogin() },
+                        onUpdateTokenLoginInput = { vm.updateTokenLoginInput(it) },
+                        onToggleTokenLoginVisibility = { vm.toggleTokenLoginVisibility() },
+                        onLoginWithToken = { vm.loginWithToken() },
+                        haptic = haptic,
+                    )
                 }
                 return@LazyColumn
             }
@@ -450,7 +451,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
 
                             // 执行日志区域
                             LogPanel(
-                                logStyle = state.logStyle,
+                                logStyle = LogStyle.TERMINAL,
                                 logs = state.pointsLogs,
                                 onClear = { vm.clearPointsLogs() },
                                 modifier = Modifier.fillMaxWidth(),

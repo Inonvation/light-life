@@ -158,7 +158,10 @@ class BackupController(
         }
         backup.data.simpleModeEnabled?.let { enabled ->
             taskStateStore?.setSimpleModeEnabled(enabled)
-            updateState { s -> s.copy(simpleModeEnabled = enabled) }
+            updateState { s -> s.copy(
+                simpleModeEnabled = enabled,
+                simpleModePendingRestart = enabled
+            ) }
         }
         // 恢复快捷链接后重新加载状态
         if (backup.data.quickLinks != null) {

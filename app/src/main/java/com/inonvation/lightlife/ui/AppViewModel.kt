@@ -172,6 +172,7 @@ class AppViewModel(
                 hapticEnabled = it.isHapticEnabled(),
                 autoStartTaskEnabled = it.isAutoStartTaskEnabled(),
                 simpleModeEnabled = it.isSimpleModeEnabled(),
+                simpleModePendingRestart = it.isSimpleModeEnabled(),  // 初始一致
                 safeModeEnabled = it.isSafeModeEnabled(),
                 backgroundTaskEnabled = it.isBackgroundTaskEnabled(),
                 randomDelayEnabled = it.isRandomDelayEnabled(),
@@ -714,11 +715,18 @@ class AppViewModel(
     }
 
     fun toggleSimpleMode() {
-        val v = !state.value.simpleModeEnabled
+        val v = !state.value.simpleModePendingRestart
         taskStateStore?.setSimpleModeEnabled(v)
-        _state.update { it.copy(simpleModeEnabled = v) }
-        if (v) showToast("已切换为简洁模式")
-        else showToast("已切换为完整模式")
+        _state.update { it.copy(simpleModePendingRestart = v) }
+        if (v) showToast("已选择简洁模式，重启 App 后生效")
+        else showToast("已选择完整模式，重启 App 后生效")
+    }
+
+    fun restartApp() {
+        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(intent)
+        android.os.Process.killProcess(android.os.Process.myPid())
     }
 
     fun toggleSafeMode() {

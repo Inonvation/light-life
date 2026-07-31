@@ -132,168 +132,19 @@ fun MeScreen(state: AppUiState, vm: AppViewModel, isActive: Boolean = false) {
                     visible = !state.hasToken && cardsVisible,
                     enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 3 })
                 ) {
-                    StandardCard {
-                        Column {
-                            Text("登录", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.height(Spacings.md))
-                            OutlinedTextField(
-                                value = state.phone,
-                                onValueChange = { vm.updatePhone(it) },
-                                label = { Text("手机号") },
-                                isError = state.phoneError != null,
-                                supportingText = state.phoneError?.let { { Text(it) } },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                    keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next
-                                ),
-                            )
-                            Spacer(Modifier.height(Spacings.sm))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = state.code,
-                                    onValueChange = { vm.updateCode(it) },
-                                    label = { Text("验证码") },
-                                    singleLine = true,
-                                    modifier = Modifier.weight(1f),
-                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                        keyboardType = KeyboardType.Number, imeAction = ImeAction.Done
-                                    ),
-                                )
-                                Spacer(Modifier.width(Spacings.sm))
-                                Button(
-                                    onClick = {
-                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        vm.sendCode()
-                                    },
-                                    enabled = !state.sendingCode && state.phone.isNotBlank(),
-                                    shape = RoundedCornerShape(Spacings.sm),
-                                ) {
-                                    Text(if (state.sendingCode) "发送中" else "发送验证码")
-                                }
-                            }
-                            Spacer(Modifier.height(Spacings.md))
-                            Button(
-                                onClick = {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.login()
-                                },
-                                enabled = !state.loggingIn && state.phone.isNotBlank() && state.code.isNotBlank(),
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(Spacings.sm),
-                            ) {
-                                if (state.loggingIn) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                    Spacer(Modifier.width(Spacings.sm))
-                                }
-                                Text("登录")
-                            }
-                            Spacer(Modifier.height(Spacings.xs))
-                            Text(
-                                "注意：手机号登录会刷新 Token，旧 Token 将失效",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            if (!state.loggingIn) {
-                                Spacer(Modifier.height(Spacings.lg))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
-                                    Text(
-                                        "其他登录方式",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = Spacings.sm),
-                                    )
-                                    HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
-                                }
-                                Spacer(Modifier.height(Spacings.md))
-                                OutlinedButton(
-                                    onClick = {
-                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        backupLauncher.launch(arrayOf("application/json", "application/octet-stream"))
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(Spacings.sm),
-                                ) {
-                                    Text("导入备份登录")
-                                }
-                                Text(
-                                    "导入包含 Token 的备份文件，若已登录则仅导入订单",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = Spacings.md, vertical = 2.dp),
-                                )
-                                Spacer(Modifier.height(Spacings.sm))
-                                OutlinedButton(
-                                    onClick = {
-                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        vm.toggleTokenLogin()
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(Spacings.sm),
-                                ) {
-                                    Text("Token 登录")
-                                }
-                            }
-                            AnimatedVisibility(visible = state.showTokenLogin) {
-                                Column {
-                                    Spacer(Modifier.height(Spacings.sm))
-                                    Text(
-                                        "粘贴从软件获取的 Token 即可登录",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Spacer(Modifier.height(Spacings.sm))
-                                    OutlinedTextField(
-                                        value = state.tokenLoginInput,
-                                        onValueChange = { vm.updateTokenLoginInput(it) },
-                                        label = { Text("Token") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        visualTransformation = if (state.tokenLoginVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                        trailingIcon = {
-                                            IconButton(onClick = { vm.toggleTokenLoginVisibility() }) {
-                                                Icon(
-                                                    if (state.tokenLoginVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                                                    contentDescription = if (state.tokenLoginVisible) "隐藏" else "显示",
-                                                )
-                                            }
-                                        },
-                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                                            keyboardType = KeyboardType.Password, imeAction = ImeAction.Done
-                                        ),
-                                    )
-                                    Spacer(Modifier.height(Spacings.md))
-                                    Button(
-                                        onClick = {
-                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            vm.loginWithToken()
-                                        },
-                                        enabled = !state.tokenLoggingIn && state.tokenLoginInput.isNotBlank(),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(Spacings.sm),
-                                    ) {
-                                        if (state.tokenLoggingIn) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(18.dp),
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.onPrimary
-                                            )
-                                            Spacer(Modifier.width(Spacings.sm))
-                                        }
-                                        Text("Token 登录")
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    LoginCard(
+                        state = state,
+                        onUpdatePhone = { vm.updatePhone(it) },
+                        onUpdateCode = { vm.updateCode(it) },
+                        onSendCode = { vm.sendCode() },
+                        onLogin = { vm.login() },
+                        onImportBackup = { backupLauncher.launch(arrayOf("application/json", "application/octet-stream")) },
+                        onToggleTokenLogin = { vm.toggleTokenLogin() },
+                        onUpdateTokenLoginInput = { vm.updateTokenLoginInput(it) },
+                        onToggleTokenLoginVisibility = { vm.toggleTokenLoginVisibility() },
+                        onLoginWithToken = { vm.loginWithToken() },
+                        haptic = haptic,
+                    )
                 }
             }
             item {
