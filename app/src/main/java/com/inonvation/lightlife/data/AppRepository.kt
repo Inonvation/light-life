@@ -10,7 +10,6 @@ class NotLoggedInException(message: String = "请先登录") : Exception(message
 class AppRepository(
     private val tokenStore: TokenStore,
     private val orderHistoryStore: OrderHistoryStore,
-    private val debugLog: DebugLogStore? = null,
 ) {
     private val api: DeviceApi
 
@@ -40,13 +39,10 @@ class AppRepository(
     fun orderHistory(): List<OrderHistoryItem> = orderHistoryStore.list()
 
     suspend fun sendCode(phone: String) {
-        debugLog?.d("Repo", "sendCode: phone=$phone")
         api.sendCode(phone = phone).throwIfFailed()
-        debugLog?.d("Repo", "sendCode: success")
     }
 
     suspend fun login(phone: String, code: String): String {
-        debugLog?.d("Repo", "login: phone=$phone")
         val token = api.login(phone = phone, verify = code).requireData().token
             ?: error("登录成功但未返回 token")
         tokenStore.saveToken(token)
@@ -85,7 +81,6 @@ class AppRepository(
             api.syncWater(skuId = skuId, token = token)
         }.getOrElse { e ->
             // 预检失败不阻断流程，但记录原因以便排查
-            debugLog?.e("Repo", "syncWater 预检失败（不阻断）：${e.message}")
         }
 
         onStep("正在获取 IMEI")
@@ -189,7 +184,6 @@ class AppRepository(
         ?: throw NotLoggedInException()
 
     private fun ApiEnvelope<*>.throwIfFailed() {
-        debugLog?.d("Repo", "throwIfFailed: code=$code, msg=${msg ?: message}")
         if (code != null && code != 0 && code != 200) {
             val errorMsg = message ?: msg ?: "请求失败"
             if (TokenExpiredException.isTokenExpired(code, errorMsg)) {
@@ -200,9 +194,7 @@ class AppRepository(
     }
 
     suspend fun validateToken() {
-        debugLog?.d("Repo", "validateToken")
         val resp = api.queryBalance(requireToken())
-        debugLog?.d("Repo", "validateToken: code=${resp.code}, msg=${resp.msg ?: resp.message}, data=${resp.data}")
         resp.requireData()
     }
 

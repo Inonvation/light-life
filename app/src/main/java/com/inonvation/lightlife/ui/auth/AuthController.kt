@@ -1,12 +1,10 @@
 ﻿package com.inonvation.lightlife.ui.auth
 
 import com.inonvation.lightlife.data.AppRepository
-import com.inonvation.lightlife.data.DebugLogStore
 import com.inonvation.lightlife.data.PointsStatsStore
 import com.inonvation.lightlife.data.PointsTaskStateStore
-import com.inonvation.lightlife.data.TaskLogStore
 import com.inonvation.lightlife.ui.AppUiState
-import com.inonvation.lightlife.ui.DeviceTab
+import com.inonvation.lightlife.ui.UnlockFlowState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -18,10 +16,7 @@ class AuthController(
     private val scope: CoroutineScope,
     private val repository: AppRepository,
     private val taskStateStore: PointsTaskStateStore?,
-    private val logStore: TaskLogStore?,
-    private val debugLogStore: DebugLogStore?,
     private val pointsStatsStore: PointsStatsStore?,
-    private val clearAdVideoState: () -> Unit,
     private val onAuthSuccess: () -> Unit,
     private val showToast: (String) -> Unit,
     private val showError: (String) -> Unit,
@@ -38,8 +33,7 @@ class AuthController(
     }
 
     fun updateCode(value: String) {
-        val filtered = value.filter { it.isDigit() }
-        updateState { it.copy(code = filtered) }
+        updateState { it.copy(code = value.filter { it.isDigit() }) }
     }
 
     fun toggleTokenLogin() {
@@ -129,37 +123,31 @@ class AuthController(
         pointsStatsStore?.clearAll()
         repository.clearOrderHistory()
         taskStateStore?.reset()
-        clearAdVideoState()
-        logStore?.clearAll()
-        debugLogStore?.clearAll()
-        updateState { it.copy(
-            hasToken = false,
-            phone = "",
-            code = "",
-            phoneError = null,
-            devices = emptyList(),
-            balance = null,
-            todayWaterCount = 0,
-            todayWaterAmount = "0.00",
-            totalWaterCount = 0,
-            todayPointsEarned = 0,
-            orderHistory = emptyList(),
-            pointsLogs = emptyList(),
-            totalPointsDeducted = "0.00",
-            showSettings = false,
-            currentTab = DeviceTab.Me,
-        )}
+        updateState {
+            it.copy(
+                hasToken = false,
+                phone = "",
+                code = "",
+                balance = null,
+                devices = emptyList(),
+                orderHistory = emptyList(),
+                totalWaterCount = 0,
+                todayWaterCount = 0,
+                todayWaterAmount = "0.00",
+                todayPointsEarned = 0,
+                totalPointsDeducted = "0.00",
+                unlockFlowState = UnlockFlowState.Idle,
+                unlockStatus = null,
+                unlockingDeviceId = null,
+            )
+        }
+        showToast("已退出登录")
     }
 
     fun handleTokenExpired() {
-        debugLogStore?.d("VM", "handleTokenExpired: token expired")
         repository.clearToken()
-        updateState { it.copy(
-            hasToken = false,
-            devices = emptyList(),
-            balance = null,
-            currentTab = DeviceTab.Me,
-        )}
-        showToast("登录已失效，请重新登录")
+        repository.savePhone("")
+        updateState { it.copy(hasToken = false) }
+        showError("登录已失效，请重新登录")
     }
 }

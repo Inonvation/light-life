@@ -1,7 +1,9 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
+import android.content.Intent
+import android.net.Uri
+
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -9,15 +11,15 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,40 +28,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.AttachMoney
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.LocalDrink
-import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.SwapVert
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -71,500 +57,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.inonvation.lightlife.data.DeviceItem
+import androidx.compose.ui.zIndex
 import com.inonvation.lightlife.data.QuickLink
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
-import com.inonvation.lightlife.ui.UnlockFlowState
-import com.inonvation.lightlife.ui.pinDeviceShortcut
 import com.inonvation.lightlife.ui.pinQuickLinkShortcut
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import kotlinx.coroutines.delay
 import com.inonvation.lightlife.ui.theme.CardShapes
-import com.inonvation.lightlife.ui.theme.HeaderGradients
-import com.inonvation.lightlife.ui.theme.StatColors
-import android.content.Intent
-import android.net.Uri
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ControlScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit)? = null) {
-    val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
+// ?? ????????? ControlScreen ???????? ??
 
-    var cardVisible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { cardVisible = true }
-
-    // 成功/失败详情弹窗
-    var showDetailDialog by remember { mutableStateOf(false) }
-    val successResult = (state.unlockFlowState as? UnlockFlowState.Success)?.result
-    val failedState = state.unlockFlowState as? UnlockFlowState.Failed
-
-    // 缓存最近一次解锁的设备，供失败重试使用
-    var lastUnlockedDevice by remember { mutableStateOf<DeviceItem?>(null) }
-
-    // 30秒自动关闭解锁状态
-    LaunchedEffect(state.unlockFlowState) {
-        if (state.unlockFlowState is UnlockFlowState.Success || state.unlockFlowState is UnlockFlowState.Failed) {
-            kotlinx.coroutines.delay(30_000)
-            vm.dismissUnlockFlow()
-        }
-    }
-
-    val refreshState = rememberPullToRefreshState()
-    val isRefreshing = rememberMinRefreshDuration(state.loadingDevices)
-
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-            vm.refreshDevices()
-        },
-        state = refreshState,
-        modifier = Modifier.fillMaxSize(),
-        indicator = {
-            PullToRefreshDefaults.Indicator(
-                modifier = Modifier.align(Alignment.TopCenter),
-                isRefreshing = isRefreshing,
-                state = refreshState,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-        }
-    ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 18.dp)
-    ) {
-        // ── 品牌渐变头部 ──
-        item {
-            HeaderSection(cardVisible)
-        }
-
-        // ── 数据概览（三张小卡片横排）──
-        item {
-            AnimatedVisibility(
-                visible = cardVisible,
-                enter = fadeIn(tween(500, delayMillis = 100)) + slideInVertically(tween(500, delayMillis = 100), initialOffsetY = { it / 2 })
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    RollingStatCard(
-                        icon = Icons.Outlined.LocalDrink,
-                        label = "今日喝水",
-                        text = "${state.todayWaterCount} 次",
-                        accentColor = StatColors.waterCount,
-                        modifier = Modifier.weight(1f)
-                    )
-                    RollingStatCard(
-                        icon = Icons.Outlined.AttachMoney,
-                        label = "抵扣金额",
-                        text = "¥${state.todayWaterAmount}",
-                        accentColor = StatColors.waterAmount,
-                        modifier = Modifier.weight(1f)
-                    )
-                    RollingStatCard(
-                        icon = Icons.Outlined.BarChart,
-                        label = "今日积分",
-                        text = "${state.todayPointsEarned}",
-                        accentColor = StatColors.totalWater,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // ── 快捷链接 ──
-        if (state.hasToken && state.quickLinksEnabled) {
-            item {
-                QuickLinksSection(state = state, vm = vm, onPickIcon = onPickIcon, cardVisible = cardVisible, haptic = haptic, context = context)
-            }
-        }
-
-        // ── 设备列表标题 ──
-        if (state.hasToken) {
-            item {
-                AnimatedVisibility(
-                    visible = cardVisible,
-                    enter = fadeIn(tween(400, delayMillis = 200))
-                ) {
-                    Text(
-                        text = "我的设备",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                    )
-                }
-            }
-            // 积分抵扣开关
-            item {
-                AnimatedVisibility(
-                    visible = cardVisible,
-                    enter = fadeIn(tween(400, delayMillis = 300))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("使用积分抵扣", style = MaterialTheme.typography.bodyMedium)
-                            Text("关闭后开水将不消耗积分", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        Switch(
-                            checked = state.usePointsForUnlock,
-                            onCheckedChange = {
-                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                vm.toggleUsePointsForUnlock()
-                            },
-                            colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                        )
-                    }
-                }
-            }
-        }
-
-        // ── 设备列表 / 空状态 ──
-        if (!state.hasToken) {
-            item {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("请先到「我的」页面登录获取权限", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        } else if (state.devices.isEmpty() && state.unlockFlowState is UnlockFlowState.Idle) {
-            item {
-                Box(
-                    modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            Icons.Outlined.Devices,
-                            contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.outline
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Text("暂无历史设备", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-        } else {
-            items(state.devices) { device ->
-                val isThisDevice = device.goodsName.ifBlank { device.id } == state.unlockingDeviceId
-                val isUnlockingElsewhere = state.unlocking && !isThisDevice
-
-                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    DeviceCard(
-                        name = device.goodsName.ifBlank { "未命名设备" },
-                        enabled = !state.unlocking || isThisDevice,
-                        isUnlocking = isThisDevice && state.unlocking,
-                        onUnlock = {
-                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            lastUnlockedDevice = device
-                            vm.unlock(device)
-                        },
-                        onAddShortcut = {
-                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            pinDeviceShortcut(context, device)
-                        },
-                        isOtherLocked = isUnlockingElsewhere,
-                    )
-
-                    // 内联解锁状态
-                    if (isThisDevice && state.unlockFlowState !is UnlockFlowState.Idle && !state.unlockFlowHidden) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .animateContentSize(tween(300)),
-                            shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                        ) {
-                            InlineUnlockStatus(
-                                flowState = state.unlockFlowState,
-                                elapsedSeconds = state.unlockElapsedSeconds,
-                                onShowDetail = { showDetailDialog = true },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-    }
-
-    // 成功/失败详情弹窗
-    if (successResult != null && showDetailDialog) {
-        val dateFormat = remember { java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.CHINA) }
-        AlertDialog(
-            onDismissRequest = { showDetailDialog = false },
-            title = { Text("开水成功", fontWeight = FontWeight.SemiBold) },
-            text = {
-                Column {
-                    DetailRow("订单原价", "¥${successResult.originPrice}")
-                    DetailRow("花费小票", successResult.ticketCost)
-                    if (successResult.integralCost != "-") DetailRow("积分抵扣", successResult.integralCost)
-                    successResult.otherPromotions.forEach { p ->
-                        DetailRow("其他优惠", p.discountAmount ?: "-")
-                    }
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    DetailRow("订单号", successResult.orderNo)
-                    DetailRow("订单 ID", successResult.orderId)
-                    if (successResult.completedAt > 0) DetailRow("完成时间", dateFormat.format(java.util.Date(successResult.completedAt)))
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDetailDialog = false; vm.dismissUnlockFlow() }) {
-                    Text("关闭")
-                }
-            },
-        )
-    }
-    if (failedState != null && showDetailDialog) {
-        AlertDialog(
-            onDismissRequest = { showDetailDialog = false },
-            title = { Text("开水失败", fontWeight = FontWeight.SemiBold) },
-            text = {
-                Column {
-                    Text(failedState.message, style = MaterialTheme.typography.bodyMedium)
-                    if (failedState.suggestions.isNotEmpty()) {
-                        Spacer(Modifier.height(8.dp))
-                        failedState.suggestions.forEach { s ->
-                            Text("• $s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    DetailRow("失败步骤", failedState.step)
-                    DetailRow("原始错误", failedState.rawError)
-                }
-            },
-            confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { showDetailDialog = false }) {
-                        Text("关闭")
-                    }
-                    if (lastUnlockedDevice != null) {
-                        Button(
-                            onClick = {
-                                showDetailDialog = false
-                                vm.dismissUnlockFlow()
-                                vm.unlock(lastUnlockedDevice!!)
-                            },
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                        ) { Text("重试") }
-                    }
-                }
-            },
-        )
-    }
-}
-@Composable
-private fun DetailRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onSurface)
-    }
-}
-@Composable
-private fun HeaderSection(visible: Boolean) {
-    val isDark = isSystemInDarkTheme()
-    val gradient = Brush.horizontalGradient(
-        colors = listOf(
-            if (isDark) HeaderGradients.darkStart else HeaderGradients.lightStart,
-            if (isDark) HeaderGradients.darkEnd else HeaderGradients.lightEnd,
-        )
-    )
-
-    // 获取当前小时
-    val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
-    
-    // 根据时段生成问候语
-    val greeting = remember(hour) {
-        when (hour) {
-            in 5..7 -> "早~喝杯温水 (｡◕‿◕｡)"
-            in 8..10 -> "早安，新的一天从喝水开始 (◠‿◠)☀️"
-            in 11..13 -> "喝口水，歇一下 (◕‿◕)✨"
-            in 14..16 -> "下午茶时间，来杯水吧 (•̀ᴗ•́)و✧"
-            in 17..19 -> "傍晚了，记得补水哦 (｡◕‿◕｡)💧"
-            in 20..22 -> "睡前喝点水哦 (◠‿◠)🌙"
-            in 23..23, in 0..4 -> "晚安，该睡觉啦 (◕‿◕)💤"
-            else -> "多喝水，身体棒棒的！(•̀ᴗ•́)و✧"
-        }
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { -it / 3 })
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(gradient, CardShapes.headerCorner)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-        ) {
-            Column {
-                Text(
-                    text = "LightLife",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = greeting,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.9f)
-                )
-            }
-        }
-    }
-}
-@Composable
-private fun DeviceCard(
-    name: String,
-    enabled: Boolean,
-    isUnlocking: Boolean,
-    onUnlock: () -> Unit,
-    onAddShortcut: () -> Unit,
-    isOtherLocked: Boolean = false,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isOtherLocked) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isOtherLocked) MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.primaryContainer
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Outlined.Devices,
-                        contentDescription = "设备图标",
-                        modifier = Modifier.size(20.dp),
-                        tint = if (isOtherLocked) MaterialTheme.colorScheme.outline
-                            else MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = name,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = when {
-                            isOtherLocked -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
-                    )
-                    if (isOtherLocked) {
-                        Text(
-                            text = "占用中…",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                        )
-                    }
-                }
-            }
-
-            if (!isOtherLocked) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onAddShortcut,
-                        enabled = enabled,
-                        modifier = Modifier.size(40.dp),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = "添加到桌面", modifier = Modifier.size(18.dp))
-                    }
-
-                    Button(
-                        onClick = onUnlock,
-                        enabled = enabled,
-                        modifier = Modifier.height(40.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 0.dp)
-                    ) {
-                        Icon(
-                            if (isUnlocking) Icons.Filled.CheckCircle else Icons.Outlined.LocalDrink,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            if (isUnlocking) "开水中…" else "开水",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SortableQuickLinkCard(
     name: String,
@@ -722,7 +239,7 @@ private fun QuickLinkCard(
 }
 
 @Composable
-private fun QuickLinksSection(
+internal fun QuickLinksSection(
     state: AppUiState,
     vm: AppViewModel,
     onPickIcon: ((Int) -> Unit)?,

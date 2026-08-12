@@ -73,7 +73,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.ui.AppUiState
-import com.inonvation.lightlife.ui.DeviceTab
 import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
@@ -113,73 +112,6 @@ fun RunningIndicator(
     }
 }
 
-@Composable
-fun TopBar(
-    currentTab: DeviceTab,
-    hasToken: Boolean,
-    hapticEnabled: Boolean,
-    taskRunning: Boolean,
-    onSettingsClick: () -> Unit,
-) {
-    val haptic = LocalHapticFeedback.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AnimatedContent(
-                targetState = currentTab,
-                transitionSpec = {
-                    (fadeIn(tween(200)) + slideInVertically(tween(200)) { -it / 4 }) togetherWith
-                    (fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 4 })
-                },
-                label = "topBarTitle"
-            ) { tab ->
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = when (tab) {
-                            DeviceTab.Control -> "首页"
-                            DeviceTab.Points -> "积分任务"
-                            DeviceTab.Water -> "喝水"
-                            DeviceTab.Me -> "我的"
-                        },
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.width(Spacings.sm))
-                    if (taskRunning) {
-                        RunningIndicator(
-                            modifier = Modifier.padding(bottom = 3.dp),
-                        )
-                    } else {
-                        Text(
-                            text = when (tab) {
-                                DeviceTab.Control -> "历史设备"
-                                DeviceTab.Points -> "自动化刷积分"
-                                DeviceTab.Water -> "定时提醒你喝水"
-                                DeviceTab.Me -> if (hasToken) "已登录" else "未登录"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(bottom = 3.dp)
-                        )
-                    }
-                }
-            }
-            IconButton(onClick = {
-                if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                onSettingsClick()
-            }) {
-                Icon(Icons.Outlined.Settings, contentDescription = "设置")
-            }
-        }
-    }
-}
 
 @Composable
 fun RollingDigits(
@@ -476,7 +408,6 @@ fun LoginCard(
     onUpdateCode: (String) -> Unit,
     onSendCode: () -> Unit,
     onLogin: () -> Unit,
-    onImportBackup: () -> Unit,
     onToggleTokenLogin: () -> Unit,
     onUpdateTokenLoginInput: (String) -> Unit,
     onToggleTokenLoginVisibility: () -> Unit,
@@ -565,22 +496,6 @@ fun LoginCard(
                     HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
                 }
                 Spacer(Modifier.height(Spacings.md))
-                OutlinedButton(
-                    onClick = {
-                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onImportBackup()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(Spacings.sm),
-                ) {
-                    Text("导入备份登录")
-                }
-                Text(
-                    "导入包含 Token 的备份文件，若已登录则仅导入订单",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = Spacings.md, vertical = 2.dp),
-                )
                 Spacer(Modifier.height(Spacings.sm))
                 OutlinedButton(
                     onClick = {

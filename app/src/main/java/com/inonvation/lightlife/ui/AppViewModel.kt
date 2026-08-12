@@ -2,41 +2,33 @@
 
 import android.app.Application
 import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.inonvation.lightlife.data.ApiConfig
 import com.inonvation.lightlife.data.AppRepository
-import com.inonvation.lightlife.data.BackupManager
-import com.inonvation.lightlife.data.DebugLogStore
-import com.inonvation.lightlife.data.DeviceItem
-import com.inonvation.lightlife.data.OrderHistoryItem
-import com.inonvation.lightlife.data.PointsStatsStore
-import com.inonvation.lightlife.data.PointsTaskRunner
-import com.inonvation.lightlife.data.PointsTaskStateStore
-import com.inonvation.lightlife.data.QuickLink
-import com.inonvation.lightlife.data.QuickLinkStore
 import com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS
-import com.inonvation.lightlife.data.TaskLogStore
+import com.inonvation.lightlife.data.DeviceItem
+import com.inonvation.lightlife.data.PointsStatsStore
+import com.inonvation.lightlife.data.PointsTaskStateStore
+import com.inonvation.lightlife.data.QuickLinkStore
+import com.inonvation.lightlife.data.SignInRunner
 import com.inonvation.lightlife.data.TokenExpiredException
 import com.inonvation.lightlife.data.UnlockException
 import com.inonvation.lightlife.ui.auth.AuthController
-import com.inonvation.lightlife.ui.backup.BackupController
-import com.inonvation.lightlife.ui.points.PointsTaskController
 import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
 import com.inonvation.lightlife.ui.theme.ThemePreferences
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 sealed class UiEvent {
     data class Toast(val message: String) : UiEvent()
@@ -49,10 +41,7 @@ class AppViewModel(
     private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
-    private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
-    private val backupManager: BackupManager? = null,
-    private val debugLogStore: DebugLogStore? = null,
     private val quickLinkStore: QuickLinkStore? = null,
 ) : ViewModel() {
     private val context: Context = application.applicationContext
@@ -77,7 +66,6 @@ class AppViewModel(
     private val _events = Channel<UiEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
-    // ── 内部工具 ──
     private fun showToast(message: String) { _events.trySend(UiEvent.Toast(message)) }
     private fun showError(message: String) { _events.trySend(UiEvent.Error(friendlyErrorMessage(message))) }
 
@@ -96,11 +84,7 @@ class AppViewModel(
         }
     }
 
-    private fun clearAdVideoState() {
-        pointsController.clearAdVideoState()
-    }
-
-    // ── Controllers ──
+    // ── 控制器 ──
     private val authController: AuthController by lazy {
         AuthController(
             state = state,
@@ -108,59 +92,20 @@ class AppViewModel(
             scope = viewModelScope,
             repository = repository,
             taskStateStore = taskStateStore,
-            logStore = logStore,
-            debugLogStore = debugLogStore,
             pointsStatsStore = pointsStatsStore,
-            clearAdVideoState = ::clearAdVideoState,
             onAuthSuccess = {
                 refreshBalance()
                 refreshDevices()
                 refreshTodayWater()
+                refreshPointsStats()
             },
             showToast = ::showToast,
             showError = ::showError,
         )
     }
 
-    private val pointsTaskRunner = PointsTaskRunner({ repository.localToken() }, context, pointsStatsStore).also { it.setDebugLog(debugLogStore) }
+    private val signInRunner = SignInRunner({ repository.localToken() }, context)
 
-    private val pointsController: PointsTaskController by lazy {
-        PointsTaskController(
-            state = state,
-            updateState = { _state.update(it) },
-            scope = viewModelScope,
-            context = context,
-            pointsTaskRunner = pointsTaskRunner,
-            taskStateStore = taskStateStore,
-            logStore = logStore,
-            pointsStatsStore = pointsStatsStore,
-            refreshBalance = { refreshBalance() },
-            showToast = ::showToast,
-        )
-    }
-
-    private val backupController: BackupController by lazy {
-        BackupController(
-            state = state,
-            updateState = { _state.update(it) },
-            scope = viewModelScope,
-            repository = repository,
-            backupManager = backupManager,
-            pointsStatsStore = pointsStatsStore,
-            taskStateStore = taskStateStore,
-            logStore = logStore,
-            themePreferences = themePreferences,
-            debugLogStore = debugLogStore,
-            quickLinkStore = quickLinkStore,
-            onRestoreFinished = { refreshTodayWater() },
-            showToast = ::showToast,
-        )
-    }
-
-    // ── 定时任务 ──
-    private val scheduleStore = com.inonvation.lightlife.data.ScheduleStore(context)
-
-    // ── 快捷方式 ──
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private var unlockTimerJob: Job? = null
     private var unlockTimeoutJob: Job? = null
@@ -170,18 +115,8 @@ class AppViewModel(
         taskStateStore?.let {
             _state.update { s -> s.copy(
                 hapticEnabled = it.isHapticEnabled(),
-                autoStartTaskEnabled = it.isAutoStartTaskEnabled(),
-                simpleModeEnabled = it.isSimpleModeEnabled(),
-                simpleModePendingRestart = it.isSimpleModeEnabled(),  // 初始一致
-                safeModeEnabled = it.isSafeModeEnabled(),
-                backgroundTaskEnabled = it.isBackgroundTaskEnabled(),
-                randomDelayEnabled = it.isRandomDelayEnabled(),
+                autoSignInEnabled = it.isAutoSignInEnabled(),
                 usePointsForUnlock = it.isUsePointsForUnlockEnabled(),
-                backupPrivacySafe = it.isBackupPrivacySafe(),
-                waterReminderEnabled = it.isWaterReminderEnabled(),
-                debugLogEnabled = debugLogStore?.isEnabled() ?: false,
-                userAgent = it.getUserAgent(),
-                logStyle = try { LogStyle.valueOf(it.getLogStyle()) } catch (_: Exception) { LogStyle.BUBBLE },
             ) }
         }
         themePreferences?.let {
@@ -194,55 +129,23 @@ class AppViewModel(
             _state.update { s -> s.copy(
                 totalPointsDeducted = it.getTotalDeductedAmount(),
                 todayPointsEarned = it.getTodayEarned(),
-            )}
+            ) }
         }
-        // 加载快捷链接
         quickLinkStore?.let {
             _state.update { s -> s.copy(quickLinks = it.getLinks(), quickLinksEnabled = it.isEnabled()) }
         }
-        
-        // 加载定时配置
-        loadScheduleConfig()
-
+        _state.update { s -> s.copy(signInDoneToday = signInRunner.isSignedInToday()) }
         if (repository.localToken() != null) {
             refreshDevices()
             refreshBalance()
             refreshTodayWater()
-
-            // 如果后台 Service 已在运行，直接连接
-            connectToRunningService()
-
-            // 自动检测：已登录且开启了自动启动时，检查今日任务是否已完成
-            if (!state.value.autoStartTaskEnabled || state.value.safeModeEnabled) {
-                // 自动检测已关闭，不做任何事
-            } else if (state.value.userAgent.isBlank()) {
-                showToast("未设置 User-Agent，请在设置中先执行一次任务")
-            } else {
-                pointsController.syncTodayTaskStateFromPrefs()
-                if (!state.value.todayAllDone) {
-                    showToast("已自动开机刷积分任务~")
-                    pointsController.startPointsTask(state.value.userAgent)
-                } else {
-                    showToast("今日积分都刷完了喔，喝杯热水吧~")
-                }
-            }
+            refreshPointsStats()
         }
+        // 打开 App 时自动签到
+        autoSignInOnLaunch()
     }
 
-    fun selectTab(tab: DeviceTab) {
-        _state.update { it.copy(currentTab = tab) }
-        if (tab == DeviceTab.Control && state.value.hasToken && state.value.devices.isEmpty() && !devicesLoadAttempted) {
-            refreshDevices()
-        }
-    }
-
-    fun showSettings() { _state.update { it.copy(showSettings = true) } }
-    fun dismissSettings() { _state.update { it.copy(showSettings = false) } }
-    fun showDataScreen() { _state.update { it.copy(showDataScreen = true) } }
-    fun dismissDataScreen() { _state.update { it.copy(showDataScreen = false) } }
-    fun showTaskSettings() { _state.update { it.copy(showTaskSettings = true) } }
-    fun dismissTaskSettings() { _state.update { it.copy(showTaskSettings = false) } }
-
+    // ── 登录 ──
     fun updatePhone(value: String) = authController.updatePhone(value)
     fun updateCode(value: String) = authController.updateCode(value)
     fun toggleTokenLogin() = authController.toggleTokenLogin()
@@ -253,6 +156,36 @@ class AppViewModel(
     fun login() = authController.login()
     fun logout() = authController.logout()
 
+    // ── 签到 ──
+    fun autoSignInOnLaunch() {
+        if (!state.value.autoSignInEnabled) return
+        if (!state.value.hasToken) return
+        if (signInRunner.isSignedInToday()) return
+        signInNow()
+    }
+
+    fun signInNow() = viewModelScope.launch {
+        if (!state.value.hasToken) {
+            showError("请先登录")
+            return@launch
+        }
+        runCatching {
+            signInRunner.signIn(ApiConfig.USER_AGENT)
+        }.onSuccess { result ->
+            _state.update { it.copy(signInDoneToday = true) }
+            showToast(result.message)
+            refreshBalance()
+            refreshPointsStats()
+        }.onFailure { e ->
+            if (e is TokenExpiredException) {
+                authController.handleTokenExpired()
+            } else {
+                showError(e.message ?: "签到失败")
+            }
+        }
+    }
+
+    // ── 设备 / 余额 ──
     private fun handleApiError(error: Throwable, fallbackMessage: String = "操作失败"): Boolean {
         return if (error is TokenExpiredException) {
             authController.handleTokenExpired()
@@ -294,36 +227,7 @@ class AppViewModel(
         }
     }
 
-    fun openDeviceShortcut(request: DeviceShortcutRequest) {
-        pendingShortcutRequest = request
-        _state.update { it.copy(currentTab = DeviceTab.Control) }
-        if (!state.value.hasToken) {
-            showError("请先登录后再使用桌面设备快捷方式")
-            return
-        }
-        val devices = state.value.devices
-        if (devices.isEmpty()) {
-            refreshDevices()
-        } else {
-            consumePendingShortcut(devices)
-        }
-    }
-
-    private fun consumePendingShortcut(devices: List<DeviceItem>) {
-        val request = pendingShortcutRequest ?: return
-        val target = devices.firstOrNull { device ->
-            (!request.goodsId.isNullOrBlank() && device.goodsId == request.goodsId) ||
-                (!request.id.isNullOrBlank() && device.id == request.id) ||
-                (!request.goodsName.isNullOrBlank() && device.goodsName == request.goodsName)
-        }
-        pendingShortcutRequest = null
-        if (target == null) {
-            showError("未找到对应的历史设备，请刷新设备列表后重试")
-            return
-        }
-        unlock(target)
-    }
-
+    // ── 解锁 ──
     fun unlock(device: DeviceItem) = viewModelScope.launch {
         if (!unlockMutex.tryLock()) return@launch
         try {
@@ -399,9 +303,44 @@ class AppViewModel(
         _state.update { it.copy(unlockFlowState = UnlockFlowState.Idle, unlockElapsedSeconds = 0, unlockingDeviceId = null) }
     }
 
+    fun dismissUnlockAnimation() {
+        unlockTimerJob?.cancel()
+        unlockTimeoutJob?.cancel()
+        _state.update { it.copy(unlockFlowHidden = true, unlockElapsedSeconds = 0) }
+    }
+
+    fun openDeviceShortcut(request: DeviceShortcutRequest) {
+        pendingShortcutRequest = request
+        if (!state.value.hasToken) {
+            showError("请先登录后再使用桌面设备快捷方式")
+            return
+        }
+        val devices = state.value.devices
+        if (devices.isEmpty()) {
+            refreshDevices()
+        } else {
+            consumePendingShortcut(devices)
+        }
+    }
+
+    private fun consumePendingShortcut(devices: List<DeviceItem>) {
+        val request = pendingShortcutRequest ?: return
+        val target = devices.firstOrNull { device ->
+            (!request.goodsId.isNullOrBlank() && device.goodsId == request.goodsId) ||
+                (!request.id.isNullOrBlank() && device.id == request.id) ||
+                (!request.goodsName.isNullOrBlank() && device.goodsName == request.goodsName)
+        }
+        pendingShortcutRequest = null
+        if (target == null) {
+            showError("未找到对应的历史设备，请刷新设备列表后重试")
+            return
+        }
+        unlock(target)
+    }
+
+    // ── 快捷方式 ──
     fun updateQuickLink(index: Int, name: String, url: String, packageName: String, presetIndex: Int = -1) {
         quickLinkStore?.updateLink(index, name, url, packageName, presetIndex)
-        // 选择预设时自动保存预设图标
         if (presetIndex >= 0 && name.isNotBlank()) {
             quickLinkStore?.savePresetIcon(index, presetIndex)
         }
@@ -410,20 +349,16 @@ class AppViewModel(
         }
     }
 
-    /** 删除快捷方式：清空该槽位，后续条目前移补位 */
     fun deleteQuickLink(index: Int) {
         val links = _state.value.quickLinks.toMutableList()
         if (index !in links.indices) return
-        // 清空该槽位，预设槽保留 presetIndex 以便重置
         val pi = if (index < 3) index else -1
         quickLinkStore?.updateLink(index, "", "", "", pi)
-        // 非预设槽位：后面的条目依次前移
         if (index >= 3) {
             for (i in index until links.size - 1) {
                 val next = links[i + 1]
                 quickLinkStore?.updateLink(i, next.name, next.url, next.packageName, next.presetIndex)
             }
-            // 最后一个槽位清空
             quickLinkStore?.updateLink(links.size - 1, "", "", "", -1)
         }
         quickLinkStore?.let {
@@ -444,13 +379,8 @@ class AppViewModel(
         _state.update { it.copy(quickLinksEnabled = v) }
     }
 
-    fun showQuickLinksSettings() {
-        _state.update { it.copy(showQuickLinksSettings = true) }
-    }
-
-    fun dismissQuickLinksSettings() {
-        _state.update { it.copy(showQuickLinksSettings = false) }
-    }
+    fun showQuickLinksSettings() { _state.update { it.copy(showQuickLinksSettings = true) } }
+    fun dismissQuickLinksSettings() { _state.update { it.copy(showQuickLinksSettings = false) } }
 
     fun resetQuickLinksToDefault() {
         DEFAULT_QUICK_LINKS.forEachIndexed { index, link ->
@@ -484,361 +414,7 @@ class AppViewModel(
         showToast("图标已移除")
     }
 
-    fun dismissUnlockAnimation() {
-        unlockTimerJob?.cancel()
-        unlockTimeoutJob?.cancel()
-        _state.update { it.copy(unlockFlowHidden = true, unlockElapsedSeconds = 0) }
-    }
-
-    fun startPointsTask(userAgent: String) = pointsController.startPointsTask(userAgent)
-    fun pausePointsTask() = pointsController.pausePointsTask()
-    fun resumePointsTask() = pointsController.resumePointsTask()
-    fun stopPointsTask() = pointsController.stopPointsTask()
-    fun clearPointsLogs() = pointsController.clearPointsLogs()
-    fun syncTodayTaskStateFromPrefs() = pointsController.syncTodayTaskStateFromPrefs()
-
-    /** 连接到已在运行的后台服务（应用重启后恢复状态） */
-    private fun connectToRunningService() {
-        pointsController.connectToRunningService()
-    }
-
-    fun prepareBackupJson(): String = backupController.prepareBackupJson()
-    fun restoreFromBackupJson(json: String) = backupController.restoreFromBackupJson(json)
-    fun confirmBackupImportOrdersOnly() = backupController.confirmBackupImportOrdersOnly()
-    fun dismissBackupTokenExpiredDialog() = backupController.dismissBackupTokenExpiredDialog()
-
-    /** 统一备份导出：写入文件到指定 URI */
-    fun performExportBackup(context: Context, uri: Uri, scope: kotlinx.coroutines.CoroutineScope) {
-        scope.launch {
-            val json = prepareBackupJson()
-            if (json.isBlank()) {
-                android.widget.Toast.makeText(context, "备份数据为空", android.widget.Toast.LENGTH_SHORT).show()
-                return@launch
-            }
-            val ok = withContext(Dispatchers.IO) {
-                runCatching {
-                    context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) } != null
-                }.getOrDefault(false)
-            }
-            android.widget.Toast.makeText(
-                context,
-                if (ok) "备份导出成功" else "导出失败：无法写入所选位置",
-                android.widget.Toast.LENGTH_SHORT,
-            ).show()
-        }
-    }
-
-    /** 统一备份导入：从指定 URI 读取文件并恢复 */
-    fun performImportBackup(context: Context, uri: Uri, scope: kotlinx.coroutines.CoroutineScope) {
-        scope.launch {
-            try {
-                // 读取前限制文件大小，防止超大文件导致 OOM
-                val size = withContext(Dispatchers.IO) {
-                    runCatching {
-                        context.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: -1L
-                    }.getOrDefault(-1L)
-                }
-                val MAX_BACKUP_SIZE = 10L * 1024 * 1024 // 10MB
-                if (size > MAX_BACKUP_SIZE) {
-                    android.widget.Toast.makeText(context, "备份文件过大，无法导入", android.widget.Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                val json: String? = withContext(Dispatchers.IO) {
-                    runCatching {
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            java.io.BufferedReader(java.io.InputStreamReader(input, Charsets.UTF_8)).readText()
-                        }
-                    }.getOrNull()
-                }
-                if (json.isNullOrBlank()) {
-                    android.widget.Toast.makeText(context, "文件内容为空", android.widget.Toast.LENGTH_SHORT).show()
-                    return@launch
-                }
-                restoreFromBackupJson(json)
-            } catch (e: Exception) {
-                android.widget.Toast.makeText(context, "导入失败：" + (e.message ?: "无法读取文件"), android.widget.Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    fun toggleHaptic() {
-        val v = !state.value.hapticEnabled
-        taskStateStore?.setHapticEnabled(v)
-        _state.update { it.copy(hapticEnabled = v) }
-    }
-
-    fun toggleDebugLog() {
-        val v = !state.value.debugLogEnabled
-        debugLogStore?.setEnabled(v)
-        _state.update { it.copy(debugLogEnabled = v) }
-        if (v) debugLogStore?.d("VM", "Debug logging enabled")
-    }
-
-    fun toggleBackupPrivacySafe() {
-        debugLogStore?.d("VM", "toggleBackupPrivacySafe")
-        val v = !state.value.backupPrivacySafe
-        taskStateStore?.setBackupPrivacySafe(v)
-        _state.update { it.copy(backupPrivacySafe = v) }
-    }
-
-    fun toggleAutoStartTask() {
-        val v = !state.value.autoStartTaskEnabled
-        taskStateStore?.setAutoStartTaskEnabled(v)
-        _state.update { it.copy(autoStartTaskEnabled = v) }
-        showToast(if (v) "已开启启动自动执行" else "已关闭启动自动执行")
-    }
-
-    fun toggleBackgroundTask() {
-        val v = !state.value.backgroundTaskEnabled
-        taskStateStore?.setBackgroundTaskEnabled(v)
-        _state.update { it.copy(backgroundTaskEnabled = v) }
-        showToast(if (v) "已开启后台刷积分" else "已关闭后台刷积分")
-    }
-
-    fun toggleRandomDelay() {
-        val v = !state.value.randomDelayEnabled
-        taskStateStore?.setRandomDelayEnabled(v)
-        _state.update { it.copy(randomDelayEnabled = v) }
-        showToast(if (v) "已开启随机延迟" else "已关闭随机延迟")
-    }
-
-    fun toggleUsePointsForUnlock() {
-        val v = !state.value.usePointsForUnlock
-        taskStateStore?.setUsePointsForUnlockEnabled(v)
-        _state.update { it.copy(usePointsForUnlock = v) }
-        showToast(if (v) "开水将使用积分抵扣" else "开水不使用积分抵扣")
-    }
-    
-    // ── 定时任务 ──
-    
-    fun toggleScheduleEnabled() {
-        val v = !state.value.scheduleEnabled
-        scheduleStore.setEnabled(v)
-        _state.update { it.copy(scheduleEnabled = v) }
-        if (v) {
-            scheduleWorkManager()
-            showToast("已开启定时任务")
-        } else {
-            cancelWorkManager()
-            showToast("已关闭定时任务")
-        }
-    }
-    
-    fun addScheduleTimeSlot(slot: com.inonvation.lightlife.data.ScheduleStore.TimeSlot) {
-        scheduleStore.addTimeSlot(slot)
-        _state.update { it.copy(scheduleTimeSlots = scheduleStore.getTimeSlots()) }
-    }
-    
-    fun removeScheduleTimeSlot(slot: com.inonvation.lightlife.data.ScheduleStore.TimeSlot) {
-        scheduleStore.removeTimeSlot(slot)
-        _state.update { it.copy(scheduleTimeSlots = scheduleStore.getTimeSlots()) }
-    }
-    
-    fun showScheduleSettings() {
-        _state.update { it.copy(showScheduleSettings = true) }
-    }
-    
-    fun dismissScheduleSettings() {
-        _state.update { it.copy(showScheduleSettings = false) }
-    }
-
-    fun showScheduleInfoDialog() {
-        _state.update { it.copy(showScheduleInfoDialog = true) }
-    }
-
-    fun dismissScheduleInfoDialog() {
-        _state.update { it.copy(showScheduleInfoDialog = false) }
-    }
-    
-    private fun scheduleWorkManager() {
-        val workManager = androidx.work.WorkManager.getInstance(context)
-        val constraints = androidx.work.Constraints.Builder()
-            .setRequiredNetworkType(androidx.work.NetworkType.CONNECTED)
-            .build()
-        
-        val workRequest = androidx.work.PeriodicWorkRequestBuilder<com.inonvation.lightlife.data.ScheduledTaskWorker>(
-            1, java.util.concurrent.TimeUnit.DAYS
-        ).setConstraints(constraints)
-            .setInitialDelay(calculateInitialDelay(), java.util.concurrent.TimeUnit.MILLISECONDS)
-            .build()
-        
-        workManager.enqueueUniquePeriodicWork(
-            com.inonvation.lightlife.data.ScheduledTaskWorker.WORK_NAME,
-            androidx.work.ExistingPeriodicWorkPolicy.KEEP,
-            workRequest
-        )
-    }
-    
-    private fun cancelWorkManager() {
-        val workManager = androidx.work.WorkManager.getInstance(context)
-        workManager.cancelUniqueWork(com.inonvation.lightlife.data.ScheduledTaskWorker.WORK_NAME)
-    }
-    
-    private fun calculateInitialDelay(): Long {
-        val timeSlots = scheduleStore.getTimeSlots()
-        if (timeSlots.isEmpty()) return 60 * 60 * 1000L // 默认1小时
-        
-        val now = java.util.Calendar.getInstance()
-        val currentMinutes = now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
-        
-        // 找到下一个可用的时间段
-        val nextSlot = timeSlots.firstOrNull { it.toStartMinutes() > currentMinutes }
-            ?: timeSlots.first() // 如果没有，使用第一个时间段（明天）
-        
-        val targetMinutes = nextSlot.toStartMinutes()
-        var delayMinutes = targetMinutes - currentMinutes
-        if (delayMinutes <= 0) delayMinutes += 24 * 60 // 跨天
-        
-        return delayMinutes * 60 * 1000L
-    }
-    
-    fun loadScheduleConfig() {
-        _state.update { it.copy(
-            scheduleEnabled = scheduleStore.isEnabled(),
-            scheduleTimeSlots = scheduleStore.getTimeSlots()
-        ) }
-    }
-
-    fun openBatteryOptimizationSettings() {
-        val intent = android.content.Intent(
-            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-        ).apply {
-            data = android.net.Uri.parse("package:${context.packageName}")
-            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        runCatching { context.startActivity(intent) }.onFailure {
-            val fallback = android.content.Intent(
-                android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS
-            ).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK) }
-            runCatching { context.startActivity(fallback) }
-        }
-    }
-
-    fun toggleSimpleMode() {
-        val v = !state.value.simpleModePendingRestart
-        taskStateStore?.setSimpleModeEnabled(v)
-        _state.update { it.copy(simpleModePendingRestart = v) }
-        if (v) showToast("已选择简洁模式，重启 App 后生效")
-        else showToast("已选择完整模式，重启 App 后生效")
-    }
-
-    fun restartApp() {
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-        intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-        android.os.Process.killProcess(android.os.Process.myPid())
-    }
-
-    fun toggleSafeMode() {
-        val v = !state.value.safeModeEnabled
-        taskStateStore?.setSafeModeEnabled(v)
-        _state.update { it.copy(safeModeEnabled = v) }
-        if (v) {
-            // 开启保险模式时停止正在运行的积分任务
-            if (state.value.runningPointsTask) stopPointsTask()
-            showToast("保险模式已开启，积分任务已禁用")
-        } else {
-            showToast("保险模式已关闭")
-        }
-    }
-
-    fun toggleWaterReminder() {
-        val v = !state.value.waterReminderEnabled
-        _state.update { it.copy(waterReminderEnabled = v) }
-        taskStateStore?.setWaterReminderEnabled(v)
-        if (v) {
-            showToast("喝水提醒已开启")
-        } else {
-            // 关闭时切换到首页
-            _state.update { it.copy(currentTab = DeviceTab.Control) }
-            showToast("喝水提醒已关闭")
-        }
-    }
-
-    fun updateThemeMode(mode: ThemeMode) {
-        themePreferences?.setThemeMode(mode)
-        _state.update { it.copy(themeMode = mode) }
-    }
-
-    fun updateColorTheme(theme: ColorTheme) {
-        themePreferences?.setColorTheme(theme)
-        _state.update { it.copy(colorTheme = theme) }
-    }
-
-    fun updateLogStyle(style: LogStyle) {
-        taskStateStore?.setLogStyle(style.name)
-        _state.update { it.copy(logStyle = style) }
-    }
-
-    fun showDebugLogs() {
-        _state.update { it.copy(debugLogs = debugLogStore?.listFiles() ?: emptyList(), showDebugLogs = true) }
-    }
-    fun dismissDebugLogs() { _state.update { it.copy(showDebugLogs = false) } }
-    fun clearDebugLogs() {
-        debugLogStore?.clearAll()
-        _state.update { it.copy(debugLogs = emptyList()) }
-    }
-    fun deleteDebugLog(name: String) {
-        debugLogStore?.deleteFile(name)
-        _state.update { state -> state.copy(debugLogs = state.debugLogs.filter { log -> log.first != name }) }
-    }
-    fun getDebugLogContent(): String = debugLogStore?.getLatestContent() ?: ""
-
-    fun showClearAllLogsConfirm() { _state.update { it.copy(showClearAllLogsConfirm = true) } }
-    fun dismissClearAllLogsConfirm() { _state.update { it.copy(showClearAllLogsConfirm = false) } }
-    fun clearAllLogs() {
-        logStore?.clearAll()
-        taskStateStore?.reset()
-        clearAdVideoState()
-        syncTodayTaskStateFromPrefs()
-        debugLogStore?.clearAll()
-        _state.update { it.copy(archivedLogs = emptyList(), debugLogs = emptyList(), showClearAllLogsConfirm = false) }
-        showToast("所有记录和日志已清除")
-    }
-
-    fun showArchivedLogs() {
-        _state.update { it.copy(archivedLogs = logStore?.listFiles() ?: emptyList(), showArchivedLogs = true) }
-    }
-    fun dismissArchivedLogs() { _state.update { it.copy(showArchivedLogs = false) } }
-    fun clearArchivedLogs() {
-        logStore?.clearAll()
-        taskStateStore?.reset()
-        clearAdVideoState()
-        syncTodayTaskStateFromPrefs()
-        _state.update { it.copy(archivedLogs = emptyList()) }
-    }
-    fun deleteArchivedLog(name: String) {
-        logStore?.deleteFile(name)
-        _state.update { it.copy(archivedLogs = it.archivedLogs.filter { it.first != name }) }
-    }
-
-    fun showCurrentToken() {
-        val token = repository.localToken()?.takeIf { it.isNotBlank() }
-        _state.update { it.copy(tokenDialogText = token ?: "当前未登录，暂无 Token") }
-    }
-    fun dismissCurrentToken() { _state.update { it.copy(tokenDialogText = null) } }
-
-    fun showCurrentDeviceInfo() {
-        val ua = state.value.userAgent
-        _state.update { it.copy(deviceInfoDialogText = ua.ifBlank { "暂无设备信息，请先执行一次任务" }) }
-    }
-    fun dismissCurrentDeviceInfo() { _state.update { it.copy(deviceInfoDialogText = null) } }
-
-    fun showLogoutConfirm() { _state.update { it.copy(showLogoutConfirm = true) } }
-    fun dismissLogoutConfirm() { _state.update { it.copy(showLogoutConfirm = false) } }
-
-    fun showPointsTaskWarning() { _state.update { it.copy(showPointsTaskWarning = true) } }
-    fun dismissPointsTaskWarning() { _state.update { it.copy(showPointsTaskWarning = false) } }
-
-    fun showOrderHistory() {
-        _state.update { it.copy(showOrderHistory = true, orderHistory = repository.orderHistory()) }
-    }
-    fun dismissOrderHistory() { _state.update { it.copy(showOrderHistory = false) } }
-    fun showHistoricalOrder(item: OrderHistoryItem) {
-        _state.update { it.copy(orderDetail = item.toUnlockResult(), showOrderHistory = false) }
-    }
-    fun dismissOrderDetail() { _state.update { it.copy(orderDetail = null) } }
-
+    // ── 统计 ──
     fun refreshTodayWater() {
         val todayStart = with(java.util.Calendar.getInstance()) {
             set(java.util.Calendar.HOUR_OF_DAY, 0)
@@ -858,7 +434,7 @@ class AppViewModel(
             todayWaterCount = count,
             todayWaterAmount = String.format("%.2f", amount),
             totalWaterCount = allOrders.size,
-        )}
+        ) }
     }
 
     fun refreshPointsStats() {
@@ -866,16 +442,62 @@ class AppViewModel(
             _state.update { s -> s.copy(
                 totalPointsDeducted = it.getTotalDeductedAmount(),
                 todayPointsEarned = it.getTodayEarned(),
-            )}
+            ) }
         }
         refreshTodayWater()
     }
+
+    fun showOrderHistory() {
+        _state.update { it.copy(showOrderHistory = true, orderHistory = repository.orderHistory()) }
+    }
+    fun dismissOrderHistory() { _state.update { it.copy(showOrderHistory = false) } }
+    // ── 设置 ──
+    fun showSettings() { _state.update { it.copy(showSettings = true) } }
+    fun dismissSettings() { _state.update { it.copy(showSettings = false) } }
+
+    fun updateThemeMode(mode: ThemeMode) {
+        themePreferences?.setThemeMode(mode)
+        _state.update { it.copy(themeMode = mode) }
+    }
+    fun updateColorTheme(theme: ColorTheme) {
+        themePreferences?.setColorTheme(theme)
+        _state.update { it.copy(colorTheme = theme) }
+    }
+    fun toggleHaptic() {
+        val v = !state.value.hapticEnabled
+        taskStateStore?.setHapticEnabled(v)
+        _state.update { it.copy(hapticEnabled = v) }
+    }
+    fun toggleAutoSignIn() {
+        val v = !state.value.autoSignInEnabled
+        taskStateStore?.setAutoSignInEnabled(v)
+        _state.update { it.copy(autoSignInEnabled = v) }
+    }
+    fun toggleUsePointsForUnlock() {
+        val v = !state.value.usePointsForUnlock
+        taskStateStore?.setUsePointsForUnlockEnabled(v)
+        _state.update { it.copy(usePointsForUnlock = v) }
+        showToast(if (v) "开水将使用积分抵扣" else "开水不使用积分抵扣")
+    }
+
+    fun showCurrentToken() {
+        val token = repository.localToken()?.takeIf { it.isNotBlank() }
+        _state.update { it.copy(tokenDialogText = token ?: "当前未登录，暂无 Token") }
+    }
+    fun dismissCurrentToken() { _state.update { it.copy(tokenDialogText = null) } }
+
+    fun showCurrentDeviceInfo() {
+        _state.update { it.copy(deviceInfoDialogText = ApiConfig.USER_AGENT) }
+    }
+    fun dismissCurrentDeviceInfo() { _state.update { it.copy(deviceInfoDialogText = null) } }
+
+    fun showLogoutConfirm() { _state.update { it.copy(showLogoutConfirm = true) } }
+    fun dismissLogoutConfirm() { _state.update { it.copy(showLogoutConfirm = false) } }
 
     // ── Lifecycle ──
     override fun onCleared() {
         unlockTimerJob?.cancel()
         unlockTimeoutJob?.cancel()
-        pointsController.cleanup()
         super.onCleared()
     }
 }
@@ -886,14 +508,11 @@ class AppViewModelFactory(
     private val appVersion: String = "",
     private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
-    private val logStore: TaskLogStore? = null,
     private val themePreferences: ThemePreferences? = null,
-    private val backupManager: BackupManager? = null,
-    private val debugLogStore: DebugLogStore? = null,
     private val quickLinkStore: QuickLinkStore? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(application, repository, appVersion, pointsStatsStore, taskStateStore, logStore, themePreferences, backupManager, debugLogStore, quickLinkStore) as T
+        return AppViewModel(application, repository, appVersion, pointsStatsStore, taskStateStore, themePreferences, quickLinkStore) as T
     }
 }

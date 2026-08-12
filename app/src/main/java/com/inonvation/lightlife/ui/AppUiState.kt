@@ -7,9 +7,6 @@ import com.inonvation.lightlife.data.QuickLink
 import com.inonvation.lightlife.data.UnlockResult
 import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
-import com.inonvation.lightlife.ui.LogStyle
-
-enum class DeviceTab { Control, Points, Water, Me }
 
 data class DeviceShortcutRequest(
     val goodsId: String?,
@@ -30,35 +27,9 @@ sealed class UnlockFlowState {
     ) : UnlockFlowState()
 }
 
-enum class LogLevel { INFO, SUCCESS, WARN, ERROR }
-
-data class LogEntry(
-    val timestamp: String,
-    val message: String,
-    val level: LogLevel = LogLevel.INFO,
-    val collapsed: Boolean = false,
-    val centered: Boolean = false,
-    val id: Long = logIdCounter.getAndIncrement(),
-) {
-    val color: androidx.compose.ui.graphics.Color
-        get() = when (level) {
-            LogLevel.SUCCESS -> com.inonvation.lightlife.ui.theme.LogColors.success
-            LogLevel.WARN -> com.inonvation.lightlife.ui.theme.LogColors.warn
-            LogLevel.ERROR -> com.inonvation.lightlife.ui.theme.LogColors.error
-            else -> com.inonvation.lightlife.ui.theme.LogColors.info
-        }
-
-    companion object {
-        private val logIdCounter = java.util.concurrent.atomic.AtomicLong(0)
-    }
-}
-
 data class AppUiState(
-    // ── 导航 ──
-    val currentTab: DeviceTab = DeviceTab.Control,
-    val hasToken: Boolean = false,
-
     // ── 登录 ──
+    val hasToken: Boolean = false,
     val phone: String = "",
     val code: String = "",
     val phoneError: String? = null,
@@ -81,28 +52,11 @@ data class AppUiState(
     val unlockStatus: String? = null,
     val unlockFlowState: UnlockFlowState = UnlockFlowState.Idle,
     val unlockElapsedSeconds: Int = 0,
-    val orderDetail: UnlockResult? = null,
     val usePointsForUnlock: Boolean = true,
-
-    // ── 积分任务 ──
-    val runningPointsTask: Boolean = false,
-    val pointsTaskPaused: Boolean = false,
-    val signInDone: Boolean = false,
-    val taskListDone: Boolean = false,
-    val appVideoCount: Int = 0,
-    val alipayVideoCount: Int = 0,
-    val alipayVideoTaskCount: Int = 0,
-    val adTaskCount: Int = 0,
-    val adTaskDone: Boolean = false,
-    val otherTaskDone: Boolean = false,
-    val homePageCount: Int = 0,
-    val homePageDone: Boolean = false,
-    val appVideoDone: Boolean = false,
-    val alipayVideoTaskDone: Boolean = false,
-    val todayAllDone: Boolean = false,
-    val pointsLogs: List<LogEntry> = emptyList(),
+    val unlockFlowHidden: Boolean = false,
 
     // ── 统计 ──
+    val signInDoneToday: Boolean = false,
     val todayWaterCount: Int = 0,
     val todayWaterAmount: String = "0.00",
     val totalWaterCount: Int = 0,
@@ -110,52 +64,25 @@ data class AppUiState(
     val totalPointsDeducted: String = "0.00",
     val orderHistory: List<OrderHistoryItem> = emptyList(),
 
-    // ── 解锁动画控制 ──
-    val unlockFlowHidden: Boolean = false,
-
     // ── 设置 ──
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val colorTheme: ColorTheme = ColorTheme.GREEN,
-    val logStyle: LogStyle = LogStyle.BUBBLE,
     val hapticEnabled: Boolean = true,
-    val backupPrivacySafe: Boolean = true,
-    val simpleModeEnabled: Boolean = false,
-    val simpleModePendingRestart: Boolean = false,  // 用户切换后的目标值，重启生效
-    val safeModeEnabled: Boolean = false,
-    val debugLogEnabled: Boolean = false,
-    val autoStartTaskEnabled: Boolean = false,
-    val backgroundTaskEnabled: Boolean = true,
-    val randomDelayEnabled: Boolean = false,
+    val autoSignInEnabled: Boolean = true,
     val userAgent: String = "",
-    val waterReminderEnabled: Boolean = true,
-    
-    // ── 定时任务 ──
-    val scheduleEnabled: Boolean = false,
-    val scheduleTimeSlots: List<com.inonvation.lightlife.data.ScheduleStore.TimeSlot> = emptyList(),
-    val showScheduleSettings: Boolean = false,
-    val showScheduleInfoDialog: Boolean = false,
-    val showTaskSettings: Boolean = false,
 
-    // ── 弹窗/对话框 ──
-    val showSettings: Boolean = false,
-    val showDataScreen: Boolean = false,
-    val showOrderHistory: Boolean = false,
-    val showLogoutConfirm: Boolean = false,
-    val showBackupTokenExpiredDialog: Boolean = false,
-    val showPointsTaskWarning: Boolean = false,
-    val showClearAllLogsConfirm: Boolean = false,
-    val showArchivedLogs: Boolean = false,
-    val showDebugLogs: Boolean = false,
-    val tokenDialogText: String? = null,
-    val deviceInfoDialogText: String? = null,
-    val archivedLogs: List<Pair<String, String>> = emptyList(),
-    val debugLogs: List<Pair<String, String>> = emptyList(),
-
-    // ── 全局 ──
-    val appVersion: String = "",
-
-    // ── 快捷链接 ──
+    // ── 快捷方式 ──
     val quickLinks: List<QuickLink> = emptyList(),
     val quickLinksEnabled: Boolean = true,
     val showQuickLinksSettings: Boolean = false,
+
+    // ── 弹窗/对话框 ──
+    val showSettings: Boolean = false,
+    val showOrderHistory: Boolean = false,
+    val showLogoutConfirm: Boolean = false,
+    val tokenDialogText: String? = null,
+    val deviceInfoDialogText: String? = null,
+
+    // ── 全局 ──
+    val appVersion: String = "",
 )

@@ -1,12 +1,9 @@
 ﻿package com.inonvation.lightlife.ui.screen
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -21,26 +18,30 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -49,35 +50,38 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.data.DeviceItem
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
-import com.inonvation.lightlife.ui.LogStyle
 import com.inonvation.lightlife.ui.UnlockFlowState
-import com.inonvation.lightlife.ui.theme.ComponentHeights
-import com.inonvation.lightlife.ui.theme.CardShapes
+import com.inonvation.lightlife.ui.pinDeviceShortcut
 import com.inonvation.lightlife.ui.theme.AppColors
-import com.inonvation.lightlife.ui.theme.LogColors
+import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 
+/**
+ * 最终版单页主界面：登录 / 统计 / 快捷方式 / 开水 / 签到 自上而下排列。
+ */
 @Composable
-fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
+fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit)? = null) {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var selectedDevice: DeviceItem? by remember { mutableStateOf(state.devices.firstOrNull()) }
+    var showDetailDialog by remember { mutableStateOf(false) }
+    val successResult = (state.unlockFlowState as? UnlockFlowState.Success)?.result
+    val failedState = state.unlockFlowState as? UnlockFlowState.Failed
 
-    // 设备列表变化时更新默认选中
     LaunchedEffect(state.devices) {
         if (selectedDevice == null || state.devices.none { it.id == selectedDevice!!.id }) {
             selectedDevice = state.devices.firstOrNull()
@@ -85,6 +89,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
     }
 
     val pullRefreshState = rememberPullToRefreshState()
+    val isRefreshing = state.loadingBalance || state.loadingDevices
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -107,7 +112,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
         }
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = state.loadingBalance || state.loadingDevices,
+            isRefreshing = isRefreshing,
             onRefresh = {
                 if (state.hasToken) {
                     vm.refreshDevices()
@@ -119,395 +124,429 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel) {
             indicator = {
                 PullToRefreshDefaults.Indicator(
                     modifier = Modifier.align(Alignment.TopCenter),
-                    isRefreshing = state.loadingBalance || state.loadingDevices,
+                    isRefreshing = isRefreshing,
                     state = pullRefreshState,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
         ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(Spacings.md)
-        ) {
-            if (!state.hasToken) {
-                item {
-                    Spacer(Modifier.height(Spacings.sm))
-                    val scope = rememberCoroutineScope()
-                    val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
-                        contract = androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
-                    ) { uri: android.net.Uri? ->
-                        if (uri != null) {
-                            vm.performImportBackup(ctx, uri, scope)
-                        }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacings.md)
+            ) {
+                if (!state.hasToken) {
+                    item {
+                        Spacer(Modifier.height(Spacings.sm))
+                        LoginCard(
+                            state = state,
+                            onUpdatePhone = { vm.updatePhone(it) },
+                            onUpdateCode = { vm.updateCode(it) },
+                            onSendCode = { vm.sendCode() },
+                            onLogin = { vm.login() },
+                            onToggleTokenLogin = { vm.toggleTokenLogin() },
+                            onUpdateTokenLoginInput = { vm.updateTokenLoginInput(it) },
+                            onToggleTokenLoginVisibility = { vm.toggleTokenLoginVisibility() },
+                            onLoginWithToken = { vm.loginWithToken() },
+                            haptic = haptic,
+                        )
                     }
-                    LoginCard(
+                    return@LazyColumn
+                }
+
+                // 账号卡片
+                item { AccountCard(state, vm, haptic) }
+
+                // 统计卡片
+                item { StatsCard(state, vm, haptic) }
+
+                // 快捷方式区
+                item { QuickLinksSection(state, vm, onPickIcon, cardVisible = true, haptic = haptic, context = ctx) }
+
+                // 开水区
+                item {
+                    WaterCard(
                         state = state,
-                        onUpdatePhone = { vm.updatePhone(it) },
-                        onUpdateCode = { vm.updateCode(it) },
-                        onSendCode = { vm.sendCode() },
-                        onLogin = { vm.login() },
-                        onImportBackup = { backupLauncher.launch(arrayOf("application/json", "application/octet-stream")) },
-                        onToggleTokenLogin = { vm.toggleTokenLogin() },
-                        onUpdateTokenLoginInput = { vm.updateTokenLoginInput(it) },
-                        onToggleTokenLoginVisibility = { vm.toggleTokenLoginVisibility() },
-                        onLoginWithToken = { vm.loginWithToken() },
+                        vm = vm,
+                        selectedDevice = selectedDevice,
+                        onSelectDevice = { selectedDevice = it },
+                        onShowDetail = { showDetailDialog = true },
                         haptic = haptic,
+                        context = ctx,
                     )
                 }
-                return@LazyColumn
-            }
 
-            // === 余额卡片 ===
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("积分余额", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            IconButton(onClick = { vm.refreshBalance() }) {
-                                Icon(Icons.Outlined.Refresh, contentDescription = "刷新余额", modifier = Modifier.size(20.dp))
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("当前积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                RollingDigits(
-                                    text = state.balance?.pointsText ?: "-",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("可抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                RollingDigits(
-                                    text = state.balance?.integralAmount?.let { "¥$it" } ?: "-",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("剩余小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                RollingDigits(
-                                    text = state.balance?.ticketText?.let { "¥$it" } ?: "-",
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+                // 签到区
+                item { SignInCard(state, vm, haptic) }
 
-            // === 开水区域 ===
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = CardShapes.cardCorner,
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("开水", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(4.dp))
-
-                        // 设备选择
-                        if (state.devices.isEmpty()) {
-                            Text(
-                                "暂无设备，请先刷新",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedButton(onClick = { vm.refreshDevices() }, shape = RoundedCornerShape(8.dp)) {
-                                Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(4.dp))
-                                Text("刷新设备")
-                            }
-                        } else {
-                            // 设备列表
-                            state.devices.forEach { device ->
-                                val isSelected = device.id == selectedDevice?.id
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { selectedDevice = device }
-                                        .padding(vertical = 6.dp, horizontal = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Outlined.Devices, contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            if (device.goodsName.isNotBlank()) device.goodsName else "未知设备",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    if (isSelected) {
-                                        Text(
-                                            "✓", color = MaterialTheme.colorScheme.primary,
-                                            style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        // 积分抵扣开关
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("使用积分抵扣", style = MaterialTheme.typography.bodyMedium)
-                                Text("关闭后开水将不消耗积分", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Switch(
-                                checked = state.usePointsForUnlock,
-                                onCheckedChange = {
-                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    vm.toggleUsePointsForUnlock()
-                                },
-                                colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
-                            )
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                val device = selectedDevice
-                                if (device != null) vm.unlock(device)
-                                else android.widget.Toast.makeText(ctx, "请先选择设备", android.widget.Toast.LENGTH_SHORT).show()
-                            },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            enabled = state.hasToken && !state.unlocking && selectedDevice != null
-                        ) {
-                            Text(
-                                if (state.unlocking) "正在开水…" else "开水",
-                                style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold
-                            )
-                        }
-
-                        // 开水流状态
-                        if (state.unlockFlowState !is UnlockFlowState.Idle) {
-                            Spacer(Modifier.height(8.dp))
-                            when (val flow = state.unlockFlowState) {
-                                is UnlockFlowState.PreChecking -> {
-                                    Text(
-                                        "正在准备…", style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                is UnlockFlowState.Working -> {
-                                    Text(
-                                        flow.step, style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    flow.step.let {
-                                        if (it.contains("设备工作") || it.contains("等待完成")) {
-                                            Text(
-                                                "已用时 ${state.unlockElapsedSeconds}秒",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                }
-                                is UnlockFlowState.Success -> {
-                                    Text(
-                                        "开水成功！", style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    flow.result.integralCost.let { cost ->
-                                        if (cost != "-") {
-                                            Text(
-                                                "消耗积分：$cost",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                    Spacer(Modifier.height(6.dp))
-                                    OutlinedButton(
-                                        onClick = { vm.dismissUnlockFlow() },
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) { Text("关闭") }
-                                }
-                                is UnlockFlowState.Failed -> {
-                                    Text(
-                                        "开水失败", style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                    Text(
-                                        flow.message, style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    if (flow.step != "未知") {
-                                        Text(
-                                            "失败步骤：${flow.step}", style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    if (flow.suggestions.isNotEmpty()) {
-                                        Spacer(Modifier.height(4.dp))
-                                        flow.suggestions.forEach { suggestion ->
-                                            Text(
-                                                "• $suggestion", style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                    Spacer(Modifier.height(6.dp))
-                                    OutlinedButton(
-                                        onClick = { vm.dismissUnlockFlow() },
-                                        shape = RoundedCornerShape(8.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) { Text("关闭") }
-                                }
-                                else -> {}
-                            }
-                        }
-                    }
-                }
-            }
-
-            // === 刷积分区域 ===
-            if (state.safeModeEnabled) {
                 item {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(tween(400)) + slideInVertically(tween(400), initialOffsetY = { it / 4 })
-                    ) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = CardShapes.cardCorner,
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Spacer(Modifier.height(24.dp))
-                                Text(
-                                    "🔒 保险模式已开启",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    "如需刷积分请到设置中关闭此模式",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(Modifier.height(24.dp))
-                            }
-                        }
+                    Text(
+                        text = "LightLife v${state.appVersion}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(top = Spacings.xl),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+    }
+
+    // 开水成功/失败详情弹窗
+    if (successResult != null && showDetailDialog) {
+        AlertDialog(
+            onDismissRequest = { showDetailDialog = false },
+            title = { Text("开水成功", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column {
+                    DetailRow("订单原价", "¥${successResult.originPrice}")
+                    DetailRow("花费小票", successResult.ticketCost)
+                    if (successResult.integralCost != "-") DetailRow("积分抵扣", successResult.integralCost)
+                    successResult.otherPromotions.forEach { p ->
+                        DetailRow("其他优惠", p.discountAmount ?: "-")
                     }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    DetailRow("订单号", successResult.orderNo)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailDialog = false; vm.dismissUnlockFlow() }) {
+                    Text("关闭")
+                }
+            },
+        )
+    }
+    if (failedState != null && showDetailDialog) {
+        AlertDialog(
+            onDismissRequest = { showDetailDialog = false },
+            title = { Text("开水失败", fontWeight = FontWeight.SemiBold) },
+            text = {
+                Column {
+                    Text(failedState.message, style = MaterialTheme.typography.bodyMedium)
+                    if (failedState.step != "未知") {
+                        Text("失败步骤：${failedState.step}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    failedState.suggestions.forEach { s ->
+                        Text("• $s", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDetailDialog = false; vm.dismissUnlockFlow() }) {
+                    Text("关闭")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun AccountCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
+    androidx.compose.material3.Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShapes.cardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacings.lg, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.Person, contentDescription = "账号", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+            Spacer(Modifier.width(Spacings.md))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("已登录", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+                Text(
+                    state.phone.ifBlank { "账号已登录" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = {
+                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                vm.showLogoutConfirm()
+            }) {
+                Text("退出登录", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShapes.cardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(Spacings.lg)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("积分余额", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                IconButton(onClick = { vm.refreshBalance() }) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = "刷新余额", modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("当前积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    RollingDigits(
+                        text = state.balance?.pointsText ?: "-",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("可抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    RollingDigits(
+                        text = state.balance?.integralAmount?.let { "¥$it" } ?: "-",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("剩余小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    RollingDigits(
+                        text = state.balance?.ticketText?.let { "¥$it" } ?: "-",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            HorizontalDivider()
+            Spacer(Modifier.height(Spacings.md))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Column {
+                    Text("累计开水", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${state.totalWaterCount} 次", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Column {
+                    Text("今日开水", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${state.todayWaterCount} 次", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+                Column {
+                    Text("累计白嫖金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("¥${state.totalPointsDeducted}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Spacer(Modifier.height(Spacings.sm))
+            HorizontalDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth().combinedClickable(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.showOrderHistory()
+                    }
+                ).padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.Receipt, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.width(Spacings.sm))
+                Text("订单记录", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(
+                    if (state.orderHistory.isEmpty()) "暂无订单" else "共 ${state.orderHistory.size} 笔",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WaterCard(
+    state: AppUiState,
+    vm: AppViewModel,
+    selectedDevice: DeviceItem?,
+    onSelectDevice: (DeviceItem) -> Unit,
+    onShowDetail: () -> Unit,
+    haptic: HapticFeedback,
+    context: android.content.Context,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShapes.cardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(Spacings.lg)) {
+            Text("开水", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(4.dp))
+
+            if (state.devices.isEmpty()) {
+                Text("暂无设备，请先刷新", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { vm.refreshDevices() }, shape = RoundedCornerShape(8.dp)) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("刷新设备")
                 }
             } else {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = CardShapes.cardCorner,
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("积分任务", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            // 执行日志区域
-                            LogPanel(
-                                logStyle = LogStyle.TERMINAL,
-                                logs = state.pointsLogs,
-                                onClear = { vm.clearPointsLogs() },
-                                modifier = Modifier.fillMaxWidth(),
-                                contentHeight = 180.dp,
+                state.devices.forEach { device ->
+                    val isSelected = device.id == selectedDevice?.id
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = { onSelectDevice(device) },
+                                onLongClick = {
+                                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    pinDeviceShortcut(context, device)
+                                }
                             )
-
-                            Spacer(Modifier.height(10.dp))
-
-                            // 控制按钮
-                            if (state.runningPointsTask) {
-                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Button(
-                                        onClick = {
-                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            if (state.pointsTaskPaused) vm.resumePointsTask() else vm.pausePointsTask()
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (state.pointsTaskPaused) AppColors.resume else AppColors.pause,
-                                            contentColor = AppColors.white,
-                                        )
-                                    ) { Text(if (state.pointsTaskPaused) "继续" else "暂停") }
-                                    OutlinedButton(
-                                        onClick = {
-                                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            vm.stopPointsTask()
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) { Text("停止") }
-                                }
-                            } else {
-                                Button(
-                                    onClick = {
-                                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        val ua = android.webkit.WebSettings.getDefaultUserAgent(ctx)
-                                        vm.startPointsTask(ua)
-                                    },
-                                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.secondary,
-                                        contentColor = MaterialTheme.colorScheme.onSecondary
-                                    )
-                                ) {
-                                    Text("开始执行自动化任务", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Outlined.Devices,
+                            contentDescription = null,
+                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            device.goodsName.ifBlank { "未命名设备" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isSelected) {
+                            Icon(Icons.Filled.CheckCircle, contentDescription = "已选择", tint = AppColors.runningIndicator, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
             }
 
-            item { Spacer(Modifier.height(Spacings.xxl)) }
+            Spacer(Modifier.height(Spacings.sm))
+            HorizontalDivider()
+            Spacer(Modifier.height(Spacings.sm))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("使用积分抵扣", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text("关闭后开水将不消耗积分", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(
+                    checked = state.usePointsForUnlock,
+                    onCheckedChange = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.toggleUsePointsForUnlock()
+                    },
+                    colors = SwitchDefaults.colors(checkedTrackColor = MaterialTheme.colorScheme.primary)
+                )
+            }
+
+            Spacer(Modifier.height(Spacings.md))
+
+            Button(
+                onClick = {
+                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    val device = selectedDevice
+                    if (device != null) vm.unlock(device)
+                },
+                enabled = selectedDevice != null && !state.unlocking,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                if (state.unlocking) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(Spacings.sm))
+                }
+                Text(if (state.unlocking) "开水进行中…" else "开水", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            }
+
+            // 解锁流程内联状态
+            if (state.unlockFlowState !is UnlockFlowState.Idle) {
+                Spacer(Modifier.height(Spacings.sm))
+                InlineUnlockStatus(
+                    flowState = state.unlockFlowState,
+                    elapsedSeconds = state.unlockElapsedSeconds,
+                    onShowDetail = onShowDetail,
+                )
+            }
         }
-        } // PullToRefreshBox
+    }
+}
+
+@Composable
+private fun SignInCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShapes.cardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(modifier = Modifier.padding(Spacings.lg)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("每日签到", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (state.signInDoneToday) "今日已签到" else "今日还未签到",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (state.signInDoneToday) AppColors.runningIndicator else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (state.signInDoneToday) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = "已签到", tint = AppColors.runningIndicator, modifier = Modifier.size(22.dp))
+                }
+            }
+            Spacer(Modifier.height(Spacings.md))
+            Button(
+                onClick = {
+                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    vm.signInNow()
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(if (state.signInDoneToday) "已签到" else "立即签到", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(Spacings.sm))
+            Text(
+                "打开 App 时也会自动签到，可在设置中关闭",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    Row(modifier = Modifier.padding(vertical = 1.dp), verticalAlignment = Alignment.Top) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.width(64.dp)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
