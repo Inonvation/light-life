@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.inonvation.lightlife.data.UnlockResult
+import com.inonvation.lightlife.data.calculateActualCost
 import com.inonvation.lightlife.ui.UnlockFlowState
 import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
@@ -177,15 +178,6 @@ private fun InlineSuccessPriceRow(label: String, value: String) {
     }
 }
 
-private fun calculateActualCost(result: UnlockResult): String {
-    val origin = result.originPrice.toDoubleOrNull()
-    if (origin == null) return result.originPrice
-    val integral = result.integralCost.toDoubleOrNull() ?: 0.0
-    val ticket = result.ticketCost.toDoubleOrNull() ?: 0.0
-    val other = result.otherPromotions.mapNotNull { it.discountAmount?.toDoubleOrNull() }.sum()
-    val cost = (origin - integral - ticket - other).coerceAtLeast(0.0)
-    return "%.2f".format(cost)
-}
 
 @Composable
 internal fun InlineFailed(message: String, onShowDetail: () -> Unit) {
