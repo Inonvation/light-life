@@ -57,11 +57,8 @@ data class AppUiState(
 
     // ── 统计 ──
     val signInDoneToday: Boolean = false,
-    val todayWaterCount: Int = 0,
-    val todayWaterAmount: String = "0.00",
+    val signingIn: Boolean = false,
     val totalWaterCount: Int = 0,
-    val todayPointsEarned: Int = 0,
-    val totalPointsDeducted: String = "0.00",
     val orderHistory: List<OrderHistoryItem> = emptyList(),
 
     // ── 设置 ──

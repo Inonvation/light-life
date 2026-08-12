@@ -283,6 +283,7 @@ fun ClickableRow(
     modifier: Modifier = Modifier,
     hapticEnabled: Boolean = true,
     haptic: HapticFeedback = LocalHapticFeedback.current,
+    titleColor: Color = Color.Unspecified,
 ) {
     Row(
         modifier = modifier
@@ -298,7 +299,8 @@ fun ClickableRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = titleColor
             )
             Text(
                 text = subtitle,
@@ -337,7 +339,7 @@ fun SettingSwitchRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
             )
             Text(
                 text = subtitle,

@@ -1,7 +1,6 @@
 ﻿package com.inonvation.lightlife.ui.auth
 
 import com.inonvation.lightlife.data.AppRepository
-import com.inonvation.lightlife.data.PointsStatsStore
 import com.inonvation.lightlife.data.PointsTaskStateStore
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.UnlockFlowState
@@ -16,7 +15,6 @@ class AuthController(
     private val scope: CoroutineScope,
     private val repository: AppRepository,
     private val taskStateStore: PointsTaskStateStore?,
-    private val pointsStatsStore: PointsStatsStore?,
     private val onAuthSuccess: () -> Unit,
     private val showToast: (String) -> Unit,
     private val showError: (String) -> Unit,
@@ -120,7 +118,6 @@ class AuthController(
     fun logout() {
         repository.clearToken()
         repository.savePhone("")
-        pointsStatsStore?.clearAll()
         repository.clearOrderHistory()
         taskStateStore?.reset()
         updateState {
@@ -132,10 +129,6 @@ class AuthController(
                 devices = emptyList(),
                 orderHistory = emptyList(),
                 totalWaterCount = 0,
-                todayWaterCount = 0,
-                todayWaterAmount = "0.00",
-                todayPointsEarned = 0,
-                totalPointsDeducted = "0.00",
                 unlockFlowState = UnlockFlowState.Idle,
                 unlockStatus = null,
                 unlockingDeviceId = null,

@@ -8,6 +8,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,7 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.inonvation.lightlife.data.AppRepository
 import com.inonvation.lightlife.data.OrderHistoryStore
-import com.inonvation.lightlife.data.PointsStatsStore
 import com.inonvation.lightlife.data.PointsTaskStateStore
 import com.inonvation.lightlife.data.QuickLinkStore
 import com.inonvation.lightlife.data.TokenStore
@@ -53,7 +55,6 @@ class MainActivity : ComponentActivity() {
             tokenStore = TokenStore(applicationContext),
             orderHistoryStore = OrderHistoryStore(applicationContext),
         )
-        val statsStore = PointsStatsStore(applicationContext)
         val taskStateStore = PointsTaskStateStore(applicationContext)
         val themePrefs = ThemePreferences(applicationContext)
         val quickLinkStore = QuickLinkStore(applicationContext)
@@ -63,7 +64,6 @@ class MainActivity : ComponentActivity() {
                     application = application,
                     repository = repository,
                     appVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "unknown",
-                    pointsStatsStore = statsStore,
                     taskStateStore = taskStateStore,
                     themePreferences = themePrefs,
                     quickLinkStore = quickLinkStore,
@@ -161,10 +161,18 @@ private fun AppRoot(vm: AppViewModel) {
     }
 
     // 全屏设置页
-    if (state.showSettings) {
+    AnimatedVisibility(
+        visible = state.showSettings,
+        enter = slideInHorizontally { it },
+        exit = slideOutHorizontally { it },
+    ) {
         SettingsScreen(state = state, vm = vm)
     }
-    if (state.showQuickLinksSettings) {
+    AnimatedVisibility(
+        visible = state.showQuickLinksSettings,
+        enter = slideInHorizontally { it },
+        exit = slideOutHorizontally { it },
+    ) {
         QuickLinksSettingsScreen(state = state, vm = vm)
     }
 

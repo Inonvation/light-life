@@ -9,7 +9,6 @@ import com.inonvation.lightlife.data.ApiConfig
 import com.inonvation.lightlife.data.AppRepository
 import com.inonvation.lightlife.data.DEFAULT_QUICK_LINKS
 import com.inonvation.lightlife.data.DeviceItem
-import com.inonvation.lightlife.data.PointsStatsStore
 import com.inonvation.lightlife.data.PointsTaskStateStore
 import com.inonvation.lightlife.data.QuickLinkStore
 import com.inonvation.lightlife.data.SignInRunner
@@ -39,7 +38,6 @@ class AppViewModel(
     application: Application,
     private val repository: AppRepository,
     private val appVersion: String = "",
-    private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
     private val themePreferences: ThemePreferences? = null,
     private val quickLinkStore: QuickLinkStore? = null,
@@ -92,12 +90,10 @@ class AppViewModel(
             scope = viewModelScope,
             repository = repository,
             taskStateStore = taskStateStore,
-            pointsStatsStore = pointsStatsStore,
             onAuthSuccess = {
                 refreshBalance()
                 refreshDevices()
                 refreshTodayWater()
-                refreshPointsStats()
             },
             showToast = ::showToast,
             showError = ::showError,
@@ -125,12 +121,6 @@ class AppViewModel(
                 colorTheme = it.getColorTheme(),
             ) }
         }
-        pointsStatsStore?.let {
-            _state.update { s -> s.copy(
-                totalPointsDeducted = it.getTotalDeductedAmount(),
-                todayPointsEarned = it.getTodayEarned(),
-            ) }
-        }
         quickLinkStore?.let {
             _state.update { s -> s.copy(quickLinks = it.getLinks(), quickLinksEnabled = it.isEnabled()) }
         }
@@ -139,7 +129,6 @@ class AppViewModel(
             refreshDevices()
             refreshBalance()
             refreshTodayWater()
-            refreshPointsStats()
         }
         // 打开 App 时自动签到
         autoSignInOnLaunch()
@@ -169,14 +158,16 @@ class AppViewModel(
             showError("请先登录")
             return@launch
         }
+        if (state.value.signingIn) return@launch
+        _state.update { it.copy(signingIn = true) }
         runCatching {
             signInRunner.signIn(ApiConfig.USER_AGENT)
         }.onSuccess { result ->
-            _state.update { it.copy(signInDoneToday = true) }
+            _state.update { it.copy(signInDoneToday = true, signingIn = false) }
             showToast(result.message)
             refreshBalance()
-            refreshPointsStats()
         }.onFailure { e ->
+            _state.update { it.copy(signingIn = false) }
             if (e is TokenExpiredException) {
                 authController.handleTokenExpired()
             } else {
@@ -277,7 +268,6 @@ class AppViewModel(
                 unlockTimerJob?.cancel()
                 unlockTimeoutJob?.cancel()
                 _state.update { it.copy(unlocking = false, unlockStatus = null, unlockFlowState = UnlockFlowState.Success(result), unlockElapsedSeconds = 0, unlockFlowHidden = false, orderHistory = repository.orderHistory()) }
-                if (result.integralCost != "-") { pointsStatsStore?.addDeducted(result.integralCost); refreshPointsStats() }
                 refreshBalance()
             }.onFailure { e ->
                 unlockTimerJob?.cancel()
@@ -413,38 +403,9 @@ class AppViewModel(
         }
         showToast("图标已移除")
     }
-
     // ── 统计 ──
     fun refreshTodayWater() {
-        val todayStart = with(java.util.Calendar.getInstance()) {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-            timeInMillis
-        }
-        val allOrders = repository.orderHistory()
-        val todayOrders = allOrders.filter { it.completedAt >= todayStart }
-        val count = todayOrders.size
-        val amount = todayOrders.mapNotNull { item ->
-            val raw = item.integralCost.filter { it.isDigit() || it == '.' || it == '-' }
-            raw.toDoubleOrNull()
-        }.sum()
-        _state.update { it.copy(
-            todayWaterCount = count,
-            todayWaterAmount = String.format("%.2f", amount),
-            totalWaterCount = allOrders.size,
-        ) }
-    }
-
-    fun refreshPointsStats() {
-        pointsStatsStore?.let {
-            _state.update { s -> s.copy(
-                totalPointsDeducted = it.getTotalDeductedAmount(),
-                todayPointsEarned = it.getTodayEarned(),
-            ) }
-        }
-        refreshTodayWater()
+        _state.update { it.copy(totalWaterCount = repository.orderHistory().size) }
     }
 
     fun showOrderHistory() {
@@ -506,13 +467,12 @@ class AppViewModelFactory(
     private val application: Application,
     private val repository: AppRepository,
     private val appVersion: String = "",
-    private val pointsStatsStore: PointsStatsStore? = null,
     private val taskStateStore: PointsTaskStateStore? = null,
     private val themePreferences: ThemePreferences? = null,
     private val quickLinkStore: QuickLinkStore? = null,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(application, repository, appVersion, pointsStatsStore, taskStateStore, themePreferences, quickLinkStore) as T
+        return AppViewModel(application, repository, appVersion, taskStateStore, themePreferences, quickLinkStore) as T
     }
 }

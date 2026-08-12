@@ -22,13 +22,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Devices
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -71,7 +73,7 @@ import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
 
 /**
- * 最终版单页主界面：登录 / 统计 / 快捷方式 / 开水 / 签到 自上而下排列。
+ * 最终版单页主界面：统计 / 快捷方式 / 开水 / 签到 自上而下排列。
  */
 @Composable
 fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit)? = null) {
@@ -100,11 +102,18 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
                     .padding(WindowInsets.statusBars.asPaddingValues())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("LightLife", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                Column {
+                    Text("LightLife", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (state.hasToken) "已登录" else "未登录",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 IconButton(onClick = { vm.showSettings() }) {
                     Icon(Icons.Outlined.Settings, contentDescription = "设置")
                 }
@@ -133,7 +142,7 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                contentPadding = PaddingValues(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(Spacings.md)
             ) {
                 if (!state.hasToken) {
@@ -155,14 +164,14 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit
                     return@LazyColumn
                 }
 
-                // 账号卡片
-                item { AccountCard(state, vm, haptic) }
-
-                // 统计卡片
+                // 积分余额卡
                 item { StatsCard(state, vm, haptic) }
 
                 // 快捷方式区
-                item { QuickLinksSection(state, vm, onPickIcon, cardVisible = true, haptic = haptic, context = ctx) }
+                // 快捷方式区（设置中可关闭）
+                if (state.quickLinksEnabled) {
+                    item { QuickLinksSection(state, vm, onPickIcon, cardVisible = true, haptic = haptic, context = ctx) }
+                }
 
                 // 开水区
                 item {
@@ -242,43 +251,6 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit
 }
 
 @Composable
-private fun AccountCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
-    androidx.compose.material3.Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacings.lg, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.Person, contentDescription = "账号", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-            Spacer(Modifier.width(Spacings.md))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("已登录", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Text(
-                    state.phone.ifBlank { "账号已登录" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            TextButton(onClick = {
-                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                vm.showLogoutConfirm()
-            }) {
-                Text("退出登录", color = MaterialTheme.colorScheme.error)
-            }
-        }
-    }
-}
-
-@Composable
 private fun StatsCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -292,79 +264,68 @@ private fun StatsCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedbac
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("积分余额", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Column {
+                    Text("积分余额", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text("点击刷新获取最新数据", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 IconButton(onClick = { vm.refreshBalance() }) {
                     Icon(Icons.Outlined.Refresh, contentDescription = "刷新余额", modifier = Modifier.size(20.dp))
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(Spacings.md))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("当前积分", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    RollingDigits(
-                        text = state.balance?.pointsText ?: "-",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("可抵扣金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    RollingDigits(
-                        text = state.balance?.integralAmount?.let { "¥$it" } ?: "-",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("剩余小票", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    RollingDigits(
-                        text = state.balance?.ticketText?.let { "¥$it" } ?: "-",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                StatColumn("当前积分", state.balance?.pointsText ?: "-")
+                StatColumn("可抵扣金额", state.balance?.integralAmount?.let { "¥$it" } ?: "-")
+                StatColumn("剩余小票", state.balance?.ticketText?.let { "¥$it" } ?: "-")
             }
             Spacer(Modifier.height(Spacings.md))
-            HorizontalDivider()
-            Spacer(Modifier.height(Spacings.md))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Column {
-                    Text("累计开水", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${state.totalWaterCount} 次", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                }
-                Column {
-                    Text("今日开水", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("${state.todayWaterCount} 次", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                }
-                Column {
-                    Text("累计白嫖金额", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("¥${state.totalPointsDeducted}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                }
-            }
-            Spacer(Modifier.height(Spacings.sm))
             HorizontalDivider()
             Row(
-                modifier = Modifier.fillMaxWidth().combinedClickable(
-                    onClick = {
-                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.showOrderHistory()
-                    }
-                ).padding(vertical = 10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = {
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            vm.showOrderHistory()
+                        }
+                    )
+                    .padding(top = Spacings.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Outlined.Receipt, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.width(Spacings.sm))
-                Text("订单记录", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                Text(
+                    "累计开水 ${state.totalWaterCount} 次",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
                 Text(
                     if (state.orderHistory.isEmpty()) "暂无订单" else "共 ${state.orderHistory.size} 笔",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    Icons.Outlined.ChevronRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun StatColumn(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(4.dp))
+        RollingDigits(
+            text = value,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }
 
@@ -426,6 +387,21 @@ private fun WaterCard(
                         )
                         if (isSelected) {
                             Icon(Icons.Filled.CheckCircle, contentDescription = "已选择", tint = AppColors.runningIndicator, modifier = Modifier.size(18.dp))
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        IconButton(
+                            onClick = {
+                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                pinDeviceShortcut(context, device)
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Add,
+                                contentDescription = "添加到桌面",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                 }
@@ -494,41 +470,53 @@ private fun SignInCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedba
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(Spacings.lg)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacings.lg, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(CircleShape).background(
+                    if (state.signInDoneToday) AppColors.runningIndicator.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.secondaryContainer
+                ),
+                contentAlignment = Alignment.Center
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("每日签到", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                    Text(
-                        if (state.signInDoneToday) "今日已签到" else "今日还未签到",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (state.signInDoneToday) AppColors.runningIndicator else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                if (state.signInDoneToday) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = "已签到", tint = AppColors.runningIndicator, modifier = Modifier.size(22.dp))
-                }
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = if (state.signInDoneToday) AppColors.runningIndicator else MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(20.dp)
+                )
             }
-            Spacer(Modifier.height(Spacings.md))
+            Spacer(Modifier.width(Spacings.md))
+            Column(modifier = Modifier.weight(1f)) {
+                Text("每日签到", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    if (state.signInDoneToday) "今日已签到" else "今日还未签到",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (state.signInDoneToday) AppColors.runningIndicator else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Button(
                 onClick = {
                     if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     vm.signInNow()
                 },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(10.dp)
+                enabled = !state.signInDoneToday && !state.signingIn,
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (state.signInDoneToday) MaterialTheme.colorScheme.surfaceVariant
+                        else MaterialTheme.colorScheme.primary,
+                    contentColor = if (state.signInDoneToday) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text(if (state.signInDoneToday) "已签到" else "立即签到", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                if (state.signingIn) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(if (state.signingIn) "签到中…" else if (state.signInDoneToday) "已签到" else "立即签到")
             }
-            Spacer(Modifier.height(Spacings.sm))
-            Text(
-                "打开 App 时也会自动签到，可在设置中关闭",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -172,9 +173,19 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             Spacer(Modifier.height(Spacings.sm))
             StandardCard {
                 Column {
+                    SettingSwitchRow(
+                        title = "显示首页快捷方式",
+                        subtitle = "在主界面显示快捷链接卡片",
+                        checked = state.quickLinksEnabled,
+                        onCheckedChange = { vm.toggleQuickLinksEnabled() },
+                        hapticEnabled = state.hapticEnabled,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
                     ClickableRow(
-                        title = "首页快捷方式",
-                        subtitle = "管理快捷链接，可添加桌面快捷方式",
+                        title = "管理快捷链接",
+                        subtitle = "编辑链接、图标与桌面快捷方式",
                         onClick = { vm.showQuickLinksSettings() },
                         hapticEnabled = state.hapticEnabled,
                     )
@@ -188,6 +199,21 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             Spacer(Modifier.height(Spacings.sm))
             StandardCard {
                 Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("登录账号", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.weight(1f))
+                        Text(
+                            state.phone.ifBlank { "未登录" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
                     ClickableRow(
                         title = "我的 Token",
                         subtitle = "查看当前登录凭证，可用于调试",
@@ -211,6 +237,7 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                         subtitle = "清除本地登录状态",
                         onClick = { vm.showLogoutConfirm() },
                         hapticEnabled = state.hapticEnabled,
+                        titleColor = MaterialTheme.colorScheme.error,
                     )
                 }
             }

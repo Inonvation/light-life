@@ -80,7 +80,7 @@ import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.pinQuickLinkShortcut
 import com.inonvation.lightlife.ui.theme.CardShapes
 
-// ?? ????????? ControlScreen ???????? ??
+// 首页快捷方式区（自 ControlScreen 迁出）
 
 @Composable
 private fun SortableQuickLinkCard(
@@ -156,12 +156,12 @@ private fun SortableQuickLinkCard(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                    .padding(horizontal = 4.dp, vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
                         .background(
                             if (hasLink) MaterialTheme.colorScheme.primaryContainer
@@ -183,16 +183,16 @@ private fun SortableQuickLinkCard(
                             Image(
                                 bitmap = iconBitmap,
                                 contentDescription = name,
-                                modifier = Modifier.size(24.dp).clip(CircleShape),
+                                modifier = Modifier.size(28.dp).clip(CircleShape),
                                 contentScale = ContentScale.Crop,
                             )
                         } else {
-                            Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     } else if (hasLink) {
-                        Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Icon(Icons.Outlined.Link, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                     } else {
-                        Icon(Icons.Outlined.Add, contentDescription = "添加", modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.outline)
+                        Icon(Icons.Outlined.Add, contentDescription = "添加", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
                     }
                 }
                 Spacer(Modifier.height(4.dp))
@@ -299,7 +299,7 @@ internal fun QuickLinksSection(
                 for (row in 0 until rowCount) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         for (col in 0 until 3) {
                             val displayIdx = row * 3 + col
@@ -309,7 +309,7 @@ internal fun QuickLinksSection(
                                 val realIndex = if (hasLink) state.quickLinks.indexOf(link) else -1
                                 Box(
                                     modifier = Modifier
-                                        .width(100.dp)
+                                        .weight(1f)
                                         .zIndex(if (draggedIndex == realIndex) 1f else 0f)
                                         .graphicsLayer {
                                             translationX = if (draggedIndex == realIndex) dragOffsetX else 0f
@@ -441,7 +441,7 @@ internal fun QuickLinksSection(
                                         if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         vm.showQuickLinksSettings()
                                     },
-                                    modifier = Modifier.width(100.dp),
+                                    modifier = Modifier.weight(1f),
                                 )
                             }
                         }
@@ -456,7 +456,7 @@ internal fun QuickLinksSection(
                             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             vm.showQuickLinksSettings()
                         },
-                        modifier = Modifier.width(100.dp),
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
