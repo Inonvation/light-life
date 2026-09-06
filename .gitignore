@@ -34,7 +34,6 @@ scripts/_*.py
 archive/
 
 reasonix.toml
-AGENTS.md
 
 # Temp helper scripts
 fix_tags.js
