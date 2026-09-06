@@ -2,7 +2,7 @@ package com.inonvation.lightlife.data.qzxy
 
 // ── 统一响应包 ──
 // 趣智所有接口返回 {success, errorCode, errorMessage, msg, data}，
-// 与缺渴平台的 {code, msg, data} 不同，故独立建包不共用 ApiEnvelope。
+// 与胖乖生活平台的 {code, msg, data} 不同，故独立建包不共用 ApiEnvelope。
 
 data class QzxyEnvelope<T>(
     val success: Boolean? = null,
@@ -102,6 +102,8 @@ data class QzxyDeviceInfo(
     val macAddress: String? = null,
     val withholdMoney: Double? = null,
     val onlineStatusId: Int? = null,
+    /** 设备通信类型，官方抓包中蓝牙款为 0（开阀需手机直连蓝牙，服务器无法远程下发） */
+    val communicationTypeId: Int? = null,
 ) {
     /** 官方名称形如"热水器-学生公寓-1号楼-3层-301"，去掉前缀和连接符便于阅读 */
     val displayName: String
@@ -120,6 +122,14 @@ data class QzxyDeviceInfo(
             0 -> "离线"
             null -> null
             else -> "状态未知"
+        }
+
+    /** 0 = 蓝牙款（本版本不支持远程开阀），其他值视为联网款 */
+    val communicationText: String?
+        get() = when (communicationTypeId) {
+            0 -> "蓝牙款"
+            null -> null
+            else -> null
         }
 }
 
