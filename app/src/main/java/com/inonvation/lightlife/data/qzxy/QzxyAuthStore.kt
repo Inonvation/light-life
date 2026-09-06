@@ -6,7 +6,7 @@ import androidx.security.crypto.MasterKey
 
 /**
  * 趣智校园会话与绑定设备存储。
- * 与缺渴平台的 TokenStore 相互独立，两套账号互不影响。
+ * 与胖乖生活平台的 TokenStore 相互独立，两套账号互不影响。
  */
 class QzxyAuthStore(context: Context) {
     private val prefs = EncryptedSharedPreferences.create(

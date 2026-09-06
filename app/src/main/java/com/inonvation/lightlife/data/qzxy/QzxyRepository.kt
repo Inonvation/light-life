@@ -13,7 +13,7 @@ import retrofit2.converter.moshi.MoshiConverterFactory
 
 /**
  * 趣智校园业务封装：登录态、钱包、设备详情、洗澡订单全流程。
- * 独立 Retrofit 实例：baseUrl 不同，且趣智认证走参数不走 Header，不需要缺渴的 HeaderInterceptor。
+ * 独立 Retrofit 实例：baseUrl 不同，且趣智认证走参数不走 Header，不需要胖乖生活的 HeaderInterceptor。
  */
 class QzxyRepository(private val authStore: QzxyAuthStore) {
 

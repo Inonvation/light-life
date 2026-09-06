@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LightLife · 首页重构最终方案 v4</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F8F6;
+    --surface: #FFFFFF;
+    --line: #ECEEEB;
+    --line2: #DFE4DF;
+    --text: #262B27;
+    --dim: #8A948C;
+    --faint: #B4BCB5;
+    --accent: #4E6E5D;
+    --accent-soft: #EFF3F0;
+    --green: #3E8E48;
+    --green-bg: #F1F7F2;
+    --red: #C0392B;
+    --red-line: #E4C4BE;
+  }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #EEF0ED;
+    color: var(--text);
+    padding: 36px 24px 60px;
+  }
+  .page-head { max-width: 960px; margin: 0 auto 6px; text-align: center; }
+  .page-head h1 { font-size: 25px; margin-bottom: 10px; font-weight: 700; }
+  .page-head p { font-size: 14px; color: #3c443f; line-height: 1.8; max-width: 780px; margin: 0 auto; }
+
+  .sbar { max-width: 820px; margin: 24px auto 30px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .sbar-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+  .sbar .lab { font-size: 12.5px; color: #3c443f; width: 56px; text-align: right; }
+  .chip {
+    border: 1px solid #C2C9C2; background: #fff; border-radius: 999px;
+    padding: 6px 14px; font-size: 12.5px; cursor: pointer; font-family: inherit; color: var(--text);
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+
+  .phones { display: flex; gap: 56px; justify-content: center; flex-wrap: wrap; }
+  .phone-col { display: flex; flex-direction: column; align-items: center; }
+  .phone-col h2 { margin: 18px 0 8px; font-size: 16px; font-weight: 600; }
+  .notes { max-width: 380px; font-size: 13px; color: #3c443f; line-height: 1.9; padding-left: 18px; }
+
+  .phone {
+    width: 375px; height: 800px; border-radius: 38px;
+    border: 9px solid #232724; overflow: hidden; position: relative;
+    background: var(--bg);
+    box-shadow: 0 24px 60px rgba(0,0,0,.22);
+    flex: none;
+  }
+  .screen { height: 100%; overflow-y: auto; scrollbar-width: none; }
+  .screen::-webkit-scrollbar { display: none; }
+
+  .sb { display: flex; justify-content: space-between; padding: 12px 24px 2px; font-size: 12px; font-weight: 600; color: var(--text); }
+
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px 0; }
+  .brand { font-size: 19px; font-weight: 700; letter-spacing: .5px; }
+  .tb-right { display: flex; align-items: center; gap: 12px; }
+  .pts { font-size: 13px; color: var(--dim); }
+  .pts b { font-size: 17px; font-weight: 700; color: var(--text); }
+  .gear { font-size: 18px; color: var(--dim); cursor: pointer; }
+
+  /* 账户状态行：小票 + 签到按钮 */
+  .strip {
+    display: flex; justify-content: space-between; align-items: center;
+    margin: 10px 20px 0; padding: 7px 2px 9px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12.5px; color: var(--dim);
+  }
+  .mini-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    height: 30px; padding: 0 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+  }
+  .mini-btn.done { background: var(--accent-soft); color: var(--dim); cursor: default; }
+
+  .stbar { display: flex; align-items: center; gap: 8px; padding: 14px 18px 8px; font-size: 19px; font-weight: 700; }
+  .bar { width: 32px; height: 2px; background: var(--accent); border-radius: 1px; margin: 0 20px 4px; }
+
+  .content { padding: 0 16px 24px; }
+  .content > .card { margin-top: 10px; }
+
+  .gh { font-size: 12px; font-weight: 600; color: var(--dim); letter-spacing: 3px; margin: 24px 4px 2px; display: flex; align-items: center; gap: 10px; }
+  .gh::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+
+  .row { display: flex; align-items: center; gap: 10px; }
+  .between { justify-content: space-between; }
+  .grow { flex: 1; min-width: 0; }
+
+  .ct { font-size: 15px; font-weight: 600; }
+  .med { font-size: 14px; font-weight: 600; }
+  .small { font-size: 12.5px; }
+  .xsmall { font-size: 11.5px; color: var(--dim); }
+  .dim { color: var(--dim); }
+
+  .div { height: 1px; background: var(--line); margin: 13px 0; }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .dot.g { background: var(--green); }
+  .dot.r { background: var(--red); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+  .dot.busy { background: var(--accent); animation: pulse 1.2s infinite; }
+
+  .btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 10px;
+    height: 44px; font-size: 14.5px; font-weight: 600; width: 100%;
+    cursor: pointer; font-family: inherit;
+  }
+  .btn:active { filter: brightness(.94); }
+  .btn[disabled] { background: var(--accent-soft); color: var(--dim); cursor: default; }
+  .btn.outline { background: var(--surface); border: 1px solid var(--line2); color: var(--text); font-weight: 500; }
+  .btn.danger { background: var(--surface); border: 1px solid var(--red-line); color: var(--red); }
+  .btn-row { display: flex; gap: 10px; }
+  .btn.flex { flex: 1; }
+  .btn.slim { height: 34px; width: auto; padding: 0 16px; font-size: 13px; border-radius: 8px; }
+
+  /* ═══ 统一功能卡骨架：设备行 / 状态区 / 按钮行 ═══ */
+  .fn-dev {
+    display: flex; align-items: center; gap: 8px; cursor: pointer;
+    padding: 2px 2px 0; min-height: 26px;
+  }
+  .fn-dev .name { font-size: 14px; font-weight: 600; }
+  .fn-dev .caret { font-size: 10px; color: var(--faint); }
+  .fn-dev .right { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
+  .fn-dev.plain { cursor: default; }
+
+  .fn-info { min-height: 44px; margin: 11px 0 13px; }
+  .fv { display: none; }
+  .fv.on { display: block; animation: fadein .22s ease; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+  .fv .t1 { font-size: 13px; color: var(--text); }
+  .fv .t2 { font-size: 11.5px; color: var(--dim); margin-top: 3px; }
+  .fv .clock { font-size: 24px; font-weight: 700; letter-spacing: 1.5px; color: var(--green); margin: 1px 0 2px; }
+  .fv .clock.w { color: var(--accent); }
+  .fv .amount { font-size: 20px; font-weight: 700; margin: 1px 0 2px; }
+  .fv .link { color: var(--accent); font-weight: 600; cursor: pointer; }
+  .spin {
+    display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--line2); border-top-color: var(--accent);
+    animation: rot .8s linear infinite; vertical-align: -2px; margin-right: 6px;
+  }
+  @keyframes rot { to { transform: rotate(360deg); } }
+
+  .sw { width: 40px; height: 24px; border-radius: 12px; background: #CBD2CB; position: relative; flex: none; }
+  .sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .sw.on { background: var(--accent); }
+  .sw.on::after { left: 19px; }
+
+  .ql { display: flex; gap: 14px; }
+  .ql-i { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; font-size: 11px; color: var(--dim); cursor: pointer; }
+  .qic { width: 38px; height: 38px; border-radius: 50%; background: var(--accent-soft); color: var(--dim); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+  .qic.add { background: transparent; border: 1px dashed var(--line2); color: var(--faint); }
+  .ver { text-align: center; color: var(--faint); font-size: 11.5px; margin-top: 26px; }
+
+  .acct { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; }
+  .danger-link { color: var(--red); font-size: 12.5px; font-weight: 600; margin-top: 9px; cursor: pointer; }
+
+  .fchip { border: 1px solid var(--line2); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; background: var(--surface); color: var(--dim); white-space: nowrap; }
+  .fchip.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--text); font-weight: 600; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+  .srow { padding: 11px 2px; display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .srow-nb { padding: 2px; }
+
+  .sheet-wrap { position: absolute; inset: 0; background: rgba(20,24,21,.4); display: none; align-items: flex-end; z-index: 10; }
+  .sheet-wrap.open { display: flex; }
+  .sheet { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; padding: 20px 22px 30px; }
+  .fld { border: 1px solid var(--line2); border-radius: 10px; padding: 13px 14px; font-size: 14px; color: #A2ABA3; margin-top: 12px; background: var(--surface); }
+  .sheet-item { display: flex; align-items: center; gap: 10px; padding: 12px 2px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--line); }
+
+  .summary { max-width: 880px; margin: 70px auto 0; }
+  .summary h2 { font-size: 19px; margin-bottom: 14px; font-weight: 700; }
+  .summary h3 { font-size: 15px; margin: 26px 0 10px; font-weight: 700; }
+  .summary table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); font-size: 13.5px; }
+  .summary th, .summary td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .summary th { background: var(--accent-soft); color: var(--text); font-size: 12.5px; font-weight: 600; }
+  .summary tr:last-child td { border-bottom: none; }
+  .summary ol { margin: 12px 0 0 20px; line-height: 2; font-size: 14px; color: #2c332e; }
+  .summary .tip { font-size: 12.5px; color: var(--dim); margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>LightLife · 首页重构最终方案 v4</h1>
+  <p>开水卡和洗澡卡使用<b>同一套卡片骨架</b>：设备行（点设备名换设备）→ 状态区（随状态原地换内容）→ 按钮行（主按钮原地换文字）。开启、进行中、结算、失败全部显示在原卡内，<b>不插新卡片、不弹窗</b>，高度最多差一行，内容切换带 200ms 过渡动画。签到改成按钮。下方两台手机可直接点按体验完整流程。</p>
+</div>
+
+<div class="sbar">
+  <div class="sbar-row">
+    <span class="lab">开水卡</span>
+    <button class="chip" data-w="idle">空闲</button>
+    <button class="chip" data-w="running">进行中</button>
+    <button class="chip" data-w="success">成功</button>
+    <button class="chip" data-w="failed">失败</button>
+  </div>
+  <div class="sbar-row">
+    <span class="lab">洗澡卡</span>
+    <button class="chip" data-s="guest">未连接</button>
+    <button class="chip" data-s="unbound">未绑定</button>
+    <button class="chip active" data-s="bound">已绑定</button>
+    <button class="chip" data-s="starting">开阀中</button>
+    <button class="chip" data-s="running">洗澡中</button>
+    <button class="chip" data-s="settle">结算</button>
+    <button class="chip" data-s="failed">失败</button>
+  </div>
+</div>
+
+<div class="phones">
+
+  <!-- ═══════════ 主页 ═══════════ -->
+  <div class="phone-col">
+    <div class="phone">
+      <div class="screen">
+        <div class="sb"><span>9:41</span><span>5G · 100%</span></div>
+
+        <div class="topbar">
+          <span class="brand">LightLife</span>
+          <span class="tb-right">
+            <span class="pts"><b>128</b> 分</span>
+            <span class="gear">⚙</span>
+          </span>
+        </div>
+        <div class="strip">
+          <span id="stripText">小票 ¥5.00 · 今日未签到</span>
+          <button class="mini-btn" id="signInBtn">签到</button>
+        </div>
+
+        <div class="content">
+          <div class="gh">开水</div>
+          <div class="card">
+            <!-- 行1 设备行（点击换设备） -->
+            <div class="fn-dev" id="wDevRow">
+              <span class="name" id="wDevName">一食堂开水机</span>
+              <span class="caret">▼</span>
+              <span class="right" id="wDevRight"></span>
+            </div>
+
+            <!-- 行2 状态区（原地换内容） -->
+            <div class="fn-info">
+              <div class="fv" data-w="idle">
+                <div class="row between">
+                  <span class="t1">使用积分抵扣</span>
+                  <div class="sw on" id="wSwitch"></div>
+                </div>
+                <div class="t2">关闭后开水将不消耗积分</div>
+              </div>
+              <div class="fv" data-w="running">
+                <div class="clock w" id="wClock">00:00</div>
+                <div class="t2"><span class="spin"></span><span id="wStep">正在连接设备…</span></div>
+              </div>
+              <div class="fv" data-w="success">
+                <div class="amount">¥0.30</div>
+                <div class="t2">本次花费 · 积分抵扣 ¥0.12 · <span class="link">订单详情 ›</span></div>
+              </div>
+              <div class="fv" data-w="failed">
+                <div class="t1" style="color:var(--red)">开水失败 · 设备无响应</div>
+                <div class="t2">失败步骤：发送指令 · <span class="link">查看详情 ›</span></div>
+              </div>
+            </div>
+
+            <!-- 行3 按钮行 -->
+            <div class="fn-actions">
+              <div class="fv" data-w="idle">
+                <button class="btn" id="wStartBtn">开水</button>
+              </div>
+              <div class="fv" data-w="running">
+                <button class="btn" disabled>开水进行中…</button>
+              </div>
+              <div class="fv" data-w="success">
+                <button class="btn outline" data-w-goto="idle">完成</button>
+              </div>
+              <div class="fv" data-w="failed">
+                <div class="btn-row">
+                  <button class="btn flex" id="wRetryBtn">重试</button>
+                  <button class="btn outline" style="width:auto;padding:0 16px" data-w-goto="idle">关闭</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gh">洗澡</div>
+          <div class="card">
+            <!-- 行1 设备行 -->
+            <div class="fn-dev" id="sDevRow">
+              <span class="name" id="sDevName">3栋浴室-301</span>
+              <span class="caret" id="sCaret">▼</span>
+              <span class="right" id="sDevRight"><span class="dot g"></span>在线</span>
+            </div>
+
+            <!-- 行2 状态区 -->
+            <div class="fn-info">
+              <div class="fv" data-s="guest">
+                <div class="t1">淋浴 · 趣智校园</div>
+                <div class="t2">未连接，登录趣智账号后可控制热水器</div>
+              </div>
+              <div class="fv" data-s="unbound">
+                <div class="t1">还没有绑定设备</div>
+                <div class="t2">扫描附近热水器，或输入机身 MAC 地址绑定</div>
+              </div>
+              <div class="fv" data-s="bound">
+                <div class="t1">钱包 ¥12.30 <span class="link" style="font-size:12px">⟳</span></div>
+                <div class="t2">在线 · 预扣 ¥2.00 · 点设备名可更换设备</div>
+              </div>
+              <div class="fv" data-s="starting">
+                <div class="t2" style="margin-top:6px"><span class="spin"></span><span id="sStep">正在连接趣智服务器…</span></div>
+              </div>
+              <div class="fv" data-s="running">
+                <div class="clock" id="sClock">00:00</div>
+                <div class="t2">预扣 ¥2.00 · 闲置自动关停 04:59</div>
+              </div>
+              <div class="fv" data-s="settle">
+                <div class="amount">¥1.86</div>
+                <div class="t2">本次消费 · 用时 12分34秒 · 3栋浴室-301</div>
+              </div>
+              <div class="fv" data-s="failed">
+                <div class="t1" style="color:var(--red)">开阀失败 · 设备离线</div>
+                <div class="t2">热水器未连上服务器，与手机蓝牙无关 · <span class="link">查看详情 ›</span></div>
+              </div>
+            </div>
+
+            <!-- 行3 按钮行 -->
+            <div class="fn-actions">
+              <div class="fv" data-s="guest">
+                <button class="btn" data-open-login>连接趣智校园</button>
+              </div>
+              <div class="fv" data-s="unbound">
+                <div class="btn-row">
+                  <button class="btn flex">扫描附近设备</button>
+                  <button class="btn outline" style="width:auto;padding:0 14px">手输 MAC</button>
+                </div>
+              </div>
+              <div class="fv" data-s="bound">
+                <button class="btn" id="sStartBtn">开始洗澡</button>
+              </div>
+              <div class="fv" data-s="starting">
+                <button class="btn" disabled>开启中…</button>
+              </div>
+              <div class="fv" data-s="running">
+                <button class="btn danger" id="sStopBtn">结束使用</button>
+              </div>
+              <div class="fv" data-s="settle">
+                <button class="btn outline" data-s-goto="bound">完成</button>
+              </div>
+              <div class="fv" data-s="failed">
+                <div class="btn-row">
+                  <button class="btn flex" id="sRetryBtn">重试关阀</button>
+                  <button class="btn outline" style="width:auto;padding:0 16px" data-s-goto="bound">关闭</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gh">快捷方式</div>
+          <div class="card">
+            <div class="ql">
+              <div class="ql-i"><div class="qic">教</div><span>教务系统</span></div>
+              <div class="ql-i"><div class="qic">图</div><span>图书馆</span></div>
+              <div class="ql-i"><div class="qic">卡</div><span>校园卡</span></div>
+              <div class="ql-i"><div class="qic add">＋</div><span>添加</span></div>
+            </div>
+          </div>
+
+          <div class="ver">LightLife v3.0.0</div>
+        </div>
+      </div>
+
+      <!-- 登录弹层 -->
+      <div class="sheet-wrap" id="loginSheet">
+        <div class="sheet">
+          <div class="ct" style="font-size:17px">连接趣智校园</div>
+          <div class="xsmall" style="margin:8px 0 4px;line-height:1.7">使用趣智校园官方账号的手机号和密码登录，与开水功能互不影响。</div>
+          <div class="fld">请输入手机号</div>
+          <div class="fld">请输入密码</div>
+          <button class="btn" style="margin-top:18px" id="loginBtn">登录</button>
+          <div class="xsmall" style="margin-top:10px;text-align:center">登录即表示在另一设备上使用本账号会互踢下线</div>
+        </div>
+      </div>
+
+      <!-- 换设备弹层（洗澡）：点设备名弹出 -->
+      <div class="sheet-wrap" id="sDevSheet">
+        <div class="sheet">
+          <div class="ct" style="font-size:17px">更换淋浴设备</div>
+          <div class="row between" style="margin-top:14px">
+            <button class="btn slim">扫描附近设备</button>
+            <button class="btn outline slim">手输 MAC</button>
+          </div>
+          <div style="margin-top:8px">
+            <div class="sheet-item"><span class="dot g"></span><span class="grow">3栋浴室-301<span class="xsmall"> · 在线</span></span><span style="color:var(--green);font-weight:700">✓</span></div>
+            <div class="sheet-item" style="border-bottom:none"><span class="dot r"></span><span class="grow">3栋浴室-302<span class="xsmall"> · 离线</span></span></div>
+          </div>
+          <div class="xsmall" style="text-align:center;margin-top:10px">点选设备即换绑；开水设备的更换在开水卡点设备名</div>
+        </div>
+      </div>
+
+      <!-- 换设备下拉（开水） -->
+      <div class="sheet-wrap" id="wDevSheet">
+        <div class="sheet">
+          <div class="ct" style="font-size:17px">选择开水设备</div>
+          <div style="margin-top:8px">
+            <div class="sheet-item"><span class="grow">一食堂开水机</span><span style="color:var(--green);font-weight:700">✓</span></div>
+            <div class="sheet-item" style="border-bottom:none"><span class="grow">图书馆直饮机</span></div>
+          </div>
+          <div class="xsmall" style="text-align:center;margin-top:10px">长按设备可添加到桌面</div>
+        </div>
+      </div>
+    </div>
+
+    <h2>主页（最终方案）</h2>
+    <ul class="notes">
+      <li>开水卡 = 洗澡卡：同一骨架「设备行 / 状态区 / 按钮行」，换设备都是点设备名（弹出选择）。</li>
+      <li>进行中、结算、失败全部在原卡状态区原地换内容，不插新卡不弹窗；高度最多差一行，切换带过渡动画。</li>
+      <li>按钮原地换文字：开水 → 开水进行中… → 完成；开始洗澡 → 开启中… → 结束使用 → 完成。</li>
+      <li>签到在状态行右侧，是真正的按钮。</li>
+      <li>上方两组状态按钮可随意预览各状态，卡内按钮也能走完整流程。</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════ 设置 ═══════════ -->
+  <div class="phone-col">
+    <div class="phone">
+      <div class="screen">
+        <div class="sb"><span>9:41</span><span>5G · 100%</span></div>
+        <div class="stbar">‹ 设置</div>
+        <div class="bar"></div>
+
+        <div class="content">
+          <div class="gh">外观</div>
+          <div class="card">
+            <div class="ct" style="font-size:14px">主题模式</div>
+            <div class="chips">
+              <span class="fchip sel">跟随系统</span><span class="fchip">浅色</span><span class="fchip">深色</span>
+            </div>
+            <div class="div"></div>
+            <div class="ct" style="font-size:14px">主题配色</div>
+            <div class="chips">
+              <span class="fchip sel">绿色</span><span class="fchip">粉色</span><span class="fchip">黄色</span><span class="fchip">蓝色</span><span class="fchip">棕色</span>
+            </div>
+            <div class="div"></div>
+            <div class="row between">
+              <span class="med">触感反馈</span>
+              <div class="sw on"></div>
+            </div>
+          </div>
+
+          <div class="gh">喝水 · 缺渴校园</div>
+          <div class="acct">
+            <div class="row between">
+              <span class="med">缺渴账号 · 138****5678</span>
+              <span class="xsmall" style="color:var(--green);font-weight:600">已登录</span>
+            </div>
+            <div class="danger-link">退出登录</div>
+          </div>
+          <div class="card">
+            <div class="row between srow-nb">
+              <span class="med">启动时自动签到</span>
+              <div class="sw on"></div>
+            </div>
+            <div class="div"></div>
+            <div class="srow">
+              <span class="med">我的 Token</span>
+              <span class="dim">›</span>
+            </div>
+            <div class="div"></div>
+            <div class="srow">
+              <span class="med">设备信息</span>
+              <span class="dim">›</span>
+            </div>
+          </div>
+
+          <div class="gh">洗澡 · 趣智校园</div>
+          <div class="acct">
+            <div class="row between">
+              <span class="med">趣智账号 · 小明</span>
+              <span class="xsmall" style="color:var(--green);font-weight:600">已登录</span>
+            </div>
+            <div class="danger-link">退出登录</div>
+          </div>
+          <div class="card">
+            <div class="srow">
+              <span class="med">绑定设备</span>
+              <span class="small" style="font-weight:600">3栋浴室-301 ›</span>
+            </div>
+          </div>
+
+          <div class="gh">通用</div>
+          <div class="card">
+            <div class="row between srow-nb">
+              <span class="med">显示首页快捷方式</span>
+              <div class="sw on"></div>
+            </div>
+            <div class="div"></div>
+            <div class="srow">
+              <span class="med">管理快捷链接</span>
+              <span class="dim">›</span>
+            </div>
+            <div class="div"></div>
+            <div class="srow">
+              <span class="med">版本</span>
+              <span class="small dim">LightLife v3.0.0</span>
+            </div>
+            <div class="div"></div>
+            <div class="srow">
+              <span class="med" style="color:var(--red)">免责声明</span>
+              <span class="dim">›</span>
+            </div>
+          </div>
+
+          <div style="height:30px"></div>
+        </div>
+      </div>
+    </div>
+
+    <h2>设置（同样式）</h2>
+    <ul class="notes">
+      <li>与主页同一套视觉，分组按平台：外观 / 喝水 · 缺渴 / 洗澡 · 趣智 / 通用。</li>
+      <li>两个账号各回各组；新增绑定设备入口。</li>
+    </ul>
+  </div>
+
+</div>
+
+<div class="summary">
+  <h2>统一卡片骨架与交互逻辑（最终）</h2>
+
+  <h3>开水卡（缺渴）</h3>
+  <table>
+    <tr><th style="width:70px">状态</th><th>怎么进入</th><th>状态区显示</th><th>按钮行</th></tr>
+    <tr><td>空闲</td><td>默认 / 完成 / 关闭后</td><td>使用积分抵扣 + 开关</td><td>【开水】</td></tr>
+    <tr><td>进行中</td><td>点【开水】</td><td>计时 + 当前步骤（转圈）</td><td>【开水进行中…】禁用</td></tr>
+    <tr><td>成功</td><td>指令完成后自动</td><td>本次花费金额 + 抵扣 + 订单详情›</td><td>【完成】</td></tr>
+    <tr><td>失败</td><td>指令出错</td><td>红字原因 + 失败步骤 + 查看详情›</td><td>【重试】【关闭】</td></tr>
+  </table>
+
+  <h3>洗澡卡（趣智）</h3>
+  <table>
+    <tr><th style="width:70px">状态</th><th>怎么进入</th><th>状态区显示</th><th>按钮行</th></tr>
+    <tr><td>未连接</td><td>未登录趣智</td><td>说明文字</td><td>【连接趣智校园】→ 登录弹层</td></tr>
+    <tr><td>未绑定</td><td>登录后无绑定设备</td><td>提示扫描 / 手输 MAC</td><td>【扫描附近设备】【手输 MAC】</td></tr>
+    <tr><td>已绑定</td><td>绑定完成 / 结算后</td><td>钱包余额 + 在线 · 预扣</td><td>【开始洗澡】（点设备名换设备）</td></tr>
+    <tr><td>开阀中</td><td>点【开始洗澡】</td><td>当前步骤（转圈）</td><td>【开启中…】禁用</td></tr>
+    <tr><td>洗澡中</td><td>开阀成功自动</td><td>计时 + 预扣 + 闲置关停倒计时</td><td>【结束使用】（红描边）</td></tr>
+    <tr><td>结算</td><td>点【结束使用】</td><td>本次消费金额 + 用时</td><td>【完成】</td></tr>
+    <tr><td>失败</td><td>开阀 / 关阀出错</td><td>红字原因 + 详情›（关阀失败会强调重试）</td><td>【重试关阀】【关闭】</td></tr>
+  </table>
+
+  <h2 style="margin-top:36px">相比现状改了什么</h2>
+  <ol>
+    <li>首页三个平权功能区：开水 / 洗澡 / 快捷方式；开水卡与洗澡卡骨架、交互完全统一。</li>
+    <li>「积分余额」大卡与「每日签到」卡取消：积分缩成顶栏数字，小票 + 签到按钮压缩成一条状态行。</li>
+    <li>进行中 / 结算 / 报错不再弹窗、不再插入新卡片，全部在原卡状态区原地切换，高度变化约一行以内，带 200ms 动画（实现用 Compose 的 AnimatedContent + animateContentSize）。</li>
+    <li>换设备交互统一：两张卡都是点设备名弹出选择（开水 = 设备列表；洗澡 = 扫描 / 手输 MAC 列表）。</li>
+    <li>淋浴卡五种状态紧凑化；设置页按平台分组并统一视觉。</li>
+    <li>状态机与数据层不动，只改界面（SimpleScreen / QzxySection / SettingsScreen）。</li>
+  </ol>
+  <p class="tip">效果图为示意，非最终像素。这就是最终交互方案，确认后开始改代码。</p>
+</div>
+
+<script>
+  var wTimer = null, sTimer = null, wSec = 0, sSec = 0;
+
+  function showVariants(card, state) {
+    document.querySelectorAll('.fv[data-' + card + ']').forEach(function (el) {
+      el.classList.toggle('on', el.getAttribute('data-' + card) === state);
+    });
+    document.querySelectorAll('.chip[data-' + card + ']').forEach(function (c) {
+      c.classList.toggle('active', c.getAttribute('data-' + card) === state);
+    });
+  }
+  function setW(state) {
+    clearInterval(wTimer); wTimer = null;
+    showVariants('w', state);
+    document.getElementById('wDevRow').style.visibility = (state === 'idle' || state === 'running') ? 'visible' : 'hidden';
+    if (state === 'running') {
+      wSec = 0;
+      var steps = ['正在连接设备…', '正在发送开水指令…', '等待设备出水…'];
+      wTimer = setInterval(function () {
+        wSec++;
+        var m = Math.floor(wSec / 60), s = wSec % 60;
+        document.getElementById('wClock').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        document.getElementById('wStep').textContent = steps[Math.min(Math.floor(wSec / 1.2), 2)];
+        if (wSec >= 4) { clearInterval(wTimer); setW('success'); }
+      }, 1000);
+    }
+  }
+  function setS(state) {
+    clearInterval(sTimer); sTimer = null;
+    showVariants('s', state);
+    var devRow = document.getElementById('sDevRow');
+    var right = document.getElementById('sDevRight');
+    var name = document.getElementById('sDevName');
+    var caret = document.getElementById('sCaret');
+    if (state === 'guest') {
+      devRow.classList.add('plain'); name.textContent = '淋浴 · 趣智校园'; caret.style.display = 'none'; right.innerHTML = '';
+    } else if (state === 'unbound') {
+      devRow.classList.add('plain'); name.textContent = '未绑定设备'; caret.style.display = 'none'; right.innerHTML = '';
+    } else {
+      devRow.classList.remove('plain'); name.textContent = '3栋浴室-301'; caret.style.display = '';
+      right.innerHTML = state === 'running'
+        ? '<span class="dot busy"></span>进行中'
+        : (state === 'settle' ? '' : '<span class="dot ' + (state === 'failed' ? 'r' : 'g') + '"></span>' + (state === 'failed' ? '离线' : '在线'));
+    }
+    if (state === 'starting') {
+      var steps = ['正在连接趣智服务器…', '正在下发开阀指令…', '等待设备确认…'];
+      var i = 0;
+      sTimer = setInterval(function () {
+        i++;
+        document.getElementById('sStep').textContent = steps[Math.min(i, 2)];
+        if (i >= 3) { clearInterval(sTimer); setS('running'); startSTimer(); }
+      }, 900);
+    }
+    if (state === 'running') startSTimer();
+  }
+  function startSTimer() {
+    sSec = 0;
+    sTimer = setInterval(function () {
+      sSec++;
+      var m = Math.floor(sSec / 60), s = sSec % 60;
+      document.getElementById('sClock').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+      if (sSec >= 30) { clearInterval(sTimer); setS('settle'); }
+    }, 1000);
+  }
+
+  document.querySelectorAll('.chip[data-w]').forEach(function (c) {
+    c.addEventListener('click', function () { setW(c.getAttribute('data-w')); });
+  });
+  document.querySelectorAll('.chip[data-s]').forEach(function (c) {
+    c.addEventListener('click', function () { setS(c.getAttribute('data-s')); });
+  });
+  document.querySelectorAll('[data-w-goto]').forEach(function (b) {
+    b.addEventListener('click', function () { setW(b.getAttribute('data-w-goto')); });
+  });
+  document.querySelectorAll('[data-s-goto]').forEach(function (b) {
+    b.addEventListener('click', function () { setS(b.getAttribute('data-s-goto')); });
+  });
+  document.getElementById('wStartBtn').addEventListener('click', function () { setW('running'); });
+  document.getElementById('wRetryBtn').addEventListener('click', function () { setW('running'); });
+  document.getElementById('sStartBtn').addEventListener('click', function () { setS('starting'); });
+  document.getElementById('sStopBtn').addEventListener('click', function () { clearInterval(sTimer); setS('settle'); });
+  document.getElementById('sRetryBtn').addEventListener('click', function () { setS('starting'); });
+
+  // 签到按钮
+  var signed = false;
+  document.getElementById('signInBtn').addEventListener('click', function () {
+    if (signed) return;
+    signed = true;
+    this.textContent = '已签到 ✓';
+    this.classList.add('done');
+    document.getElementById('stripText').textContent = '小票 ¥5.00 · 今日已签到';
+  });
+
+  // 弹层
+  function bindSheet(sheetId, openSel) {
+    var sheet = document.getElementById(sheetId);
+    document.querySelectorAll(openSel).forEach(function (b) {
+      b.addEventListener('click', function () { sheet.classList.add('open'); });
+    });
+    sheet.addEventListener('click', function (e) { if (e.target === sheet) sheet.classList.remove('open'); });
+    return sheet;
+  }
+  var loginSheet = bindSheet('loginSheet', '[data-open-login]');
+  bindSheet('sDevSheet', '#sDevRow');
+  bindSheet('wDevSheet', '#wDevRow');
+  document.getElementById('loginBtn').addEventListener('click', function () {
+    loginSheet.classList.remove('open');
+    setS('unbound');
+  });
+
+  // 抵扣开关
+  document.getElementById('wSwitch').addEventListener('click', function () { this.classList.toggle('on'); });
+
+  setW('idle');
+  setS('bound');
+</script>
+</body>
+</html>

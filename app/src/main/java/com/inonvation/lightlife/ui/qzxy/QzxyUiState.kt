@@ -9,7 +9,7 @@ import com.inonvation.lightlife.data.qzxy.QzxyWalletData
 
 /**
  * 趣智校园模块的全部 UI 状态，作为整体挂进 AppUiState（val qzxy），
- * 与缺渴平台的状态互不交叉。
+ * 与胖乖生活平台的状态互不交叉。
  */
 data class QzxyUiState(
     // ── 登录 ──
