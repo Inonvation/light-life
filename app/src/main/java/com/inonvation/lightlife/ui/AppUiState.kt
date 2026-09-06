@@ -7,6 +7,7 @@ import com.inonvation.lightlife.data.QuickLink
 import com.inonvation.lightlife.data.UnlockResult
 import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
+import com.inonvation.lightlife.ui.qzxy.QzxyUiState
 
 data class DeviceShortcutRequest(
     val goodsId: String?,
@@ -79,6 +80,9 @@ data class AppUiState(
     val showLogoutConfirm: Boolean = false,
     val tokenDialogText: String? = null,
     val deviceInfoDialogText: String? = null,
+
+    // ── 淋浴（趣智校园，独立账号与状态）──
+    val qzxy: QzxyUiState = QzxyUiState(),
 
     // ── 全局 ──
     val appVersion: String = "",

@@ -15,6 +15,11 @@ import com.inonvation.lightlife.data.SignInRunner
 import com.inonvation.lightlife.data.TokenExpiredException
 import com.inonvation.lightlife.data.UnlockException
 import com.inonvation.lightlife.ui.auth.AuthController
+import com.inonvation.lightlife.ui.qzxy.QzxyController
+import com.inonvation.lightlife.ui.qzxy.QzxyUiState
+import com.inonvation.lightlife.data.qzxy.QzxyBluetoothScanner
+import com.inonvation.lightlife.data.qzxy.QzxyNearbyDevice
+import com.inonvation.lightlife.data.qzxy.QzxyRepository
 import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
 import com.inonvation.lightlife.ui.theme.ThemePreferences
@@ -41,6 +46,7 @@ class AppViewModel(
     private val taskStateStore: PointsTaskStateStore? = null,
     private val themePreferences: ThemePreferences? = null,
     private val quickLinkStore: QuickLinkStore? = null,
+    private val qzxyRepository: QzxyRepository,
 ) : ViewModel() {
     private val context: Context = application.applicationContext
     private val unlockMutex = kotlinx.coroutines.sync.Mutex()
@@ -102,6 +108,23 @@ class AppViewModel(
 
     private val signInRunner = SignInRunner({ repository.localToken() }, context)
 
+    // ── 淋浴（趣智校园）控制器 ──
+    private fun updateQzxy(reduce: (QzxyUiState) -> QzxyUiState) {
+        _state.update { it.copy(qzxy = reduce(it.qzxy)) }
+    }
+
+    private val qzxyController: QzxyController by lazy {
+        QzxyController(
+            state = state,
+            updateQzxy = ::updateQzxy,
+            scope = viewModelScope,
+            repository = qzxyRepository,
+            scanner = QzxyBluetoothScanner(context),
+            showToast = ::showToast,
+            showError = ::showError,
+        )
+    }
+
     private var pendingShortcutRequest: DeviceShortcutRequest? = null
     private var unlockTimerJob: Job? = null
     private var unlockTimeoutJob: Job? = null
@@ -132,6 +155,8 @@ class AppViewModel(
         }
         // 打开 App 时自动签到
         autoSignInOnLaunch()
+        // 恢复趣智校园登录态与进行中的洗澡订单
+        qzxyController.restoreSession()
     }
 
     // ── 登录 ──
@@ -403,6 +428,31 @@ class AppViewModel(
         }
         showToast("图标已移除")
     }
+    // ── 淋浴（趣智校园）──
+    fun qzxyShowLogin() = qzxyController.showLoginSheet()
+    fun qzxyDismissLogin() = qzxyController.dismissLoginSheet()
+    fun qzxyUpdatePhone(value: String) = qzxyController.updatePhone(value)
+    fun qzxyUpdatePassword(value: String) = qzxyController.updatePassword(value)
+    fun qzxyTogglePasswordVisible() = qzxyController.togglePasswordVisibility()
+    fun qzxyLogin() = qzxyController.login()
+    fun qzxyLogout() = qzxyController.logout()
+    fun qzxyShowLogoutConfirm() = qzxyController.showLogoutConfirm()
+    fun qzxyDismissLogoutConfirm() = qzxyController.dismissLogoutConfirm()
+    fun qzxyRefreshWallet() = qzxyController.refreshWallet()
+    fun qzxyStartScan() = qzxyController.startScan()
+    fun qzxyStopScan() = qzxyController.stopScan()
+    fun qzxyOnScanPermissionDenied() = qzxyController.onScanPermissionDenied()
+    fun qzxySelectDevice(device: QzxyNearbyDevice) = qzxyController.selectDevice(device)
+    fun qzxySetDevicePicker(open: Boolean) = qzxyController.setDevicePicker(open)
+    fun qzxyRefreshSelectedDevice() = qzxyController.refreshSelectedDevice()
+    fun qzxyShowManualMacDialog() = qzxyController.showManualMacDialog()
+    fun qzxyDismissManualMacDialog() = qzxyController.dismissManualMacDialog()
+    fun qzxyUpdateManualMac(value: String) = qzxyController.updateManualMac(value)
+    fun qzxySubmitManualMac() = qzxyController.submitManualMac()
+    fun qzxyStartShower() = qzxyController.startShower()
+    fun qzxyStopShower() = qzxyController.stopShower()
+    fun qzxyDismissShowerFlow() = qzxyController.dismissShowerFlow()
+
     // ── 统计 ──
     fun refreshTodayWater() {
         _state.update { it.copy(totalWaterCount = repository.orderHistory().size) }
@@ -470,9 +520,10 @@ class AppViewModelFactory(
     private val taskStateStore: PointsTaskStateStore? = null,
     private val themePreferences: ThemePreferences? = null,
     private val quickLinkStore: QuickLinkStore? = null,
+    private val qzxyRepository: QzxyRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return AppViewModel(application, repository, appVersion, taskStateStore, themePreferences, quickLinkStore) as T
+        return AppViewModel(application, repository, appVersion, taskStateStore, themePreferences, quickLinkStore, qzxyRepository) as T
     }
 }

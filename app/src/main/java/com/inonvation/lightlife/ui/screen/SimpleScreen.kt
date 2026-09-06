@@ -68,6 +68,7 @@ import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.UnlockFlowState
 import com.inonvation.lightlife.ui.pinDeviceShortcut
+import com.inonvation.lightlife.ui.qzxy.screen.QzxyShowerSection
 import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
@@ -185,6 +186,9 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit
                         context = ctx,
                     )
                 }
+
+                // 淋浴区（趣智校园）
+                item { QzxyShowerSection(state = state, vm = vm, haptic = haptic) }
 
                 // 签到区
                 item { SignInCard(state, vm, haptic) }

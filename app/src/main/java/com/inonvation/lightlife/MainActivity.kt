@@ -35,6 +35,8 @@ import com.inonvation.lightlife.data.OrderHistoryStore
 import com.inonvation.lightlife.data.PointsTaskStateStore
 import com.inonvation.lightlife.data.QuickLinkStore
 import com.inonvation.lightlife.data.TokenStore
+import com.inonvation.lightlife.data.qzxy.QzxyAuthStore
+import com.inonvation.lightlife.data.qzxy.QzxyRepository
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.AppViewModelFactory
 import com.inonvation.lightlife.ui.UiEvent
@@ -58,6 +60,7 @@ class MainActivity : ComponentActivity() {
         val taskStateStore = PointsTaskStateStore(applicationContext)
         val themePrefs = ThemePreferences(applicationContext)
         val quickLinkStore = QuickLinkStore(applicationContext)
+        val qzxyRepository = QzxyRepository(QzxyAuthStore(applicationContext))
         setContent {
             val vm: AppViewModel = viewModel(
                 factory = AppViewModelFactory(
@@ -67,6 +70,7 @@ class MainActivity : ComponentActivity() {
                     taskStateStore = taskStateStore,
                     themePreferences = themePrefs,
                     quickLinkStore = quickLinkStore,
+                    qzxyRepository = qzxyRepository,
                 ),
             )
             val uiState by vm.state.collectAsState()
@@ -101,7 +105,8 @@ private fun AppRoot(vm: AppViewModel) {
 
     BackHandler(
         enabled = state.showOrderHistory || state.showLogoutConfirm || state.showSettings ||
-            state.showQuickLinksSettings || state.tokenDialogText != null || state.deviceInfoDialogText != null
+            state.showQuickLinksSettings || state.tokenDialogText != null || state.deviceInfoDialogText != null ||
+            state.qzxy.showLogoutConfirm
     ) {
         when {
             state.showOrderHistory -> vm.dismissOrderHistory()
@@ -110,6 +115,7 @@ private fun AppRoot(vm: AppViewModel) {
             state.showQuickLinksSettings -> vm.dismissQuickLinksSettings()
             state.tokenDialogText != null -> vm.dismissCurrentToken()
             state.deviceInfoDialogText != null -> vm.dismissCurrentDeviceInfo()
+            state.qzxy.showLogoutConfirm -> vm.qzxyDismissLogoutConfirm()
         }
     }
 
