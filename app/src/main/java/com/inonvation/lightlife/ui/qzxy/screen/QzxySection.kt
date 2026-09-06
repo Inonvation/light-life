@@ -7,10 +7,15 @@ import android.os.Build
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,23 +29,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Devices
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material.icons.outlined.Shower
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,11 +58,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.inonvation.lightlife.data.qzxy.QzxyNearbyDevice
-import com.inonvation.lightlife.data.qzxy.QzxySettleResult
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.qzxy.QzxyShowerState
@@ -60,30 +68,564 @@ import com.inonvation.lightlife.ui.qzxy.QzxyUiState
 import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
 import com.inonvation.lightlife.ui.theme.Spacings
-import com.inonvation.lightlife.ui.theme.successContainerColor
+
+/** 洗澡卡的所有展示阶段，对应状态区与按钮行的内容切换 */
+private enum class ShowerPhase { Guest, Unbound, Bound, Starting, Stopping, Running, Settle, Failed }
 
 /**
- * 主页"淋浴"区块（趣智校园），插在开水区块与签到区块之间。
- * 绑定设备后以绑定设备的操作为主（开始洗澡大按钮），
- * 扫描/手输 MAC 收进"更换设备"次要入口。
+ * 主页"洗澡"区块（趣智校园），与开水卡统一骨架：
+ * 设备行（点设备名换设备）→ 状态区（原地切换）→ 按钮行（主按钮原地换字）。
+ * 蓝牙款设备（communicationTypeId == 0）服务器无法远程开阀，只提示不支持。
  */
 @Composable
 fun QzxyShowerSection(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
     val q = state.qzxy
-    if (!q.loggedIn) {
-        QzxyGuestCard(state = state, vm = vm, haptic = haptic)
-    } else {
-        QzxyLoggedInCard(state = state, vm = vm, haptic = haptic)
+    val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants.values.all { it }) vm.qzxyStartScan() else vm.qzxyOnScanPermissionDenied()
+    }
+    var showErrorDetail by remember { mutableStateOf(false) }
+
+    val phase = when {
+        !q.loggedIn -> ShowerPhase.Guest
+        q.boundDevice == null -> ShowerPhase.Unbound
+        else -> when (val f = q.showerFlow) {
+            QzxyShowerState.Idle -> ShowerPhase.Bound
+            is QzxyShowerState.Starting -> ShowerPhase.Starting
+            is QzxyShowerState.Stopping -> ShowerPhase.Stopping
+            is QzxyShowerState.Running -> ShowerPhase.Running
+            is QzxyShowerState.Done -> ShowerPhase.Settle
+            is QzxyShowerState.Failed -> ShowerPhase.Failed
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShapes.cardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(modifier = Modifier.padding(Spacings.lg)) {
+            // ── 行1 设备行 ──
+            QzxyDeviceHeaderRow(q = q, phase = phase, vm = vm)
+
+            // ── 行2 状态区（原地切换，带过渡动画） ──
+            Column(modifier = Modifier.fillMaxWidth().animateContentSize()) {
+                AnimatedContent(
+                    targetState = phase,
+                    transitionSpec = {
+                        (fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 8 })
+                            .togetherWith(fadeOut(tween(140)))
+                    },
+                    label = "showerInfo",
+                ) { p ->
+                    Column(modifier = Modifier.padding(top = Spacings.md)) {
+                        when (p) {
+                            ShowerPhase.Guest -> QzxyHintInfo("未连接，登录趣智账号后可控制热水器")
+                            ShowerPhase.Unbound -> QzxyHintInfo("扫描附近热水器，或输入机身 MAC 地址绑定")
+                            ShowerPhase.Bound -> QzxyBoundInfo(q, vm)
+                            ShowerPhase.Starting -> QzxyStepInfo((q.showerFlow as? QzxyShowerState.Starting)?.step ?: "正在准备…")
+                            ShowerPhase.Stopping -> QzxyStepInfo((q.showerFlow as? QzxyShowerState.Stopping)?.step ?: "正在结束…")
+                            ShowerPhase.Running -> QzxyRunningInfo(q)
+                            ShowerPhase.Settle -> QzxySettleInfo(q)
+                            ShowerPhase.Failed -> QzxyFailedInfo(q, onDetail = { showErrorDetail = true })
+                        }
+                    }
+                }
+            }
+
+            // ── 行3 按钮行 ──
+            Spacer(Modifier.height(Spacings.md))
+            when (phase) {
+                ShowerPhase.Guest -> Button(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.qzxyShowLogin()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("连接趣智校园", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+                ShowerPhase.Unbound -> Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = {
+                            if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (q.scanning) vm.qzxyStopScan() else {
+                                requestBlePermissionOrScan(context, permissionLauncher::launch) { vm.qzxyStartScan() }
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        if (q.scanning) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                            Spacer(Modifier.width(Spacings.sm))
+                        }
+                        Text(if (q.scanning) "停止扫描" else "扫描附近设备", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.width(Spacings.sm))
+                    OutlinedButton(
+                        onClick = { vm.qzxyShowManualMacDialog() },
+                        modifier = Modifier.height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                    ) {
+                        Text("手输 MAC")
+                    }
+                }
+                ShowerPhase.Bound -> Button(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.qzxyStartShower()
+                    },
+                    enabled = qzxySnAvailable(q),
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("开始洗澡", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+                ShowerPhase.Starting -> Button(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("开启中…", style = MaterialTheme.typography.titleSmall)
+                }
+                ShowerPhase.Stopping -> Button(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("结束中…", style = MaterialTheme.typography.titleSmall)
+                }
+                ShowerPhase.Running -> OutlinedButton(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.qzxyStopShower()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = AppColors.stop,
+                    ),
+                ) {
+                    Text("结束使用", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                }
+                ShowerPhase.Settle -> OutlinedButton(
+                    onClick = {
+                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        vm.qzxyDismissShowerFlow()
+                    },
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("完成")
+                }
+                ShowerPhase.Failed -> {
+                    val retryingStop = q.activeOrder != null
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (retryingStop) vm.qzxyStopShower() else vm.qzxyStartShower()
+                            },
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.stop),
+                        ) {
+                            Text(
+                                if (retryingStop) "重试关阀" else "重试开阀",
+                                color = AppColors.white,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                        Spacer(Modifier.width(Spacings.sm))
+                        OutlinedButton(
+                            onClick = { vm.qzxyDismissShowerFlow() },
+                            modifier = Modifier.height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                        ) {
+                            Text("关闭")
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (q.showLoginSheet) {
         QzxyLoginSheet(qzxy = q, vm = vm)
+    }
+    // 换设备弹层：点设备行弹出（与开水卡的设备选择交互一致）
+    if (q.showDevicePicker && q.loggedIn && q.boundDevice != null) {
+        QzxyDeviceSheet(q = q, vm = vm, haptic = haptic, hapticEnabled = state.hapticEnabled, permissionLauncher = permissionLauncher, context = context)
     }
     if (q.showManualMacDialog) {
         QzxyManualMacDialog(qzxy = q, vm = vm)
     }
     if (q.showLogoutConfirm) {
         QzxyLogoutConfirmDialog(qzxy = q, vm = vm)
+    }
+    if (showErrorDetail) {
+        QzxyErrorDetailDialog(q = q) { showErrorDetail = false }
+    }
+}
+
+/** 行1 设备行：绑定后点设备名弹出换设备弹层 */
+@Composable
+private fun QzxyDeviceHeaderRow(q: QzxyUiState, phase: ShowerPhase, vm: AppViewModel) {
+    val title = when (phase) {
+        ShowerPhase.Guest -> "淋浴 · 趣智校园"
+        ShowerPhase.Unbound -> "未绑定设备"
+        else -> q.selectedDevice?.displayName ?: q.boundDevice?.name ?: "未命名设备"
+    }
+    val changeable = phase == ShowerPhase.Bound
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .then(if (changeable) Modifier.clickable { vm.qzxySetDevicePicker(true) } else Modifier)
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+        if (changeable) {
+            Spacer(Modifier.width(Spacings.xs))
+            Icon(
+                Icons.Outlined.KeyboardArrowDown,
+                contentDescription = "更换设备",
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        when (phase) {
+            ShowerPhase.Bound -> {
+                val info = q.selectedDevice
+                val online = info?.onlineStatusId == 1
+                QzxyStatusDot(
+                    color = when {
+                        info == null -> MaterialTheme.colorScheme.outline
+                        online -> AppColors.runningIndicator
+                        else -> MaterialTheme.colorScheme.error
+                    },
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    info?.onlineText ?: "未知状态",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            ShowerPhase.Running, ShowerPhase.Starting, ShowerPhase.Stopping -> {
+                QzxyStatusDot(color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "进行中",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            else -> {}
+        }
+    }
+}
+
+@Composable
+private fun QzxyStatusDot(color: androidx.compose.ui.graphics.Color) {
+    androidx.compose.foundation.layout.Box(
+        modifier = Modifier
+            .size(7.dp)
+            .clip(CircleShape)
+            .background(color),
+    )
+}
+
+/** 已绑定状态区：钱包 + 设备在线/通信类型与预扣 */
+@Composable
+private fun QzxyBoundInfo(q: QzxyUiState, vm: AppViewModel) {
+    val info = q.selectedDevice
+    val offline = info?.onlineStatusId == 0
+    val bluetoothDevice = info?.communicationTypeId == 0
+    val walletText = q.wallet?.money?.toDoubleOrNull()?.let { "¥%.2f".format(it) } ?: "-"
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "钱包 $walletText",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f),
+        )
+        IconButton(onClick = { vm.qzxyRefreshWallet() }, modifier = Modifier.size(28.dp)) {
+            if (q.loadingWallet) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(
+                    Icons.Outlined.Refresh,
+                    contentDescription = "刷新钱包",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+    val statusLine = buildString {
+        append(info?.onlineText ?: "状态未知")
+        info?.communicationText?.let { append(" · ").append(it) }
+        append(" · 预扣 ")
+        append(info?.withholdMoney?.let { "¥%.2f".format(it) } ?: "-")
+    }
+    Text(
+        statusLine,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (offline) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    when {
+        !qzxySnAvailable(q) -> {
+            Spacer(Modifier.height(Spacings.xs))
+            Text(
+                "设备信息不完整（缺少序列号），请更换设备重新绑定",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        bluetoothDevice -> {
+            Spacer(Modifier.height(Spacings.xs))
+            Text(
+                "该设备为蓝牙款：开阀指令需手机通过蓝牙直接发给热水器，服务器无法远程下发，本版本暂未支持蓝牙控制。开启请先用官方 App，或在热水器键盘上输入使用码。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        offline -> {
+            Spacer(Modifier.height(Spacings.xs))
+            Text(
+                "设备离线：热水器未连上趣智服务器（与手机蓝牙无关），请确认通电联网后重试",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+@Composable
+private fun QzxyHintInfo(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+/** 开阀/关阀进行中：转圈 + 当前步骤 */
+@Composable
+private fun QzxyStepInfo(step: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        Spacer(Modifier.width(Spacings.sm))
+        Text(step, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 洗澡中：计时 + 预扣 + 闲置关停倒计时 */
+@Composable
+private fun QzxyRunningInfo(q: QzxyUiState) {
+    val flow = q.showerFlow as? QzxyShowerState.Running ?: return
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            formatClock(q.elapsedSeconds),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = AppColors.runningIndicator,
+        )
+        val sub = buildString {
+            append("预扣 ")
+            append(flow.withholdMoney)
+            flow.autoCloseSecondsLeft?.let {
+                append(" · 闲置关停 ")
+                append(if (it > 0) formatClock(it) else "已到时间")
+            }
+        }
+        Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 结算：本次消费金额 + 时长 */
+@Composable
+private fun QzxySettleInfo(q: QzxyUiState) {
+    val result = (q.showerFlow as? QzxyShowerState.Done)?.result ?: return
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            result.consumeMoneyText,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        val line = buildString {
+            append("本次消费 · 用时 ")
+            append(formatDuration(result.elapsedSeconds))
+            append(" · ")
+            append(result.deviceName)
+        }
+        Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 失败：红字原因 + 详情入口 */
+@Composable
+private fun QzxyFailedInfo(q: QzxyUiState, onDetail: () -> Unit) {
+    val flow = q.showerFlow as? QzxyShowerState.Failed ?: return
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(flow.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "失败步骤：${flow.step}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "查看详情 ›",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable { onDetail() },
+            )
+        }
+    }
+}
+
+/** 换设备弹层：扫描 + 手输 MAC + 扫描结果列表 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QzxyDeviceSheet(
+    q: QzxyUiState,
+    vm: AppViewModel,
+    haptic: HapticFeedback,
+    hapticEnabled: Boolean,
+    permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
+    context: Context,
+) {
+    ModalBottomSheet(onDismissRequest = { vm.qzxySetDevicePicker(false) }) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacings.xl)
+                .padding(bottom = Spacings.xxl),
+        ) {
+            Text("更换淋浴设备", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            Text(
+                "扫描并点选附近热水器即可换绑；也可输入机身 MAC 地址",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacings.sm),
+            )
+            Spacer(Modifier.height(Spacings.lg))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = {
+                        if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (q.scanning) {
+                            vm.qzxyStopScan()
+                        } else {
+                            requestBlePermissionOrScan(context, permissionLauncher::launch) { vm.qzxyStartScan() }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    if (q.scanning) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(Modifier.width(Spacings.sm))
+                    }
+                    Text(if (q.scanning) "停止扫描" else "扫描附近设备")
+                }
+                Spacer(Modifier.width(Spacings.sm))
+                OutlinedButton(
+                    onClick = { vm.qzxyShowManualMacDialog() },
+                    shape = RoundedCornerShape(10.dp),
+                ) {
+                    Text("手输 MAC")
+                }
+            }
+            Spacer(Modifier.height(Spacings.sm))
+            if (q.scanning && q.nearbyDevices.isEmpty()) {
+                Text(
+                    "正在扫描附近设备…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            q.nearbyDevices.forEach { device ->
+                QzxyDeviceRow(
+                    device = device,
+                    querying = q.queryingMac == device.mac,
+                    selected = q.selectedDevice?.macAddress == device.mac,
+                    onClick = {
+                        vm.qzxySelectDevice(device)
+                        vm.qzxySetDevicePicker(false)
+                    },
+                )
+            }
+            if (!q.scanning && q.nearbyDevices.isEmpty()) {
+                Text(
+                    "未发现设备：请确认热水器通电在线、手机蓝牙已开启并靠近设备",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QzxyDeviceRow(device: QzxyNearbyDevice, querying: Boolean, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.Devices,
+            contentDescription = null,
+            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.width(Spacings.sm))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(device.displayName, style = MaterialTheme.typography.bodyMedium)
+            val subtitle = buildString {
+                append(device.signalText)
+                append(" · ")
+                append(device.rssi)
+                append(" dBm")
+                device.info?.onlineText?.let { append(" · ").append(it) }
+                device.info?.communicationText?.let { append(" · ").append(it) }
+            }
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (querying) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+        } else if (selected) {
+            Icon(
+                Icons.Filled.CheckCircle,
+                contentDescription = "已选择",
+                tint = AppColors.runningIndicator,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
@@ -118,588 +660,53 @@ private fun QzxyLogoutConfirmDialog(qzxy: QzxyUiState, vm: AppViewModel) {
     )
 }
 
+/** 失败详情弹窗：长解释收在这里，卡片上只留一行 */
 @Composable
-private fun QzxyGuestCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacings.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.Shower,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(Modifier.height(Spacings.md))
-            Text("淋浴 · 趣智校园", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(
-                "控制校园热水器（趣智校园平台），与开水功能互不影响",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(Spacings.md))
-            Button(
-                onClick = {
-                    if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    vm.qzxyShowLogin()
-                },
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text("连接趣智校园")
-            }
-        }
-    }
-}
-
-@Composable
-private fun QzxyLoggedInCard(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
-    val q = state.qzxy
-    val context = LocalContext.current
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { grants ->
-        if (grants.values.all { it }) vm.qzxyStartScan() else vm.qzxyOnScanPermissionDenied()
-    }
-
-    val walletText = q.wallet?.money?.toDoubleOrNull()?.let { "钱包 ¥%.2f".format(it) } ?: "钱包 -"
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.cardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-    ) {
-        Column(modifier = Modifier.padding(Spacings.lg)) {
-            // ── 头部 ──
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("淋浴 · 趣智校园", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(walletText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    IconButton(onClick = { vm.qzxyRefreshWallet() }, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            Icons.Outlined.Refresh,
-                            contentDescription = "刷新钱包",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+private fun QzxyErrorDetailDialog(q: QzxyUiState, onDismiss: () -> Unit) {
+    val flow = q.showerFlow as? QzxyShowerState.Failed ?: return
+    val offlineHint = "${flow.message} ${flow.rawError}".let { it.contains("不在线") || it.contains("离线") }
+    val bluetoothDevice = q.selectedDevice?.communicationTypeId == 0
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("失败详情", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column {
+                Text(flow.message, style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(Spacings.sm))
+                Text("失败步骤：${flow.step}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (flow.rawError.isNotBlank() && flow.rawError != flow.message) {
+                    Spacer(Modifier.height(Spacings.xs))
+                    Text("错误详情：${flow.rawError}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-
-            // ── 洗澡流程卡 ──
-            when (val flow = q.showerFlow) {
-                is QzxyShowerState.Idle -> {}
-                is QzxyShowerState.Starting -> QzxyBusyCard(
-                    title = "正在开启",
-                    step = flow.step,
-                    elapsedSeconds = q.elapsedSeconds,
-                )
-                is QzxyShowerState.Running -> QzxyRunningCard(
-                    flow = flow,
-                    elapsedSeconds = q.elapsedSeconds,
-                    haptic = haptic,
-                    hapticEnabled = state.hapticEnabled,
-                    onStop = { vm.qzxyStopShower() },
-                )
-                is QzxyShowerState.Stopping -> QzxyBusyCard(
-                    title = "正在结束",
-                    step = flow.step,
-                    elapsedSeconds = q.elapsedSeconds,
-                )
-                is QzxyShowerState.Done -> QzxySettleCard(
-                    result = flow.result,
-                    onDismiss = {
-                        if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.qzxyDismissShowerFlow()
-                    },
-                )
-                is QzxyShowerState.Failed -> QzxyFailedCard(
-                    flow = flow,
-                    canRetryStop = q.activeOrder != null,
-                    onRetry = { vm.qzxyStopShower() },
-                    onDismiss = { vm.qzxyDismissShowerFlow() },
-                )
-            }
-
-            // ── 绑定设备（主操作） ──
-            val bound = q.boundDevice
-            if (bound != null) {
-                QzxyBoundDeviceBlock(q = q, vm = vm, haptic = haptic, hapticEnabled = state.hapticEnabled)
-            }
-
-            // ── 设备选择（未绑定，或展开"更换设备"）──
-            if (bound == null || q.showDevicePicker) {
-                if (bound != null) {
+                if (bluetoothDevice) {
                     Spacer(Modifier.height(Spacings.sm))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(Spacings.sm))
-                }
-                QzxyDevicePickerSection(q = q, vm = vm, haptic = haptic, hapticEnabled = state.hapticEnabled, permissionLauncher = permissionLauncher, context = context)
-            }
-
-        }
-    }
-}
-
-/** 绑定设备主块：设备信息 + 开始按钮 + 更换设备入口 */
-@Composable
-private fun QzxyBoundDeviceBlock(
-    q: QzxyUiState,
-    vm: AppViewModel,
-    haptic: HapticFeedback,
-    hapticEnabled: Boolean,
-) {
-    val bound = q.boundDevice ?: return
-    val info = q.selectedDevice
-    val offline = info?.onlineStatusId == 0
-    val snAvailable = info?.snCode?.isNotBlank() == true || bound.snCode.isNotBlank()
-    val flowIdle = q.showerFlow is QzxyShowerState.Idle
-
-    Spacer(Modifier.height(Spacings.md))
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(modifier = Modifier.padding(Spacings.lg)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(info?.displayName ?: bound.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     Text(
-                        bound.mac,
+                        "已确认该设备为蓝牙款：服务器无法远程开阀，本版本暂未支持手机蓝牙直控。请改用官方 App 开启，或在热水器键盘上输入使用码。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (offlineHint) {
+                    Spacer(Modifier.height(Spacings.sm))
+                    Text(
+                        "「设备不在线」指热水器没连上趣智服务器，与手机蓝牙无关。请确认热水器已通电、已联网，稍后可重试；也可用官方 App 试开同一台设备对比。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(
-                    onClick = { vm.qzxyRefreshSelectedDevice() },
-                    modifier = Modifier.size(32.dp),
-                ) {
-                    if (q.queryingMac != null && q.queryingMac == info?.macAddress) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            Icons.Outlined.Refresh,
-                            contentDescription = "刷新设备状态",
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(Spacings.xs))
-            val statusParts = buildList {
-                info?.onlineText?.let { add(it) }
-                add(info?.withholdMoney?.let { "预扣 ¥%.2f".format(it) } ?: "预扣 -")
-            }
-            val statusColor = when {
-                offline -> MaterialTheme.colorScheme.error
-                info?.onlineStatusId == 1 -> AppColors.runningIndicator
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
-            }
-            Text(
-                statusParts.joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = statusColor,
-            )
-
-            if (!snAvailable) {
-                Spacer(Modifier.height(Spacings.xs))
-                Text(
-                    "设备信息不完整（缺少序列号），请重新扫描或手输 MAC 绑定",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            } else if (offline) {
-                Spacer(Modifier.height(Spacings.xs))
-                Text(
-                    "设备当前离线：热水器没有连上趣智服务器（与手机蓝牙无关），开阀命令无法送达。请确认设备已通电、已联网，或稍后点右上角刷新再试。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            Spacer(Modifier.height(Spacings.md))
-            Button(
-                onClick = {
-                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    vm.qzxyStartShower()
-                },
-                enabled = flowIdle && snAvailable,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text("开始洗澡", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.height(Spacings.xs))
-            Text(
-                if (q.showDevicePicker) "收起更换设备 ▴" else "更换设备 ▾",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = flowIdle) { vm.qzxySetDevicePicker(!q.showDevicePicker) }
-                    .padding(vertical = Spacings.xs),
-                textAlign = TextAlign.Center,
-            )
-        }
-    }
-}
-
-/** 设备选择区：扫描 + 手输 MAC + 扫描结果列表（未绑定时为主界面，绑定后藏进"更换设备"） */
-@Composable
-private fun QzxyDevicePickerSection(
-    q: QzxyUiState,
-    vm: AppViewModel,
-    haptic: HapticFeedback,
-    hapticEnabled: Boolean,
-    permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
-    context: Context,
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        if (q.boundDevice != null) {
-            Text(
-                "扫描并点选附近热水器即可换绑",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(Spacings.sm))
-        }
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(
-                onClick = {
-                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    if (q.scanning) {
-                        vm.qzxyStopScan()
-                    } else {
-                        requestBlePermissionOrScan(context, permissionLauncher::launch) { vm.qzxyStartScan() }
-                    }
-                },
-                enabled = q.showerFlow is QzxyShowerState.Idle,
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                if (q.scanning) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
+                if (q.activeOrder != null) {
+                    Spacer(Modifier.height(Spacings.sm))
+                    Text(
+                        "设备可能仍在出水，建议重试关阀。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
                     )
-                    Spacer(Modifier.width(Spacings.sm))
-                }
-                Text(if (q.scanning) "停止扫描" else "扫描附近设备")
-            }
-            Spacer(Modifier.width(Spacings.sm))
-            OutlinedButton(
-                onClick = { vm.qzxyShowManualMacDialog() },
-                enabled = q.showerFlow is QzxyShowerState.Idle,
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text("手输 MAC")
-            }
-        }
-
-        if (q.nearbyDevices.isEmpty() && !q.scanning) {
-            Spacer(Modifier.height(Spacings.sm))
-            Text(
-                "蓝牙只用于发现设备；控制命令由趣智服务器下发，需要热水器自身联网在线",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        q.nearbyDevices.forEach { device ->
-            QzxyDeviceRow(
-                device = device,
-                querying = q.queryingMac == device.mac,
-                selected = q.selectedDevice?.macAddress == device.mac,
-                onClick = { vm.qzxySelectDevice(device) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun QzxyDeviceRow(device: QzxyNearbyDevice, querying: Boolean, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp, horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Outlined.Devices,
-            contentDescription = null,
-            tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.width(Spacings.sm))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(device.displayName, style = MaterialTheme.typography.bodyMedium)
-            val subtitle = buildString {
-                append(device.signalText)
-                append(" · ")
-                append(device.rssi)
-                append(" dBm")
-                device.info?.onlineText?.let { append(" · ").append(it) }
-            }
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (device.nameLoading) {
-                Text(
-                    "正在获取设备名…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        if (querying) {
-            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-        } else if (selected) {
-            Icon(
-                Icons.Filled.CheckCircle,
-                contentDescription = "已选择",
-                tint = AppColors.runningIndicator,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
-/** 开阀/关阀进行中的过渡卡片 */
-@Composable
-private fun QzxyBusyCard(title: String, step: String, elapsedSeconds: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacings.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-            Spacer(Modifier.height(Spacings.sm))
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(step, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (elapsedSeconds > 0) {
-                Text(
-                    formatClock(elapsedSeconds),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-/** 洗澡中常驻卡片：计时 + 预扣 + 闲置倒计时 + 结束按钮 */
-@Composable
-private fun QzxyRunningCard(
-    flow: QzxyShowerState.Running,
-    elapsedSeconds: Int,
-    haptic: HapticFeedback,
-    hapticEnabled: Boolean,
-    onStop: () -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = successContainerColor()),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacings.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("洗澡中", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                formatClock(elapsedSeconds),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(
-                flow.deviceName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "预扣 ${flow.withholdMoney}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            flow.autoCloseSecondsLeft?.let { left ->
-                Text(
-                    if (left > 0) "闲置自动关停 ${formatClock(left)}" else "已到闲置关停时间，可能已自动关停",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            Spacer(Modifier.height(Spacings.md))
-            Button(
-                onClick = {
-                    if (hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onStop()
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.stop),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text("结束使用", color = AppColors.white, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            }
-        }
-    }
-}
-
-/** 结算卡片：本次消费金额 + 时长 */
-@Composable
-private fun QzxySettleCard(result: QzxySettleResult, onDismiss: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = successContainerColor()),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacings.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("本次使用结束", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                result.consumeMoneyText,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                "${result.deviceName} · 用时 ${formatDuration(result.elapsedSeconds)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            result.consumeTime?.let {
-                Text(
-                    "结算时间 $it",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.height(Spacings.md))
-            OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(10.dp)) {
-                Text("完成")
-            }
-        }
-    }
-}
-
-/** 失败卡片：区分"关阀未确认"（设备可能仍在出水）和"设备离线"（命令没送达）两类场景 */
-@Composable
-private fun QzxyFailedCard(
-    flow: QzxyShowerState.Failed,
-    canRetryStop: Boolean,
-    onRetry: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val offlineHint = "${flow.message} ${flow.rawError}".let { it.contains("不在线") || it.contains("离线") }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Spacings.lg),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("操作失败", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Text(
-                flow.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                "失败步骤：${flow.step}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f),
-            )
-            if (offlineHint) {
-                Text(
-                    "「设备不在线」指热水器没连上趣智服务器，与手机蓝牙无关。请确认热水器已通电、已联网，稍后可重试；也可用官方 App 试开同一台设备对比。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            if (canRetryStop) {
-                Text(
-                    "设备可能仍在出水，建议重试关阀",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-            if (flow.rawError.isNotBlank() && flow.rawError != flow.message) {
-                Text(
-                    "错误详情：${flow.rawError}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center,
-                )
-            }
-            Spacer(Modifier.height(Spacings.md))
-            Row {
-                if (canRetryStop) {
-                    Button(
-                        onClick = onRetry,
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.stop),
-                        shape = RoundedCornerShape(10.dp),
-                    ) {
-                        Text("重试关阀", color = AppColors.white)
-                    }
-                    Spacer(Modifier.width(Spacings.sm))
-                }
-                OutlinedButton(onClick = onDismiss, shape = RoundedCornerShape(10.dp)) {
-                    Text("关闭")
                 }
             }
-        }
-    }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("知道了") }
+        },
+    )
 }
 
 @Composable
@@ -731,6 +738,11 @@ private fun QzxyManualMacDialog(qzxy: QzxyUiState, vm: AppViewModel) {
             TextButton(onClick = { vm.qzxyDismissManualMacDialog() }) { Text("取消") }
         },
     )
+}
+
+private fun qzxySnAvailable(q: QzxyUiState): Boolean {
+    val info = q.selectedDevice
+    return info?.snCode?.isNotBlank() == true || q.boundDevice?.snCode?.isNotBlank() == true
 }
 
 // ── 蓝牙权限 ──

@@ -72,6 +72,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.theme.AppColors
 import com.inonvation.lightlife.ui.theme.CardShapes
@@ -197,6 +198,27 @@ fun RollingStatCard(
 @Composable
 fun SectionHeader(title: String) {
     Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+}
+
+/** 首页/设置统一分区小标题：小号灰字 + 细分隔线 */
+@Composable
+fun SectionLabel(title: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = Spacings.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            letterSpacing = 1.5.sp,
+        )
+        Spacer(Modifier.width(Spacings.sm))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+    }
 }
 
 /**

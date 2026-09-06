@@ -79,6 +79,7 @@ import com.inonvation.lightlife.ui.AppUiState
 import com.inonvation.lightlife.ui.AppViewModel
 import com.inonvation.lightlife.ui.pinQuickLinkShortcut
 import com.inonvation.lightlife.ui.theme.CardShapes
+import com.inonvation.lightlife.ui.theme.Spacings
 
 // 首页快捷方式区（自 ControlScreen 迁出）
 
@@ -251,15 +252,21 @@ internal fun QuickLinksSection(
         visible = cardVisible,
         enter = fadeIn(tween(400, delayMillis = 150))
     ) {
-        Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = CardShapes.cardCorner,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        ) {
+        Column(modifier = Modifier.padding(Spacings.md)) {
             val isSorting = remember { mutableStateOf(false) }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "快捷链接",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "常用链接",
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
@@ -460,6 +467,7 @@ internal fun QuickLinksSection(
                     )
                 }
             }
+        }
         }
     }
 }

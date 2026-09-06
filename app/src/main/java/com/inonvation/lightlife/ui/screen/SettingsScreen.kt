@@ -2,7 +2,6 @@
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,6 +45,10 @@ import com.inonvation.lightlife.ui.theme.ColorTheme
 import com.inonvation.lightlife.ui.theme.Spacings
 import com.inonvation.lightlife.ui.theme.ThemeMode
 
+/**
+ * 设置页：按 外观 / 喝水·胖乖生活 / 洗澡·趣智校园 / 通用 分组，
+ * 账号管理跟着平台走，视觉与主页统一。
+ */
 @Composable
 fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     val haptic = LocalHapticFeedback.current
@@ -95,17 +98,17 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(scrollState)
-                .padding(horizontal = 20.dp, vertical = 18.dp)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             // ═══ 外观 ═══
-            SectionHeader("外观")
+            SectionLabel("外观")
             Spacer(Modifier.height(Spacings.sm))
             StandardCard {
                 Column {
-                    Text("主题模式", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    Text("主题模式", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text("切换应用的明暗主题", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
                         listOf(ThemeMode.SYSTEM to "跟随系统", ThemeMode.LIGHT to "浅色", ThemeMode.DARK to "深色").forEach { (mode, label) ->
                             FilterChip(
                                 selected = currentMode == mode,
@@ -117,10 +120,10 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
-                    Text("主题配色", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                    Text("主题配色", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     Text("更换应用的主色调", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
                         listOf(
                             ColorTheme.GREEN to "绿色",
                             ColorTheme.PINK to "粉色",
@@ -135,16 +138,9 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                             )
                         }
                     }
-                }
-            }
-
-            Spacer(Modifier.height(Spacings.xxl))
-
-            // ═══ 交互 ═══
-            SectionHeader("交互")
-            Spacer(Modifier.height(Spacings.sm))
-            StandardCard {
-                Column {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
                     SettingSwitchRow(
                         title = "触感反馈",
                         subtitle = "按钮和开关操作时触发振动",
@@ -155,10 +151,22 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                 }
             }
 
-            Spacer(Modifier.height(Spacings.xxl))
-
-            // ═══ 签到 ═══
-            SectionHeader("签到")
+            // ═══ 喝水 · 胖乖生活 ═══
+            SectionLabel("喝水 · 胖乖生活")
+            Spacer(Modifier.height(Spacings.sm))
+            AccountCard(
+                platform = "胖乖生活账号",
+                loggedIn = state.hasToken,
+                accountLine = if (state.phone.length == 11) {
+                    state.phone.take(3) + "****" + state.phone.takeLast(4)
+                } else {
+                    state.phone
+                },
+                onAction = {
+                    if (state.hasToken) vm.showLogoutConfirm() else vm.dismissSettings()
+                },
+                hapticEnabled = state.hapticEnabled,
+            )
             Spacer(Modifier.height(Spacings.sm))
             StandardCard {
                 Column {
@@ -169,13 +177,67 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                         onCheckedChange = { vm.toggleAutoSignIn() },
                         hapticEnabled = state.hapticEnabled,
                     )
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    ClickableRow(
+                        title = "我的 Token",
+                        subtitle = "查看当前登录凭证，可用于调试",
+                        onClick = { vm.showCurrentToken() },
+                        hapticEnabled = state.hapticEnabled,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    ClickableRow(
+                        title = "设备信息",
+                        subtitle = "当前客户端标识",
+                        onClick = { vm.showCurrentDeviceInfo() },
+                        hapticEnabled = state.hapticEnabled,
+                    )
                 }
             }
 
-            Spacer(Modifier.height(Spacings.xxl))
+            // ═══ 洗澡 · 趣智校园 ═══
+            SectionLabel("洗澡 · 趣智校园")
+            Spacer(Modifier.height(Spacings.sm))
+            AccountCard(
+                platform = "趣智校园账号",
+                loggedIn = state.qzxy.loggedIn,
+                accountLine = listOf(state.qzxy.userName, state.qzxy.accountPhone)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · "),
+                onAction = {
+                    if (state.qzxy.loggedIn) {
+                        vm.qzxyShowLogoutConfirm()
+                    } else {
+                        vm.dismissSettings()
+                        vm.qzxyShowLogin()
+                    }
+                },
+                hapticEnabled = state.hapticEnabled,
+            )
+            Spacer(Modifier.height(Spacings.sm))
+            StandardCard {
+                Column {
+                    ClickableRow(
+                        title = "绑定设备",
+                        subtitle = state.qzxy.boundDevice?.name ?: "未绑定，去扫描或手输 MAC",
+                        onClick = {
+                            vm.dismissSettings()
+                            if (state.qzxy.loggedIn) {
+                                vm.qzxySetDevicePicker(true)
+                            } else {
+                                vm.qzxyShowLogin()
+                            }
+                        },
+                        hapticEnabled = state.hapticEnabled,
+                    )
+                }
+            }
 
-            // ═══ 快捷方式 ═══
-            SectionHeader("快捷方式")
+            // ═══ 通用 ═══
+            SectionLabel("通用")
             Spacer(Modifier.height(Spacings.sm))
             StandardCard {
                 Column {
@@ -195,90 +257,26 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
                         onClick = { vm.showQuickLinksSettings() },
                         hapticEnabled = state.hapticEnabled,
                     )
-                }
-            }
-
-            Spacer(Modifier.height(Spacings.xxl))
-
-            // ═══ 账户 ═══
-            SectionHeader("账户")
-            Spacer(Modifier.height(Spacings.sm))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                AccountStatusCard(
-                    modifier = Modifier.weight(1f),
-                    platform = "缺渴 · 开水",
-                    loggedIn = state.hasToken,
-                    accountLine = if (state.phone.length == 11) {
-                        state.phone.take(3) + "****" + state.phone.takeLast(4)
-                    } else {
-                        state.phone
-                    },
-                    onAction = {
-                        if (state.hasToken) vm.showLogoutConfirm() else vm.dismissSettings()
-                    },
-                    hapticEnabled = state.hapticEnabled,
-                )
-                AccountStatusCard(
-                    modifier = Modifier.weight(1f),
-                    platform = "趣智 · 淋浴",
-                    loggedIn = state.qzxy.loggedIn,
-                    accountLine = listOf(state.qzxy.userName, state.qzxy.accountPhone)
-                        .filter { it.isNotBlank() }
-                        .joinToString(" · "),
-                    onAction = {
-                        if (state.qzxy.loggedIn) {
-                            vm.qzxyShowLogoutConfirm()
-                        } else {
-                            vm.dismissSettings()
-                            vm.qzxyShowLogin()
-                        }
-                    },
-                    hapticEnabled = state.hapticEnabled,
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            StandardCard {
-                Column {
-                    ClickableRow(
-                        title = "我的 Token",
-                        subtitle = "查看当前登录凭证，可用于调试",
-                        onClick = { vm.showCurrentToken() },
-                        hapticEnabled = state.hapticEnabled,
-                    )
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
-                    ClickableRow(
-                        title = "设备信息",
-                        subtitle = "当前客户端标识",
-                        onClick = { vm.showCurrentDeviceInfo() },
-                        hapticEnabled = state.hapticEnabled,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider()
-                    Spacer(Modifier.height(12.dp))
-                    ClickableRow(
-                        title = "退出登录",
-                        subtitle = "清除本地登录状态",
-                        onClick = { vm.showLogoutConfirm() },
-                        hapticEnabled = state.hapticEnabled,
-                        titleColor = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(Spacings.xxl))
-
-            // ═══ 关于 ═══
-            SectionHeader("关于")
-            Spacer(Modifier.height(Spacings.sm))
-            StandardCard {
-                Column {
-                    Text(
-                        "LightLife v${state.appVersion}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                    ) {
+                        Text(
+                            "版本",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            "LightLife v${state.appVersion}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
@@ -315,10 +313,9 @@ fun SettingsScreen(state: AppUiState, vm: AppViewModel) {
     }
 }
 
-/** 平台登录状态卡：缺渴 / 趣智 并排展示，点操作退出或去登录 */
+/** 平台账号卡：显示登录状态，登录后操作为退出，未登录为去登录 */
 @Composable
-private fun AccountStatusCard(
-    modifier: Modifier,
+private fun AccountCard(
     platform: String,
     loggedIn: Boolean,
     accountLine: String,
@@ -327,18 +324,31 @@ private fun AccountStatusCard(
 ) {
     val haptic = LocalHapticFeedback.current
     Card(
-        modifier = modifier,
-        shape = CardShapes.smallCardCorner,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth(),
+        shape = CardShapes.cardCorner,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
-        Column(modifier = Modifier.padding(Spacings.md)) {
-            Text(platform, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                if (loggedIn) accountLine.ifBlank { "已登录" } else "未登录",
-                style = MaterialTheme.typography.bodySmall,
-                color = if (loggedIn) AppColors.runningIndicator else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Column(modifier = Modifier.padding(Spacings.lg)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(platform, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                Text(
+                    if (loggedIn) "已登录" else "未登录",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (loggedIn) AppColors.runningIndicator else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (loggedIn && accountLine.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    accountLine,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Spacer(Modifier.height(10.dp))
             Text(
                 if (loggedIn) "退出登录" else "去登录",
