@@ -2,12 +2,14 @@ package com.inonvation.lightlife.data.qzxy
 
 /**
  * 趣智校园平台接口配置。
- * 接口逆向自 linyu 项目（https://github.com/yehu-imei/linyu，MIT 协议），
- * 其默认值仅在金华职业技术大学（projectId=905）验证过，换学校可能需要调整。
+ * 接口逆向自 linyu 项目（https://github.com/yehu-imei/linyu，MIT 协议）与 JUWP-schedule 的真机验证，
+ * 蓝牙款协议细节见 docs/qzxy-bt-protocol.md。
  */
 object QzxyApiConfig {
     const val BASE_URL = "https://v3-api.china-qzxy.cn/"
-    const val VERSION = "6.5.24"
+
+    /** 跟着官方客户端版本走（JUWP-schedule 2026-09-27 真机验证值）；服务端若按版本卡人，先动这里 */
+    const val VERSION = "6.5.28"
     const val PHONE_SYSTEM = "android"
 
     /** 热水器 BLE 广播名过滤关键词（不区分大小写），不同学校厂商可能不同 */
@@ -30,4 +32,25 @@ object QzxyApiConfig {
     /** 关阀结果确认轮询 */
     const val CLOSE_CONFIRM_INTERVAL_MS = 1_500L
     const val CLOSE_CONFIRM_MAX_ATTEMPTS = 5
+
+    // ── 蓝牙直控（communicationTypeId=0 的设备，流程对齐 JUWP-schedule 真机验证版）──
+
+    /** GATT 建链 + 服务发现超时；候选地址依次尝试 */
+    const val BT_CONNECT_TIMEOUT_MS = 15_000L
+
+    /** 单帧等待超时（查询设备 / 开阀确认 / 停阀 / 采集 / 清除） */
+    const val BT_FRAME_TIMEOUT_MS = 5_000L
+
+    /** 停阀后轮询设备状态：先查再等，间隔 300ms。预算 12 秒——实测状态 6「结算中」要五秒以上才变 3 */
+    const val BT_STOP_POLL_INTERVAL_MS = 300L
+    const val BT_STOP_POLL_BUDGET_MS = 12_000L
+
+    /** 轮询里连续读不到状态的次数上限：区分「设备还在结算」与「设备不理人了」 */
+    const val BT_STOP_POLL_MAX_FAILURES = 4
+
+    /** 清除命令每条候选之后回读状态前的等待 */
+    const val BT_CLEAR_VERIFY_DELAY_MS = 300L
+
+    /** 日常流程最多试几条清除候选（调试用不着——本版本不做调试区，全表试意义不大） */
+    const val BT_CLEAR_TRIAL_LIMIT = 3
 }

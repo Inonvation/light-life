@@ -67,11 +67,10 @@ adb connect <IP>:5555          # 连接无线调试
 | `ui/screen/SettingsScreen.kt` | 设置页：外观 / 喝水·胖乖生活 / 洗澡·趣智校园 / 通用 四组 |
 | `ui/screen/QuickLinksSection.kt` | 首页快捷方式卡片（支持排序、加桌面、自定义图标） |
 | `ui/screen/Components.kt` | 跨页面共享组件（含分区小标题 `SectionLabel`） |
-| `ui/screen/UnlockFlowCards.kt` | 旧版全屏解锁流程卡，当前未被引用，保留待清理 |
 | `ui/theme/AppStyles.kt` | UI 间距/颜色常量（含 `CardShapes.cardCorner`） |
 | `data/SignInRunner.kt` | 每日签到执行逻辑 |
 | `data/` | API 接口、Repository、Store、Models |
-| `data/qzxy/` | 趣智校园模块：ApiConfig、Models（含独立响应包）、AuthStore、QzxyApi、QzxyRepository、BLE 扫描器 |
+| `data/qzxy/` | 趣智校园模块：ApiConfig、Models（含独立响应包）、AuthStore、QzxyApi、QzxyRepository、BLE 扫描器、蓝牙直控（BtProtocol 帧协议 / BtClient GATT 通道） |
 
 主页与设置的效果图（含状态表）在 `docs/ui-redesign-mockup.html`，改 UI 前先对照它。
 

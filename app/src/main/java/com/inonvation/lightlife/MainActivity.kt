@@ -60,7 +60,7 @@ class MainActivity : ComponentActivity() {
         val taskStateStore = PointsTaskStateStore(applicationContext)
         val themePrefs = ThemePreferences(applicationContext)
         val quickLinkStore = QuickLinkStore(applicationContext)
-        val qzxyRepository = QzxyRepository(QzxyAuthStore(applicationContext))
+        val qzxyRepository = QzxyRepository(applicationContext, QzxyAuthStore(applicationContext))
         setContent {
             val vm: AppViewModel = viewModel(
                 factory = AppViewModelFactory(

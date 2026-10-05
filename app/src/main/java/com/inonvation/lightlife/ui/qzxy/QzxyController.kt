@@ -63,6 +63,7 @@ class QzxyController(
             )
         }
         refreshWallet()
+        loadUseCode()
         restoreActiveOrder()
         refreshBoundDeviceInfo()
     }
@@ -173,6 +174,7 @@ class QzxyController(
     private fun stopEverything() {
         stopTimer()
         stopScanInternal()
+        repository.closeBt()
     }
 
     // ── 钱包 ──
@@ -187,6 +189,13 @@ class QzxyController(
                 if (e is QzxySessionExpiredException) handleSessionExpired()
                 else showError(e.message ?: "查询钱包失败")
             }
+    }
+
+    /** 拉取键盘使用码（蓝牙款设备的开水兜底方式），静默失败不打扰 */
+    fun loadUseCode() = scope.launch {
+        runCatching { repository.useCode() }
+            .onSuccess { code -> if (code != null) updateQzxy { it.copy(useCode = code) } }
+            .onFailure { e -> if (e is QzxySessionExpiredException) handleSessionExpired() }
     }
 
     // ── 绑定设备 ──
@@ -378,16 +387,36 @@ class QzxyController(
             snCode = snCode,
             deviceName = selected?.displayName ?: bound?.name ?: "热水器",
             withhold = selected?.withholdMoney,
+            info = selected,
         )
     }
 
-    private fun launchShower(mac: String, snCode: String, deviceName: String, withhold: Double?) {
+    private fun launchShower(
+        mac: String,
+        snCode: String,
+        deviceName: String,
+        withhold: Double?,
+        info: QzxyDeviceInfo?,
+    ) {
         updateQzxy { it.copy(showerFlow = QzxyShowerState.Starting("正在准备…"), elapsedSeconds = 0) }
         startTimer()
+        // 扫描与 GATT 建链抢同一个无线电：扫描不停，建链要慢好几倍
+        stopScanInternal()
         scope.launch {
             runCatching {
-                repository.startShower(mac, snCode, deviceName, withhold) { step ->
-                    updateQzxy { it.copy(showerFlow = QzxyShowerState.Starting(step)) }
+                // 蓝牙款需要完整设备信息（deviceId 等）；缺失时先补查
+                val deviceInfo = info ?: run {
+                    updateQzxy { it.copy(showerFlow = QzxyShowerState.Starting("正在获取设备信息…")) }
+                    repository.deviceInfo(mac)
+                }
+                if (deviceInfo.communicationTypeId == 0) {
+                    repository.btStartShower(deviceInfo, deviceName, withhold) { step ->
+                        updateQzxy { it.copy(showerFlow = QzxyShowerState.Starting(step)) }
+                    }
+                } else {
+                    repository.startShower(mac, snCode, deviceName, withhold) { step ->
+                        updateQzxy { it.copy(showerFlow = QzxyShowerState.Starting(step)) }
+                    }
                 }
             }.onSuccess { active ->
                 val bound = QzxyBoundDevice(
@@ -410,6 +439,7 @@ class QzxyController(
                 showToast(if (active.resumed) "检测到进行中的订单，已恢复使用" else "已开阀，开始使用")
             }.onFailure { e ->
                 stopTimer()
+                repository.closeBt()
                 if (e is QzxySessionExpiredException) {
                     handleSessionExpired()
                     return@launch
@@ -428,14 +458,22 @@ class QzxyController(
         val active = q.activeOrder ?: return
         if (q.showerFlow !is QzxyShowerState.Running && q.showerFlow !is QzxyShowerState.Failed) return
         val elapsed = q.elapsedSeconds
-        updateQzxy { it.copy(showerFlow = QzxyShowerState.Stopping("正在关阀…")) }
+        val btSession = active.isBtSession
+        updateQzxy { it.copy(showerFlow = QzxyShowerState.Stopping(if (btSession) "正在结算…" else "正在关阀…")) }
         scope.launch {
             runCatching {
-                repository.stopShower(active) { step ->
-                    updateQzxy { it.copy(showerFlow = QzxyShowerState.Stopping(step)) }
+                if (btSession) {
+                    repository.btStopShower(active) { step ->
+                        updateQzxy { it.copy(showerFlow = QzxyShowerState.Stopping(step)) }
+                    }
+                } else {
+                    repository.stopShower(active) { step ->
+                        updateQzxy { it.copy(showerFlow = QzxyShowerState.Stopping(step)) }
+                    }
                 }
             }.onSuccess { stop ->
                 stopTimer()
+                repository.closeBt()
                 updateQzxy {
                     it.copy(
                         activeOrder = null,
@@ -451,8 +489,10 @@ class QzxyController(
                     )
                 }
                 refreshWallet()
+                stop.note?.let { showToast(it) }
             }.onFailure { e ->
                 stopTimer()
+                repository.closeBt()
                 if (e is QzxySessionExpiredException) {
                     handleSessionExpired()
                     return@launch
@@ -468,6 +508,7 @@ class QzxyController(
 
     fun dismissShowerFlow() {
         stopTimer()
+        repository.closeBt()
         updateQzxy { it.copy(showerFlow = QzxyShowerState.Idle, elapsedSeconds = 0, activeOrder = null) }
     }
 
@@ -476,6 +517,8 @@ class QzxyController(
         val q = state.value.qzxy
         val active = q.activeOrder ?: return@launch
         if (q.showerFlow !is QzxyShowerState.Running) return@launch
+        // 蓝牙款没有服务端订单号可查；设备侧状态以停止时的采集结果为准
+        if (active.isBtSession) return@launch
         val status = runCatching { repository.queryUsing(active.snCode) }.getOrNull() ?: return@launch
         if (status?.orderNo.isNullOrBlank()) {
             showToast("设备已停止出水（可能已自动关停），正在查询本次消费…")

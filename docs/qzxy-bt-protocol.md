@@ -1,102 +1,179 @@
-# 趣智校园蓝牙款设备直控协议（四期参考）
+# 趣智校园蓝牙款设备直控协议
 
-> 来源：看雪论坛《趣智校园 app 分析》(bbs.kanxue.com/thread-289254.htm) + AshWashing 反编译源码（F:\参考\AshWashing，同厂商凯路创新 KLCXKJ 设备家族）。
-> 本文由 2026-09-06 调研整理，用于 LightLife 四期"蓝牙直控"实现。
+> 来源：看雪论坛《趣智校园 app 分析》(bbs.kanxue.com/thread-289254.htm) + AshWashing 反编译源码 + 官方 iOS SDK / `libklcxkjencry.so` 反汇编。
+> 2026-09-06 调研成文；2026-10-02 依据 JUWP-schedule 在本校设备上的**真机闭环验证**（开阀出水、结算 ¥0.04、清除回空闲）重写，未验证的推测均已替换为实测结论。
 
 ## 结论摘要
 
-- 本校（江西水利电力大学）宿舍热水器 `communicationTypeId=0` = 蓝牙款：不连云端 4G，服务器无法远程开阀，必须手机经典蓝牙直发指令。
-- 完整链路：手机蓝牙连设备 → 发查询帧拿 `deviceId/randomNumber/protocolType` → 服务器下订单拿 `downData` → 蓝牙把 `downData` 发给设备 → 开阀。结束用 `caijishuju` 采集消费数据上传结算。
-- 设备端帧协议 100% 已知；服务器接口参数 100% 已知；签名算法已知模式，开阀接口的字段集待真机验证。
+- 本校（江西水利电力大学）宿舍热水器 `communicationTypeId=0` = 蓝牙款：不连云端 4G，服务器无法远程开阀，必须手机蓝牙直发指令。
+- **传输层是低功耗蓝牙 GATT，不是经典蓝牙 SPP**——本校实测连 SPP 会触发系统配对并报「PIN 码或通行密钥不正确」，随后 socket 读取失败（`read ret:-1`）。设备走 Microchip/ISSC 透传服务。
+- 完整链路（两段式开阀）：手机 GATT 连设备 → 发查询帧拿 `deviceId/randomNumber/protocolType` → 服务器下单拿 `downData` → 蓝牙把 `downData` 写给设备 → 开阀。
+- 结束链路：停阀（0x22）→ 轮询设备状态到「消费完成，数据待采集」（可能经过状态 6，五秒以上）→ 采集（0x85）→ 上传结算 → 清除设备记录（0x86，参数取记录摘要或 clData 凭据）。
+- 签名算法已从官方 so 反汇编闭合，不再是猜测：`md5(md5(字段拼接 + "&key=" + loginCode) + "&key=sign-kailu-855c74a88b8b494187c99b08b8c9a744")`。
 
-## 一、设备端协议（AshWashing，完全可信）
+## 一、传输层（BLE GATT）
 
-### 连接
-- 经典蓝牙 RFCOMM/SPP，UUID `00001101-0000-1000-8000-00805F9B34FB`（`BluetoothDevice.createRfcommSocketToServiceRecord`）。不是 BLE。
-- 读流：按字节读到 `0x0a('\n')` 为一帧。
+设备广播是低功耗蓝牙广播，服务表（2026-09-27 本校实测）为 Microchip/ISSC 蓝牙透传服务：
 
-### 帧格式
-线上帧 = `0x23('#')` + **内层缓冲的 ASCII-hex** + `0x0a('\n')`。
+| 特征值 | 属性 | 用途 |
+|---|---|---|
+| `49535343-8841-43f4-a8d4-ecbe34729bb3` | 写 / 无应答写 | 往设备发数据 |
+| `49535343-1e4d-4bd9-ba61-23c647249616` | 通知 | 收设备回包 |
+| `49535343-aca3-481c-91ec-d85e28a60318` | 写 / 通知 | 流控（不写，主通道够用） |
 
-内层缓冲（`CMDUtils.sendCommendBuffer`）：
+- 设备另有一个 `0000ff00` 自定义服务（ff02 可写），写进去设备毫无反应——写入口认得出透传服务时只用它。
+- 回包按 `\n` 分帧；写入按协商 MTU 分包（默认 MTU 23 时每包 20 字节），GATT 同一时刻只允许一个操作在飞，写入排队失败要重试。
+- BLE 外设被连上后通常停止广播：用完（或空闲）要主动断开，否则这台水表在别人的扫描里消失。
+- 扫描与建链抢同一个无线电：连接前先 `stopScan`，建链快好几倍。
+
+## 二、设备端帧格式（完全可信，实测样本钉死）
+
+线上帧 = `#` + **内层缓冲的小写 ASCII-hex** + `\n`，整串按 ASCII 字节收发。
+
+内层缓冲：
+
 ```
-[0]=0x60  [1]=0x00  [2]=dataLen+3  [3]=0x80  [4]=指令码  [5]=0x00  [6..]=payload  [n-2]=校验和  [n-1]=0x16
-校验和 = (Σpayload + 0x80 + 指令码 + 0x00) & 0xFF
+[0]=0x60  [1..2]=长度(大端, =数据体长+3)  [3]=0x80  [4]=功能码  [5]=0x00
+[6..]=数据体  [n-2]=校验和  [n-1]=0x16
+校验和 = (Σ数据体各字节(无符号) + 0x80 + 功能码 + 0x00) & 0xFF
 ```
-响应解析（`AnalyTools.handleResult2`）：内层 payload 从偏移 6 取 `buf[2]-3` 字节，校验 `|Σpayload|+buf[3]+buf[4]+buf[5] == buf[len-2]`；`payload[0]==0x80` 表示设备执行成功。
 
-### 指令码表
-| 指令 | 码 | code | payload 长度 | 用途 |
-|---|---|---|---|---|
-| qingchushebei | 0 | 0x19 | 1 | 清除设备 |
-| (未知) | 1 | 0x20 | 8 | ? |
-| **downFateToDev 开阀** | 2 | 0x21 | 48 | payload = 服务器返回的 downData(48字节) |
-| jieshufeilv | 3 | 0x22 | 1 | 结束费率 |
-| **chaxueshebei 查询设备** | 4 | 0x23 | 2 | 发 `00 00` |
-| **caijishuju 采集数据** | 5 | 0x85 | 2 | 发 `00 00`，取消费数据 |
-| fanhuicunchu | 6 | 0x86 | 22 | 写回存储 |
-| settingDecive | 7 | 0x18 | 3 | 设置 |
-| dealStart | 8 | 0x31 | 64 | ? |
-| dealFinish | 9 | 0x32 | 3 | ? |
+唯一实测样本：查询设备命令 `60000480230000a316`，单元测试钉「与样本逐字节一致」。
 
-### 响应负载布局
-- **查询设备(0x23)回复**：payload 长度 23/28/48 三种。以 48 字节为例：productid=[1..4]，deviceid=[5..8]，accountid=[9..12]，**mac=[13..18]**，verCode=[19]，**snCode=[24..27]**，deviceState/mayDeviceType/randomNumber 在 [28..38] 区间（见 AnalyTools 48 字节分支；实现时按 48 字节版对号入座并真机校准）。
-- **采集数据(0xFB=-5)回复**：payload 42 字节：mac=[1..6]，productid=[7..10]，deviceid=[11..14]，accountid=[15..18]，状态=[19]，消费金额等=[20..35]，**snCode=[36..41]**。
-- 各指令回复 `payload[0]==0x80` 即成功。
+### 命令码（帧下标 4）
 
-## 二、服务器接口（看雪抓包，字段全）
+| 码 | 作用 |
+|---|---|
+| 0x23 | 查询设备；响应带项目号 / 设备号 / 账号 / snCode / 随机数 / 状态 |
+| 0x21 | 下发费率数据（`downData`），即开阀 |
+| 0x22 | 结束费率，即停阀 |
+| 0x85 | 采集消费数据 |
+| 0x86 | 清除已采集的消费数据 |
+| 0x31 / 0x32 | 开始交易 / 结束交易（本流程用不到） |
+
+### 回包成败判定（只看数据体，别看回读状态）
+
+请求帧 `[3]` 是 0x80，**回包帧 `[3]` 变成 0x81**。成败只能看数据体首字节：`0x80` 成功；否则第 2 字节是错误码（官方 `KRWMDefine.h`）：
+
+| 码 | 含义 |
+|---|---|
+| 0x01 / 0x02 | 包头错误 / 包长度错误 |
+| 0x04 / 0x05 | 功能码错误（设备不认这条命令）/ 数据格式错误（参数不对） |
+| 0x06 / 0x07 | 校验和错误 / 结束码错误 |
+| 0x08 | 来源错误 |
+| 0xFF | 未知错误（数据体不足两字节时取它） |
+
+注意：设备在「消费完成，数据待采集」（状态 3）时发 0x22 会回 `81 01`——这个「包头错误」在此处的真实含义是「当前状态不接受这条命令」。
+
+### 查询响应（0x23）数据体偏移
+
+数据体按长度分三种（官方 `analyWaterDatas` 的 case 23/28/48+）：
+
+```
+[0]        0x80 标记
+[1..4]     projectId    [5..8] deviceId    [9..12] accountId
+[13..18]   snCode（6 字节）
+短包        [19] 状态，[21..22] 2 字节随机数，25 字节起 [23] 主类型、[24] 子类型
+长包        [19] 协议版本，[24..27] 4 字节随机数，[28] 状态，[29] 主类型，[30] 子类型
+```
+
+本校设备回 48 字节长包，偏移已实测对上。设备状态取值：0 空闲、1 有进行中订单、2 刷卡消费中、3 消费完成待采集、5 远程控制、**6 结算中（官方头文件没有这个值，实测停阀后先落 6，五秒以上才变 3）**。
+
+### 消费记录（0x85）数据体偏移
+
+偏移有官方 iOS SDK 反汇编与看雪反编译两份独立来源互相印证：
+
+```
+[0]      0x80 成功标记（不属于记录本身）
+[1..6]   时间序号 yyMMddHHmmss，一条记录的唯一标识
+[7..10]  项目号   [11..14] 设备号   [15..18] 账号号
+[19]     账户类别  [20..23] 使用次数
+[24..27] 预扣金额  [28..31] 本次消费  [32..35] 费率   [36..41] MAC
+```
+
+63 字节长记录另有 [58..62] 校验码 tac；**本校设备回 42 字节短记录，拿不到 tac**。
+
+## 三、服务器接口与签名
 
 ### 1. 下单开阀 `POST /order/downRate/bluetooth/rateOrder`
-form 参数（抓包原文顺序）：
+
+form 参数：常规登录态（loginCode/telephone/telPhone/userId/accountId/projectId/phoneSystem/version）+ `xfModel=0` + `deviceId`（用蓝牙查询响应里的）+ `macType`（主/子类型两位 hex，如 `0000`）+ `protocolType` + `randomNumber` + `macAddress`（**服务端登记值**）+ `bigTypeId`/`smallTypeId` + `signature`。
+
+响应 `data.downData`（48 字节 hex）就是要写给设备的数据体；`preDeductMoney`/`autoDisConTime` 用于展示（**金额单位是厘**）。
+
+### 2. 上传结算 `POST /order/upload/bluetooth/data`
+
+form 参数：登录态 + `xfData`（消费记录数据体整段 hex）+ `randomNumber` + `protocolType` + `signature`。
+
+**randomNumber/protocolType 必须用停阀后轮询到的那份（当前交易），开阀前那份已过期。**
+
+响应 `data`：`consumeMoney`（厘）、`consumeTime`、`orderNo`（此时才生成）、`clData`（服务端签发的清除凭据）。
+
+### 3. 签名（官方 so 反汇编闭合）
+
 ```
-macType=0001
-signature=<双重md5>
-loginCode, telephone, userId, accountId, projectId, telPhone, phoneSystem=android, version  ← 常规登录态
-protocolType=<设备返回，BathingBtActivity 初始为 ""，查询设备后填充>
-deviceId=<deviceInfo 的 deviceId>
-bigTypeId=4      ← deviceInfo 返回
-smallTypeId=1    ← deviceInfo 返回
-xfModel=0
-macAddress=<设备 MAC>
-randomNumber=<设备查询帧返回的随机数>
+plain     = 参与字段按键名字典序拼成「键名+值」（不加分隔符）
+inner     = md5lower(plain + "&key=" + loginCode)
+signature = md5lower(inner + "&key=sign-kailu-855c74a88b8b494187c99b08b8c9a744")
 ```
-响应 `data`：`accountId, realMoney, givenMoney, preDeductMoney, useCount, downData(开阀指令48字节), rate, minTime, minMoney, chargeMethod, minChargeUnit, autoDisConTime, consumeDate, liquidOrderNo, orderNo(此处 null), preDeductMoneySend`。
 
-### 2. 上传消费数据 `POST /order/upload/bluetooth/data`
-form 参数：`accountId, telPhone, signature, phoneSystem=android, randomNumber, loginCode, telephone, protocolType, xfData, projectId, userId, version`。
-响应 `data`：`consumeTime, preDeductMoney, preDeductMoneyAfter, consumeMoney, orderAccountId, clData, createTime, orderNo, deviceSnCode, ...`。**orderNo 从这里来**。
+- 下单只签 `telephone`、`deviceId`、`xfModel`、`randomNumber` 四项，**不是请求里的全部参数**。
+- 上传签 `loginCode`、`telephone`、`xfData` 三项。
+- 两次哈希之间追加的是**另一个**常量（自带 `&key=` 前缀），同段 so 里的 `20181201klcx@001`、`1234567876543210` 等是旧协议密钥，别混用。
 
-### 3. 签名算法（双重 MD5，均小写 32 位）
-- 规则：参与签名的字段按 key 字典序排序 → `key1value1key2value2...` 直接拼接（不加分隔符）→ 末尾拼 `&key=<loginCode>` → md5 → 再 md5。
-- 上传接口的模板（看雪原文）：`loginCode{值}telephone{值}xfData{值}&key={loginCode}`。
-- 开阀接口的字段集未直接给出，最可能为 `loginCode{值}randomNumber{值}telephone{值}&key={loginCode}`（同构：两个身份字段 + 一个本请求的净荷字段）。**待真机验证**，候选第三字段：randomNumber / macAddress / deviceId。
+### 4. clData 凭据（清除命令的服务端凭据）
 
-## 三、完整流程
+AES-128/ECB/NoPadding（解出后手工剥 PKCS#7），密钥/IV 来自 `libklcxkjencry.so` 的 `.rodata`：密钥 `20210118klcx@002`，IV `1234567876543210`（ECB 下不用）。
+
+明文形如 `1790517647206-2609272200370000011f000010450000a03a00000002`：前段是毫秒时间戳，**后段 22 字节就是设备要的清除参数**——布局 = 时间序号(6) + 项目号(4) + 设备号(4) + 账号(4) + 使用次数(4)，与消费记录切片同源。
+
+## 四、清除设备记录（0x86）
+
+设备端记录不清，下次开阀会被「消费数据未采集」挡住。清除参数按候选表试（每条候选判两层：回包成功 + 回读状态离开 3）：
+
+1. **记录摘要（实测确认，排最前）**：`record[1..19) + [20..24)`，22 字节。它就是 clData 凭据的第二段，直接从记录切片即可，**不依赖上传成功**——记录早已结算过、上传被服务端拒的场景照样能清。
+2. 记录摘要变体（末四字节按账户类别）
+3. clData 明文原文 / 按 hex 解 / 按 `-` 拆段 / 两段拼接
+4. 整条记录 / 去标记字节 / 时间序号 / 时间序号+MAC / MAC / 空参数
+
+日常流程最多试 3 条，试通哪条记下来下次排最前（本版本记在内存，进程重启从头试，反正首选就是验证过的记录摘要）。
+
+## 五、完整流程
 
 ```
 开阀：
-1. 蓝牙 SPP 连接设备 MAC
-2. 发 chaxueshebei(4,00 00) → 解析 deviceState/mayDeviceType/randomNumber/protocolType
-   （deviceState=0 且 mayDeviceType=0 → 空闲可开）
-3. POST /order/downRate/bluetooth/rateOrder（signature 按上节）
-4. 响应 downData → 发 downFateToDev(2, downData) → 设备回 payload[0]=0x80 即开阀成功
-5. 进入使用中（预扣金额取 preDeductMoney；autoDisConTime 闲置关停倒计时）
+1. GATT 连接（广播地址优先；连接前停扫描；选中即可预连接）
+2. 发 0x23 查询 → 状态必须为 0（空闲）
+   · 状态 3 = 上次没结清：就地走一遍「采集→上传→清除」，再重查到空闲（App 已自动化）
+   · 状态 6 = 结算中：提示等几秒
+3. POST rateOrder（带签名）拿 downData
+4. 发 0x21 写 downData → 回包数据体首字节 0x80 即开阀出水
 
-结束：
-6. 发 caijishuju(5,00 00) → 42 字节负载 → 取出 xfData（原始 42 字节 hex 或 [19..35] 段，真机校准）
-7. POST /order/upload/bluetooth/data（signature 模板已知）→ 得 consumeMoney/orderNo 结算
+结束用水：
+5. 读状态；空闲 = 本地会话是残留，直接收摊
+6. 状态 ≠ 3 时发 0x22 停阀（被拒不退出，可能已结算完）
+7. 轮询状态直到 3（先查再等，间隔 300ms，预算 12 秒；文案随状态变化）
+8. 发 0x85 采集 → POST upload/bluetooth/data 结算
+9. 发 0x86 清除（候选表）→ 设备回空闲
 ```
 
-## 四、待验证清单（实现期真机校准）
-1. 查询设备回复 48 字节负载中 randomNumber/protocolType/deviceState/mayDeviceType 的确切偏移
-2. 开阀 signature 的字段集（候选见二.3）
-3. downData 是否直接是 48 字节 payload hex（或需再包一层）
-4. xfData 的取值范围（42 字节全量 hex 或部分段）
-5. 心跳/中途查询：洗澡中每 30s 发 chaxueshebei 看 deviceState 是否变化（对应 tcp 版 queryUsing）
+## 六、真机踩坑清单（文档查不到的）
 
-## 五、App 实现方案（四期）
-- `data/qzxy/QzxyBtProtocol.kt`：帧构造/解析/校验（纯函数，可单元测试）
-- `data/qzxy/QzxyBtClient.kt`：SPP 连接 + 读写协程（权限：BLUETOOTH_CONNECT 已在 manifest）
-- `QzxyRepository` 增加 `btQueryDevice / btOrderRate / btUploadConsume`，`startShower` 按 `communicationTypeId==0` 分流到 BT 流程
-- UI：Starting 步骤文案加"蓝牙连接中"；Failed 卡对蓝牙款给出设备不在身边/连接失败提示
-- 回退：官方 App / 键盘使用码
+1. **SPP 连接必失败**：触发系统配对并报「PIN 码不正确」，必须走 BLE GATT。
+2. **MAC 首字节不一致**：Android 上报的蓝牙地址首字节是 `C0`，设备在服务端登记的是 `00`，后五字节相同。下单必须用**服务端登记值**（`device/info/mac` 响应里的 `macAddress`）；GATT 连接必须用广播地址（C0 形态）。quzhi-lite 的「C0 换 00」就是同一个坑。
+3. **结束用水必须先停阀**：直接采集，设备在出水或空闲态都没有记录可给，`0x85` 不回包。
+4. **状态 3 只收采集与清除**：发 0x22 回 `81 01`；「结束用水」在状态 3 要跳过停阀直接采集。
+5. **状态 6 是「结算中」**，官方头文件没有：停阀后持续五秒以上才变 3，轮询预算要给足，否则「第一次结束失败，再点一次就好了」。
+6. **回包成败只看数据体首字节**：设备明明回了错误码，只看「回读状态」会把「拒收」和「收下了但没清」当成同一件事。
+7. **结算金额单位是厘**：0.04 元返回 40；下单响应 `preDeductMoney` 同样是厘。
+8. **GATT 写入排队失败返回 false 且不报错**：连上后第一条命令最容易撞（CCCD 还没落地），要重试。
+9. **版本号跟着官方走**（6.5.28 已验证）：服务端若按版本卡人，先动 `QzxyApiConfig.VERSION`。
+
+## 七、App 实现落位（2026-10-02 移植自 JUWP-schedule 真机验证版）
+
+- `data/qzxy/QzxyBtProtocol.kt`：帧编解码 + 命令码 + 回包成败/错误码 + 设备状态与消费记录解析 + 记录摘要与清除候选表 + 签名 + clData 解密（纯函数，25 个单元测试）
+- `data/qzxy/QzxyBtClient.kt`：BLE GATT 通道（透传服务写入口/回包口、MTU 分包、写入重试、按地址判复用、超时自断）
+- `QzxyRepository.btStartShower/btStopShower`：两段式开阀 + 完整结算（停阀→轮询→采集→上传→清除）；开阀前设备非空闲时自动代结算旧记录
+- `QzxyController.launchShower`：按 `communicationTypeId==0` 自动分流，开阀前停扫描
+- 键盘使用码（`account/useCode/new`）保留为蓝牙款的开水兜底
+- 已知限制：洗澡中不要杀 App——蓝牙款订单号要等结算上传才生成，App 进程死了没人采集消费数据（官方 App 同理）

@@ -96,7 +96,8 @@ fun SimpleScreen(state: AppUiState, vm: AppViewModel, onPickIcon: ((Int) -> Unit
     var showWaterDetail by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.devices) {
-        if (selectedDevice == null || state.devices.none { it.id == selectedDevice!!.id }) {
+        val current = selectedDevice
+        if (current == null || state.devices.none { it.id == current.id }) {
             selectedDevice = state.devices.firstOrNull()
         }
     }
@@ -456,7 +457,10 @@ private fun WaterCard(
                                 }
                             }
                             WaterPhase.Success -> {
-                                val r = (state.unlockFlowState as UnlockFlowState.Success).result
+                                // 必须安全转换：AnimatedContent 退场动画期间状态可能已经变了
+                                // （如点了「完成」回到 Idle），退场内容重组时再强转会直接崩溃
+                                val r = (state.unlockFlowState as? UnlockFlowState.Success)?.result
+                                    ?: return@AnimatedContent
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -481,7 +485,8 @@ private fun WaterCard(
                                 }
                             }
                             WaterPhase.Failed -> {
-                                val f = state.unlockFlowState as UnlockFlowState.Failed
+                                // 同上：退场动画期间状态可能已变，强转会崩溃
+                                val f = state.unlockFlowState as? UnlockFlowState.Failed ?: return@AnimatedContent
                                 Column(modifier = Modifier.fillMaxWidth()) {
                                     Text(f.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                                     Spacer(Modifier.height(4.dp))

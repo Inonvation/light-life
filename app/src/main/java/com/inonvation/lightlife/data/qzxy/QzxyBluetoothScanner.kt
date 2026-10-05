@@ -1,5 +1,6 @@
 package com.inonvation.lightlife.data.qzxy
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
@@ -32,6 +33,9 @@ class QzxyBluetoothScanner(context: Context) {
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
         val cb = object : ScanCallback() {
+            // 权限由调用方的权限流程先行授予；这里已用 runCatching 兜底 SecurityException，
+            // 回调里再逐项 checkPermission 只会让代码更难读
+            @SuppressLint("MissingPermission")
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 // 广播名取自广播包，不需要 BLUETOOTH_CONNECT；系统缓存名才需要
                 val name = result.scanRecord?.deviceName

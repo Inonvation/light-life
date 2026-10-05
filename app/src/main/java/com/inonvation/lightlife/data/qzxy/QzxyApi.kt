@@ -87,4 +87,20 @@ interface QzxyApi {
         @Field("snCode") snCode: String,
         @FieldMap auth: Map<String, String>,
     ): QzxyEnvelope<QzxyOrderStatus>
+
+    // ── 蓝牙直控（communicationTypeId=0 的设备）──
+
+    /** 蓝牙款下单：响应 data.downData 为需经手机蓝牙发给设备的开阀指令 */
+    @FormUrlEncoded
+    @POST("order/downRate/bluetooth/rateOrder")
+    suspend fun btRateOrder(@FieldMap params: Map<String, String>): QzxyEnvelope<QzxyBtRateOrderData>
+
+    /** 蓝牙款结算：上传设备采集的消费数据 xfData，响应携带 orderNo 与本次消费金额 */
+    @FormUrlEncoded
+    @POST("order/upload/bluetooth/data")
+    suspend fun btUploadData(@FieldMap params: Map<String, String>): QzxyEnvelope<QzxyBtUploadData>
+
+    /** 键盘使用码：在热水器键盘上输入即可开水（无网设备的官方开水方式） */
+    @GET("account/useCode/new")
+    suspend fun getUseCode(@QueryMap auth: Map<String, String>): QzxyEnvelope<QzxyUseCodeData>
 }

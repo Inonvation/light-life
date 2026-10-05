@@ -46,6 +46,9 @@ data class QzxyUiState(
     // ── 钱包 ──
     val wallet: QzxyWalletData? = null,
     val loadingWallet: Boolean = false,
+
+    // ── 键盘使用码（蓝牙款设备的开水兜底） ──
+    val useCode: String? = null,
 )
 
 /**

@@ -203,17 +203,70 @@ data class QzxyConsumeResult(
 data class QzxyActiveShower(
     val mac: String,
     val snCode: String,
-    val orderNo: String,
+    /** 蓝牙款下单响应不带回订单号，订单号要等结算上传后才有，故可空 */
+    val orderNo: String? = null,
     val deviceName: String,
     val preDeduct: Double? = null,
     val autoCloseSeconds: Int? = null,
     /** true = 设备上已有自己的进行中订单，本次是恢复而非新开 */
     val resumed: Boolean = false,
+    // ── 蓝牙直控专用 ──
+    /** GATT 实际连上的地址，结束使用时优先用它重连（广播地址与登记地址首字节可能不同） */
+    val btAddress: String? = null,
+    val btRandomNumber: String? = null,
+    val btProtocolType: String? = null,
+) {
+    /** 蓝牙款会话：结束走"停阀 → 采集数据 + 上传结算"而非 closeOrder */
+    val isBtSession: Boolean get() = btRandomNumber != null
+}
+
+/** 蓝牙款下单响应：downData 是要经手机蓝牙发给设备的开阀指令 */
+data class QzxyBtRateOrderData(
+    val accountId: Long? = null,
+    val realMoney: String? = null,
+    val givenMoney: String? = null,
+    val preDeductMoney: String? = null,
+    val useCount: Int? = null,
+    val downData: String? = null,
+    val rate: Double? = null,
+    val minTime: Int? = null,
+    val minMoney: Int? = null,
+    val chargeMethod: Int? = null,
+    val minChargeUnit: Int? = null,
+    val autoDisConTime: Int? = null,
+    val consumeDate: String? = null,
+    val liquidOrderNo: String? = null,
+    val orderNo: String? = null,
+    val preDeductMoneySend: String? = null,
+)
+
+/** 蓝牙款结算上传响应：订单号与本次消费从这里来；金额单位为厘（0.04 元返回 "40"），展示前除以 1000 */
+data class QzxyBtUploadData(
+    val consumeTime: String? = null,
+    val preDeductMoney: String? = null,
+    val preDeductMoneyAfter: String? = null,
+    val consumeMoney: String? = null,
+    val orderAccountId: Long? = null,
+    val clData: String? = null,
+    val createTime: String? = null,
+    val orderNo: String? = null,
+    val deviceSnCode: String? = null,
+)
+
+/** 键盘使用码：无网设备（蓝牙款）在热水器键盘上输入此码即可开水 */
+data class QzxyUseCodeData(
+    val useCode: String? = null,
+    val useCodeStatus: Int? = null,
+    val useCodeRandom: String? = null,
+    val useCodeStartTime: String? = null,
+    val useCodeAutoCloseConfigDescription: String? = null,
 )
 
 data class QzxyStopResult(
     val consumeMoney: Double? = null,
     val consumeTime: String? = null,
+    /** 结算成功但设备侧有遗留时的补充说明（如记录未清除），由控制器以提示呈现 */
+    val note: String? = null,
 )
 
 /** 结算卡片展示数据（由控制器组装：设备名 + 时长 + 金额文案） */

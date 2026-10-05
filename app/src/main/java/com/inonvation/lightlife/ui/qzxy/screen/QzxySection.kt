@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -47,6 +46,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,10 +81,27 @@ private enum class ShowerPhase { Guest, Unbound, Bound, Starting, Stopping, Runn
 fun QzxyShowerSection(state: AppUiState, vm: AppViewModel, haptic: HapticFeedback) {
     val q = state.qzxy
     val context = LocalContext.current
+    // 权限弹窗的回调拿不到发起时的意图，用这个槽把「授权后要做什么」带回来：
+    // 扫描和蓝牙款开阀都要权限，谁发起谁填
+    var pendingPermissionAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
-        if (grants.values.all { it }) vm.qzxyStartScan() else vm.qzxyOnScanPermissionDenied()
+        val action = pendingPermissionAction
+        pendingPermissionAction = null
+        if (grants.values.all { it }) action?.invoke() else vm.qzxyOnScanPermissionDenied()
+    }
+
+    fun requestBleThen(action: () -> Unit) {
+        val missing = requiredBlePermissions().filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (missing.isEmpty()) {
+            action()
+        } else {
+            pendingPermissionAction = action
+            permissionLauncher.launch(missing.toTypedArray())
+        }
     }
     var showErrorDetail by remember { mutableStateOf(false) }
 
@@ -154,7 +171,7 @@ fun QzxyShowerSection(state: AppUiState, vm: AppViewModel, haptic: HapticFeedbac
                         onClick = {
                             if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (q.scanning) vm.qzxyStopScan() else {
-                                requestBlePermissionOrScan(context, permissionLauncher::launch) { vm.qzxyStartScan() }
+                                requestBleThen { vm.qzxyStartScan() }
                             }
                         },
                         modifier = Modifier.weight(1f).height(44.dp),
@@ -178,7 +195,12 @@ fun QzxyShowerSection(state: AppUiState, vm: AppViewModel, haptic: HapticFeedbac
                 ShowerPhase.Bound -> Button(
                     onClick = {
                         if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        vm.qzxyStartShower()
+                        // 蓝牙款开阀要直连设备 GATT，缺权限时先请求（手动输 MAC 绑定的用户可能从未扫过描）
+                        if (q.selectedDevice?.communicationTypeId == 0) {
+                            requestBleThen { vm.qzxyStartShower() }
+                        } else {
+                            vm.qzxyStartShower()
+                        }
                     },
                     enabled = qzxySnAvailable(q),
                     modifier = Modifier.fillMaxWidth().height(44.dp),
@@ -231,7 +253,13 @@ fun QzxyShowerSection(state: AppUiState, vm: AppViewModel, haptic: HapticFeedbac
                         Button(
                             onClick = {
                                 if (state.hapticEnabled) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (retryingStop) vm.qzxyStopShower() else vm.qzxyStartShower()
+                                if (retryingStop) {
+                                    vm.qzxyStopShower()
+                                } else if (q.selectedDevice?.communicationTypeId == 0) {
+                                    requestBleThen { vm.qzxyStartShower() }
+                                } else {
+                                    vm.qzxyStartShower()
+                                }
                             },
                             modifier = Modifier.weight(1f).height(44.dp),
                             shape = RoundedCornerShape(10.dp),
@@ -263,7 +291,7 @@ fun QzxyShowerSection(state: AppUiState, vm: AppViewModel, haptic: HapticFeedbac
     }
     // 换设备弹层：点设备行弹出（与开水卡的设备选择交互一致）
     if (q.showDevicePicker && q.loggedIn && q.boundDevice != null) {
-        QzxyDeviceSheet(q = q, vm = vm, haptic = haptic, hapticEnabled = state.hapticEnabled, permissionLauncher = permissionLauncher, context = context)
+        QzxyDeviceSheet(q = q, vm = vm, haptic = haptic, hapticEnabled = state.hapticEnabled, requestBle = ::requestBleThen, context = context)
     }
     if (q.showManualMacDialog) {
         QzxyManualMacDialog(qzxy = q, vm = vm)
@@ -400,10 +428,24 @@ private fun QzxyBoundInfo(q: QzxyUiState, vm: AppViewModel) {
         bluetoothDevice -> {
             Spacer(Modifier.height(Spacings.xs))
             Text(
-                "该设备为蓝牙款：开阀指令需手机通过蓝牙直接发给热水器，服务器无法远程下发，本版本暂未支持蓝牙控制。开启请先用官方 App，或在热水器键盘上输入使用码。",
+                "蓝牙款设备：开阀指令由手机蓝牙直发热水器，需站在设备旁操作。键盘使用码是备用开水方式。",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (q.useCode == null) {
+                LaunchedEffect(Unit) { vm.qzxyLoadUseCode() }
+                Text(
+                    "备用键盘使用码：获取中…",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Text(
+                    "备用键盘使用码 ${q.useCode}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
         offline -> {
             Spacer(Modifier.height(Spacings.xs))
@@ -510,7 +552,7 @@ private fun QzxyDeviceSheet(
     vm: AppViewModel,
     haptic: HapticFeedback,
     hapticEnabled: Boolean,
-    permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
+    requestBle: (() -> Unit) -> Unit,
     context: Context,
 ) {
     ModalBottomSheet(onDismissRequest = { vm.qzxySetDevicePicker(false) }) {
@@ -535,7 +577,7 @@ private fun QzxyDeviceSheet(
                         if (q.scanning) {
                             vm.qzxyStopScan()
                         } else {
-                            requestBlePermissionOrScan(context, permissionLauncher::launch) { vm.qzxyStartScan() }
+                            requestBle { vm.qzxyStartScan() }
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -751,20 +793,9 @@ private fun requiredBlePermissions(): List<String> =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
     } else {
-        listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        // Android 11 及以下 BLE 扫描要定位权限，官方要求 FINE 与 COARSE 成对声明和请求
+        listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
     }
-
-private fun requestBlePermissionOrScan(
-    context: Context,
-    launchPermissions: (Array<String>) -> Unit,
-    onReady: () -> Unit,
-) {
-    val all = requiredBlePermissions()
-    val missing = all.filter {
-        ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
-    }
-    if (missing.isEmpty()) onReady() else launchPermissions(missing.toTypedArray())
-}
 
 // ── 时间格式化 ──
 
