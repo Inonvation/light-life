@@ -193,7 +193,7 @@ fun colorSchemeForTheme(colorTheme: ColorTheme, darkTheme: Boolean) = when (colo
 }
 
 @Composable
-fun DeviceControlTheme(
+fun LightLifeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     colorTheme: ColorTheme = ColorTheme.GREEN,
     content: @Composable () -> Unit,

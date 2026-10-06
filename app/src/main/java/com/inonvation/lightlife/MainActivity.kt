@@ -46,7 +46,7 @@ import com.inonvation.lightlife.ui.screen.SettingsScreen
 import com.inonvation.lightlife.ui.screen.SimpleScreen
 import com.inonvation.lightlife.ui.screen.TokenDialog
 import com.inonvation.lightlife.ui.shortcutRequestFromIntent
-import com.inonvation.lightlife.ui.theme.DeviceControlTheme
+import com.inonvation.lightlife.ui.theme.LightLifeTheme
 import com.inonvation.lightlife.ui.theme.ThemeMode
 import com.inonvation.lightlife.ui.theme.ThemePreferences
 
@@ -74,7 +74,7 @@ class MainActivity : ComponentActivity() {
                 ),
             )
             val uiState by vm.state.collectAsState()
-            DeviceControlTheme(
+            LightLifeTheme(
                 darkTheme = when (uiState.themeMode) {
                     ThemeMode.SYSTEM -> isSystemInDarkTheme()
                     ThemeMode.DARK -> true
