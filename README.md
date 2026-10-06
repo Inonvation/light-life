@@ -55,11 +55,5 @@ v3.0.0 删除了刷分、备份、日志、喝水提醒等模块。完整旧代�
 git checkout v2.0.0 -- <文件路径>
 ```
 
-趣智校园（淋浴）的接口与协议细节见 `docs/`：
-
-- `docs/qzxy-api-reference.md` — 全部 HTTP 接口与两个客户端的实现对照
-- `docs/qzxy-bt-protocol.md` — 蓝牙款帧协议（真机验证）
-- `docs/qzxy-bill-query.md` — 账单查询（调研成文，未做代码实现）
-
 
 
