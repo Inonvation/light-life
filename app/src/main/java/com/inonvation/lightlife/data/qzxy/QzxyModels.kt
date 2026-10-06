@@ -253,15 +253,6 @@ data class QzxyBtUploadData(
     val deviceSnCode: String? = null,
 )
 
-/** 键盘使用码：无网设备（蓝牙款）在热水器键盘上输入此码即可开水 */
-data class QzxyUseCodeData(
-    val useCode: String? = null,
-    val useCodeStatus: Int? = null,
-    val useCodeRandom: String? = null,
-    val useCodeStartTime: String? = null,
-    val useCodeAutoCloseConfigDescription: String? = null,
-)
-
 data class QzxyStopResult(
     val consumeMoney: Double? = null,
     val consumeTime: String? = null,

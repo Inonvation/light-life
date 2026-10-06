@@ -88,12 +88,6 @@ class QzxyRepository(
     suspend fun wallet(): QzxyWalletData =
         call { api.getWallet(requireSession().queryFields()) }.data ?: error("未获取到钱包信息")
 
-    /** 键盘使用码：蓝牙款设备在热水器键盘上输入即可开水 */
-    suspend fun useCode(): String? {
-        val data = call { api.getUseCode(requireSession().queryFields()) }.data ?: return null
-        return data.useCode?.takeIf { data.useCodeStatus == 1 && it.isNotBlank() }
-    }
-
     suspend fun deviceInfo(mac: String): QzxyDeviceInfo {
         val session = requireSession()
         val transformedMac = registeredMacCandidate(mac)

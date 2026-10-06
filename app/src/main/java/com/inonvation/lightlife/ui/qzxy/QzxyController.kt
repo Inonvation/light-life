@@ -63,12 +63,11 @@ class QzxyController(
             )
         }
         refreshWallet()
-        loadUseCode()
         restoreActiveOrder()
         refreshBoundDeviceInfo()
     }
 
-    /** App 冷启动或重新登录后，检查绑定设备是否还有进行中的订单（含使用码启动的场景） */
+    /** App 冷启动或重新登录后，检查绑定设备是否还有进行中的订单（可能是设备侧启动的，冷启动后需接管显示） */
     private fun restoreActiveOrder() = scope.launch {
         if (state.value.qzxy.showerFlow !is QzxyShowerState.Idle) return@launch
         val bound = state.value.qzxy.boundDevice ?: return@launch
@@ -189,13 +188,6 @@ class QzxyController(
                 if (e is QzxySessionExpiredException) handleSessionExpired()
                 else showError(e.message ?: "查询钱包失败")
             }
-    }
-
-    /** 拉取键盘使用码（蓝牙款设备的开水兜底方式），静默失败不打扰 */
-    fun loadUseCode() = scope.launch {
-        runCatching { repository.useCode() }
-            .onSuccess { code -> if (code != null) updateQzxy { it.copy(useCode = code) } }
-            .onFailure { e -> if (e is QzxySessionExpiredException) handleSessionExpired() }
     }
 
     // ── 绑定设备 ──

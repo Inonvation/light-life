@@ -99,8 +99,4 @@ interface QzxyApi {
     @FormUrlEncoded
     @POST("order/upload/bluetooth/data")
     suspend fun btUploadData(@FieldMap params: Map<String, String>): QzxyEnvelope<QzxyBtUploadData>
-
-    /** 键盘使用码：在热水器键盘上输入即可开水（无网设备的官方开水方式） */
-    @GET("account/useCode/new")
-    suspend fun getUseCode(@QueryMap auth: Map<String, String>): QzxyEnvelope<QzxyUseCodeData>
 }

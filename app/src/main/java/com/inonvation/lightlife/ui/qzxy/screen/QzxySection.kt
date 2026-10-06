@@ -46,7 +46,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -428,24 +427,10 @@ private fun QzxyBoundInfo(q: QzxyUiState, vm: AppViewModel) {
         bluetoothDevice -> {
             Spacer(Modifier.height(Spacings.xs))
             Text(
-                "蓝牙款设备：开阀指令由手机蓝牙直发热水器，需站在设备旁操作。键盘使用码是备用开水方式。",
+                "蓝牙款设备：开阀指令由手机蓝牙直发热水器，需站在设备旁操作。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (q.useCode == null) {
-                LaunchedEffect(Unit) { vm.qzxyLoadUseCode() }
-                Text(
-                    "备用键盘使用码：获取中…",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                Text(
-                    "备用键盘使用码 ${q.useCode}",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
         }
         offline -> {
             Spacer(Modifier.height(Spacings.xs))
@@ -723,7 +708,7 @@ private fun QzxyErrorDetailDialog(q: QzxyUiState, onDismiss: () -> Unit) {
                 if (bluetoothDevice) {
                     Spacer(Modifier.height(Spacings.sm))
                     Text(
-                        "已确认该设备为蓝牙款：服务器无法远程开阀，本版本暂未支持手机蓝牙直控。请改用官方 App 开启，或在热水器键盘上输入使用码。",
+                        "该设备为蓝牙款：开阀与停阀均由手机蓝牙直发设备完成。请站在热水器旁、确认手机蓝牙已开启后重试；连续失败可改用官方 App 应急。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

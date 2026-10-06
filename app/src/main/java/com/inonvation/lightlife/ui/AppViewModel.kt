@@ -441,7 +441,6 @@ class AppViewModel(
     fun qzxyShowLogoutConfirm() = qzxyController.showLogoutConfirm()
     fun qzxyDismissLogoutConfirm() = qzxyController.dismissLogoutConfirm()
     fun qzxyRefreshWallet() = qzxyController.refreshWallet()
-    fun qzxyLoadUseCode() = qzxyController.loadUseCode()
     fun qzxyStartScan() = qzxyController.startScan()
     fun qzxyStopScan() = qzxyController.stopScan()
     fun qzxyOnScanPermissionDenied() = qzxyController.onScanPermissionDenied()
