@@ -1,5 +1,7 @@
 # LightLife - Agent 指南
 
+> **本项目已停止维护，代码仅作存档。** 新功能开发已转入 [JUWP Schedule（水贝贝）](https://github.com/Inonvation/JUWP-Schedule)；本文件记录存档时的项目状态，勿据此继续开发。
+
 ## 项目
 
 基于 [wzs0512/qiekj-android](https://github.com/wzs0512/qiekj-android) 重构的校园生活助手（上游为饮水机积分助手）。Jetpack Compose + Material3 UI，OkHttp 网络层，R8 全模式压缩，Release 包约 2MB。
