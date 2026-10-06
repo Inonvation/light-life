@@ -20,7 +20,7 @@ LightLife 是集成了胖乖生活开水和趣智校园开热水功能的校园�
 
 **主要功能**：课表导入与调课检测、成绩 / 考试 / 学业、选课（beta）、校园一卡通付款码、寝室电费、胖乖生活、趣智校园开热水、快趣出行、U净洗衣房、校历、学工表单、桌面小组件等。
 
-**实现**：Kotlin + Jetpack Compose，与本项目同一技术路线；教务、胖乖、趣智（含蓝牙直控的签名与帧协议）等各家平台的逆向实现有完整文档，见其仓库 [DEVELOPER.md](https://github.com/Inonvation/JUWP-Schedule/blob/main/DEVELOPER.md)。更详细的实现请参考该项目。
+**实现**：Kotlin + Jetpack Compose，与本项目同一技术路线；教务、胖乖、趣智（含蓝牙直控的签名与帧协议）等各家平台的逆向实现有完整文档，见其仓库 [DEVELOPER.md](https://github.com/Inonvation/JUWP-Schedule/blob/main/DEVELOPER.md)。只适配作者学校，暂无适配其他学校想法，如有兴趣对自己学校做定制化app，可fork本仓库，参考DEVELOPER文档做适配替换即可，更详细的实现请参考该项目。
 
 ## 下载
 
