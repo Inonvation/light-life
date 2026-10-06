@@ -10,7 +10,7 @@
 - **洗澡 · 趣智校园** — 淋浴热水器控制（登录、绑定设备、开关阀、结算）
 - **快捷方式** — 用户自定义的常用链接，与平台无关
 
-注意：本校（江西水利电力大学）宿舍热水器多为**蓝牙款**，服务器无法远程开阀，淋浴功能在本校受限，见「参考项目」一节。
+注意：本校（江西水利电力大学）宿舍热水器多为**蓝牙款**，服务器无法远程开阀，需手机蓝牙直发指令——App 已实现蓝牙直控并真机验证，开发细节见「参考项目」一节。
 
 ## 首要原则
 
@@ -60,7 +60,7 @@ adb connect <IP>:5555          # 连接无线调试
 | `ui/AppViewModel.kt` | 协调层，委托 AuthController / QzxyController |
 | `ui/auth/AuthController.kt` | 胖乖生活平台登录、验证码、Token 管理 |
 | `ui/qzxy/QzxyUiState.kt` | 趣智 UI 状态与洗澡状态机（Idle/Starting/Running/Stopping/Done/Failed） |
-| `ui/qzxy/QzxyController.kt` | 趣智控制器：登录、蓝牙扫描、洗澡流程、会话失效处理 |
+| `ui/qzxy/QzxyController.kt` | 趣智控制器：登录、蓝牙扫描、洗澡流程（云端 4G / 蓝牙直控双通道）、会话失效处理 |
 | `ui/qzxy/screen/QzxySection.kt` | 主页洗澡卡：与开水卡统一的三行骨架 + 登录/换设备弹层 |
 | `ui/qzxy/screen/QzxyLoginSheet.kt` | 趣智登录底部弹层 |
 | `ui/screen/SimpleScreen.kt` | 主页：顶栏（积分）、账户状态行（小票/签到按钮）、开水统一卡、三分区 |
@@ -81,10 +81,12 @@ adb connect <IP>:5555          # 连接无线调试
 - `API-qzxy.md` — 趣智校园 16 个接口的逆向文档（路径、参数、响应、坑），权威参考
 - `PROJECT.md` / `开发者指南.md` — 架构、业务流程与踩坑记录
 - 合并方案与实施状态见本仓库 `docs/linyu-merge-plan.md`
-- 一期（登录/蓝牙扫描/洗澡控制/结算）已实现；二期（账单、使用码、扫码绑定、寝室绑定）与三期（MQTT、前台服务）未做
+- 一期（登录/蓝牙扫描/洗澡控制/结算）已实现；蓝牙直控已实现并真机验证（见下）；二期（账单、扫码绑定、寝室绑定）与三期（MQTT、前台服务）未做
+- 账单查询：接口逆向与 JUWP-schedule 参考实现分析见 `docs/qzxy-bill-query.md`（未做代码实现）
+- 接口与实现全貌（不签名族 / tcpDevice 族 / 蓝牙族，LightLife 与 JUWP-schedule 对照）见 `docs/qzxy-api-reference.md`
 - 该项目仅在金华职业技术大学（projectId=905）验证过，适配其他学校看其 README「适配你的学校」章节
 
-**蓝牙款设备（本校关键发现，2026-09-06）**：趣智存在两套控制协议——云端 4G 款走 `/order/tcpDevice/...`（linyu 已实现），蓝牙款（`communicationTypeId=0`）需手机经典蓝牙直发指令，从不连云端，走 tcpDevice 永远报"设备不在线"。本校宿舍设备即蓝牙款，App 目前只做提示不支持控制；逆向细节与四期（蓝牙直控）候选方案见 `docs/qzxy-bt-protocol.md` 与 `docs/linyu-merge-plan.md` 第十章。
+**蓝牙款设备（本校关键发现，2026-09-06；蓝牙直控 2026-10-02 真机闭环验证）**：趣智存在两套控制协议——云端 4G 款走 `/order/tcpDevice/...`（linyu 已实现），蓝牙款（`communicationTypeId=0`）从不连云端，走 tcpDevice 永远报"设备不在线"，必须手机**低功耗蓝牙（BLE GATT，不是经典蓝牙）** 直发二进制帧，服务器只负责签发 `downData` 与消费上传结算。本校宿舍设备即蓝牙款，**App 已支持完整开阀/停阀/结算直控**（`data/qzxy/QzxyBtProtocol.kt` 帧协议 + `QzxyBtClient.kt` GATT 通道）；协议、流程与坑见 `docs/qzxy-bt-protocol.md`，改蓝牙相关代码前必读。
 
 ## 代码规范
 

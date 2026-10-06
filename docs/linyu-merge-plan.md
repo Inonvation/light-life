@@ -50,14 +50,13 @@ linyu 全部能力共 17 项，逐项评估如下。
 
 配套 UI：登录页（手机号+密码）、设备列表区块、洗澡中卡片（计时 + 预扣金额 + 本次消费）。手输 MAC 地址作为蓝牙不可用时的兜底。
 
-### 第二期：账单与使用码
+### 第二期：账单与设备绑定
 
 | 接口/功能 | 作用 | 备注 |
 |---|---|---|
 | GET `/order/query/account/bill/list` | 当月消费记录 | 参数 `month=yyyy-MM&billRequestType=2` |
 | GET `/order/query/account/bill/detail` | 单笔账单详情 | |
 | 余额估算 | 手动输初始余额，按账单倒推 | 一卡通真实余额拿不到（易校园 API 有 native 层签名保护），linyu 也只能估算 |
-| GET `/account/useCode/new` 等 3 个接口 | 使用码查看 / 重新生成 / 远程开关 | 在热水器键盘输使用码也能启动 |
 | 扫码绑定 | 扫设备二维码直接弹设备详情 | 用 zxing-android-embedded（约 +1MB），不用 linyu 的 ML Kit（要 +3~4MB） |
 | 绑定寝室 | 关键词过滤设备列表 | |
 | 挤号提示 | 在别的设备登录同一账号时提示 | 检测"登录失效"关键词 + HTTP 401/403，你项目已有同类机制可参考 |
@@ -73,7 +72,7 @@ linyu 全部能力共 17 项，逐项评估如下。
 
 | 功能 | 原因 |
 |---|---|
-| 短信验证码登录（`/user/verification/code/get`、`/user/registerAndLogin`） | 接口的 secret 参数绑定个人账号，抓包者自己的账号才有效，做出来别人用不了。linyu 官方也标注"未完善，请用密码登录" |
+| 短信验证码登录（`/user/verification/code/get`、`/user/registerAndLogin`） | 本项目未实现。当年「secret 绑定个人账号、别人用不了」的判断有误——secret 可由手机号本地推导（`MD5(前3位+后4位+"klcx")`），JUWP-schedule 已实现，详见 `docs/qzxy-api-reference.md` §2.2 |
 | 深浅主题、加密存储、下拉刷新 | LightLife 全都有了，直接复用 |
 
 ## 四、代码怎么放（遵循现有架构）
@@ -84,7 +83,7 @@ linyu 全部能力共 17 项，逐项评估如下。
 data/qzxy/
   QzxyApiConfig.kt      # BASE_URL、version=6.5.24、可配置项默认值（BLE 过滤名等）
   QzxyApi.kt            # Retrofit 接口定义（一期 10 个）
-  QzxyModels.kt         # QzxyEnvelope<T>、登录/设备/订单/账单/使用码 数据模型
+  QzxyModels.kt         # QzxyEnvelope<T>、登录/设备/订单/账单 数据模型
   QzxyRepository.kt     # 业务封装：登录态管理、开阀轮询、关阀确认、结算
   QzxyAuthStore.kt      # loginCode/userId/accountId/projectId 加密存储（复用 EncryptedSharedPreferences）
   QzxyPassword.kt       # MD5 取后 10 位大写
@@ -127,7 +126,7 @@ ui/qzxy/
 2. `feat: 新增热水器蓝牙扫描与设备列表` — BluetoothScanner / 设备区块 / 手输 MAC 兜底
 3. `feat: 新增洗澡开始与停止控制` — 开阀/轮询 orderNo/关阀/确认，洗澡中卡片
 4. `feat: 新增洗澡消费结算` — 结算查询，成功卡片显示金额
-5. （二期）`feat: 新增趣智账单查询` / `feat: 新增使用码管理` / `feat: 新增扫码绑定设备` / `feat: 新增寝室绑定筛选`
+5. （二期）`feat: 新增趣智账单查询` / `feat: 新增扫码绑定设备` / `feat: 新增寝室绑定筛选`
 6. （三期，可选）`feat: 接入趣智 MQTT 推送` / `feat: 洗澡前台服务保活`
 
 ## 七、风险与限制（如实告知）
@@ -284,7 +283,7 @@ private fun updateQzxy(reduce: (QzxyUiState) -> QzxyUiState) {
 
 1. **你学校洗澡的热水器，是用"趣智校园"官方 App 控制的吗？**（官方 App 图标搜"趣智"）如果不是，这套接口全部用不上，方案作废。
 2. **你在官方 App 里设置过登录密码吗？** 没有的话先去设置，本方案不支持短信登录。
-3. **功能范围**：三个包（一期洗澡控制 → 二期账单+使用码+扫码 → 三期 MQTT 推送）都要，还是只要一期？
+3. **功能范围**：三个包（一期洗澡控制 → 二期账单+扫码 → 三期 MQTT 推送）都要，还是只要一期？
 4. **界面位置**：我的建议是主页新增一个"淋浴"区块（和现有"开水"区块并列，样式一致）。如果你想要独立二级页面或其他摆法，说一声。
 
 ## 十、关键发现：蓝牙款设备（2026-09-06 补充）

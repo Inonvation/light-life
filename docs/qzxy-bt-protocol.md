@@ -175,5 +175,4 @@ AES-128/ECB/NoPadding（解出后手工剥 PKCS#7），密钥/IV 来自 `libklcx
 - `data/qzxy/QzxyBtClient.kt`：BLE GATT 通道（透传服务写入口/回包口、MTU 分包、写入重试、按地址判复用、超时自断）
 - `QzxyRepository.btStartShower/btStopShower`：两段式开阀 + 完整结算（停阀→轮询→采集→上传→清除）；开阀前设备非空闲时自动代结算旧记录
 - `QzxyController.launchShower`：按 `communicationTypeId==0` 自动分流，开阀前停扫描
-- 键盘使用码（`account/useCode/new`）保留为蓝牙款的开水兜底
 - 已知限制：洗澡中不要杀 App——蓝牙款订单号要等结算上传才生成，App 进程死了没人采集消费数据（官方 App 同理）
